@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Streetly"
+version = "1.0.0"
+id = "artifacts/streetly"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19254
+
+[services.development]
+run = "pnpm --filter @workspace/streetly run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/streetly", "run", "build" ]
+publicDir = "artifacts/streetly/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19254"
+BASE_PATH = "/"

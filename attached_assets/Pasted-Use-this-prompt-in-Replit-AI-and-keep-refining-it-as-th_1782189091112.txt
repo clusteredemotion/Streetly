@@ -1,0 +1,356 @@
+Use this prompt in Replit AI and keep refining it as the project grows:
+
+---
+
+# Build Streetly – The Digital Directory of Every Street
+
+Create a modern, mobile-first web application called **Streetly**.
+
+### Project Vision
+
+Streetly is a street-by-street business discovery platform that helps users find businesses around them while enabling field agents to earn money by registering and verifying businesses.
+
+The platform should focus on Nigeria initially but be scalable to Africa.
+
+---
+
+## User Types
+
+### 1. Visitor
+
+Can:
+
+* Search businesses
+* Browse by street, district, city, and category
+* View business profiles
+* View photos
+* View business location on a map
+* Contact businesses
+
+### 2. Business Owner
+
+Can:
+
+* Register an account
+* Claim or create a business listing
+* Upload photos
+* Edit business information
+* View profile analytics
+* Upgrade to premium plans
+
+### 3. Field Agent
+
+Can:
+
+* Register and get approved
+* Add new businesses
+* Upload storefront photos
+* Capture GPS location
+* Earn commissions for approved listings
+* Track earnings
+* Request withdrawals
+
+### 4. Admin
+
+Can:
+
+* Approve businesses
+* Approve field agents
+* Review uploaded photos
+* Prevent duplicates
+* Manage payments
+* View platform statistics
+
+---
+
+## Homepage
+
+Create a professional homepage with:
+
+Hero Section:
+
+* Large search bar
+* Search by business name, category, street, or area
+* CTA button "Explore Businesses"
+
+Features Section:
+
+* Discover businesses street by street
+* View real storefront photos
+* Find local services
+* Support local businesses
+
+Statistics Section:
+
+* Number of businesses
+* Number of streets covered
+* Number of cities covered
+* Number of agents
+
+Footer:
+
+* About
+* Contact
+* Terms
+* Privacy Policy
+* Social Media Links
+
+---
+
+## Business Listings
+
+Each business profile should contain:
+
+* Business Name
+* Category
+* Description
+* Street Address
+* City
+* State
+* Country
+* GPS Coordinates
+* Phone Number
+* WhatsApp Number
+* Website
+* Social Media Links
+* Gallery of Photos
+* Opening Hours
+* Date Added
+* Verification Badge
+
+---
+
+## Street Explorer
+
+Create a unique feature called Street Explorer.
+
+Users should be able to:
+
+* Select a city
+* Select an area
+* Select a street
+
+Display:
+
+* All businesses on that street
+* Business photos
+* Distance from user
+* Categories
+
+Provide map view and list view.
+
+---
+
+## Interactive Map
+
+Use Mapbox or OpenStreetMap.
+
+Features:
+
+* Business markers
+* Street highlighting
+* Nearby businesses
+* Directions
+
+---
+
+## Field Agent System
+
+Field agents can:
+
+Add Business:
+
+* Business Name
+* Photos
+* Category
+* Description
+* GPS Location
+* Contact Information
+
+Verification Requirements:
+
+* Minimum 3 photos
+* GPS captured
+* Business category selected
+
+Commission Rules:
+
+* Approved listing = ₦100
+* High-quality verified listing = ₦150
+* Business owner claim = bonus ₦50
+
+Dashboard:
+
+* Total Listings
+* Approved Listings
+* Earnings
+* Withdrawal Requests
+
+---
+
+## Business Verification
+
+Prevent duplicates by:
+
+* Matching phone numbers
+* Matching GPS coordinates
+* Similar business names
+* Admin review system
+
+---
+
+## Reviews and Ratings
+
+Users can:
+
+* Leave reviews
+* Rate businesses
+* Upload photos
+
+Businesses can:
+
+* Respond to reviews
+
+---
+
+## Premium Plans
+
+### Free Plan
+
+* Basic listing
+* Limited photos
+
+### Premium Plan
+
+* Featured placement
+* Unlimited photos
+* Priority search ranking
+* Analytics dashboard
+
+---
+
+## Payment Integration
+
+Support:
+
+* Paystack
+* Flutterwave
+
+Allow:
+
+* Business registration payments
+* Premium subscriptions
+* Agent withdrawals
+
+---
+
+## Admin Dashboard
+
+Show:
+
+* Total Businesses
+* Total Agents
+* Total Users
+* Revenue
+* Pending Approvals
+
+Admin can:
+
+* Approve agents
+* Approve businesses
+* Suspend accounts
+* Manage subscriptions
+
+---
+
+## AI Features
+
+Use AI to:
+
+* Detect duplicate listings
+* Improve business descriptions
+* Categorize businesses automatically
+* Detect poor-quality photos
+
+---
+
+## Technical Requirements
+
+Frontend:
+
+* Next.js
+* React
+* Tailwind CSS
+
+Backend:
+
+* Node.js
+* Express
+
+Database:
+
+* PostgreSQL
+
+Authentication:
+
+* JWT
+* Google Login
+
+Storage:
+
+* Cloudinary for photos
+
+Maps:
+
+* OpenStreetMap or Mapbox
+
+Payments:
+
+* Paystack
+* Flutterwave
+
+Deployment:
+
+* Replit Deployments
+
+---
+
+## Design Style
+
+Create a clean modern design similar to:
+
+* Google Maps
+* Airbnb
+* Uber
+
+Colors:
+
+* Primary: #0547B6
+* Secondary: #E61515
+* White backgrounds
+* Professional business look
+
+Make the platform mobile-first because most users will access it from smartphones.
+
+---
+
+### Extra Feature (Important)
+
+Create a "Become a Street Agent" page.
+
+Users can:
+
+* Apply as agents
+* Complete KYC
+* Get approved
+* Start earning by registering businesses in their neighborhoods
+
+Display:
+
+* Leaderboard of top agents
+* Total earnings paid out
+* Number of businesses added
+
+---
+
+Build the application with production-ready code, scalable architecture, API documentation, database schema, admin panel, and responsive design. Generate all pages, components, database models, and API endpoints needed for a complete MVP launch.
