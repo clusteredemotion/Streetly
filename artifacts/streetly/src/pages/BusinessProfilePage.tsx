@@ -15,6 +15,7 @@ import {
   Clock, ArrowLeft, ExternalLink, CheckCircle
 } from "lucide-react";
 import { MapView } from "@/components/MapView";
+import { ClaimBusinessModal } from "@/components/ClaimBusinessModal";
 
 export default function BusinessProfilePage() {
   const { id } = useParams();
@@ -30,6 +31,7 @@ export default function BusinessProfilePage() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [claimOpen, setClaimOpen] = useState(false);
 
   const handleReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,13 +283,40 @@ export default function BusinessProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="mt-4 pt-4 border-t text-xs text-muted-foreground">
-                Listed {new Date(business.createdAt).toLocaleDateString("en-NG", { month: "long", year: "numeric" })}
+              <div className="mt-4 pt-4 border-t space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Listed {new Date(business.createdAt).toLocaleDateString("en-NG", { month: "long", year: "numeric" })}
+                </p>
+                {!business.ownerId && (
+                  <button
+                    onClick={() => setClaimOpen(true)}
+                    className="w-full flex items-center gap-2 p-3 rounded-lg border border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-colors text-sm text-primary font-medium"
+                  >
+                    <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+                    <div className="text-left">
+                      <div>Is this your business?</div>
+                      <div className="text-xs text-muted-foreground font-normal">Claim ownership →</div>
+                    </div>
+                  </button>
+                )}
+                {business.ownerId && (
+                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Verified owner account
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <ClaimBusinessModal
+        open={claimOpen}
+        onClose={() => setClaimOpen(false)}
+        businessId={bizId}
+        businessName={business.name}
+      />
     </Layout>
   );
 }

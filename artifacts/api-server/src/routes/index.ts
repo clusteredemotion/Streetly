@@ -9,6 +9,7 @@ import reviewsRouter from "./reviews";
 import agentsRouter from "./agents";
 import adminRouter from "./admin";
 import streetExplorerRouter from "./streetexplorer";
+import claimsRouter from "./claims";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use("/categories", categoriesRouter);
 router.use(locationsRouter);
 router.use("/businesses", businessesRouter);
 router.use("/businesses/:businessId/reviews", reviewsRouter);
+router.use("/businesses/:businessId/claim", claimsRouter);
 router.use("/agents", agentsRouter);
 router.use("/admin", adminRouter);
 router.use("/streets", streetExplorerRouter);

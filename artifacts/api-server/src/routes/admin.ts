@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { businessesTable, agentsTable, usersTable, withdrawalsTable } from "@workspace/db";
+import { businessesTable, agentsTable, usersTable, withdrawalsTable, businessClaimsTable } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 
 const router = Router();
@@ -82,6 +82,39 @@ router.patch("/agents/:id/approve", async (req, res) => {
 
   if (!agent) return res.status(404).json({ error: "Agent not found" });
   return res.json(agent);
+});
+
+// GET /admin/claims/pending
+router.get("/claims/pending", async (_req, res) => {
+  const claims = await db.select().from(businessClaimsTable).where(eq(businessClaimsTable.status, "pending"));
+  const enriched = await Promise.all(claims.map(async (c) => {
+    const [biz] = await db.select({ name: businessesTable.name }).from(businessesTable).where(eq(businessesTable.id, c.businessId)).limit(1);
+    return { ...c, businessName: biz?.name ?? null };
+  }));
+  return res.json(enriched);
+});
+
+// PATCH /admin/claims/:id/approve
+router.patch("/claims/:id/approve", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { approved, adminNote } = req.body;
+
+  const [claim] = await db.update(businessClaimsTable)
+    .set({ status: approved ? "approved" : "rejected", adminNote, resolvedAt: new Date() })
+    .where(eq(businessClaimsTable.id, id))
+    .returning();
+
+  if (!claim) return res.status(404).json({ error: "Claim not found" });
+
+  if (approved) {
+    await db.update(businessesTable)
+      .set({ ownerId: claim.userId, verified: true })
+      .where(eq(businessesTable.id, claim.businessId));
+  }
+
+  return res.json(claim);
 });
 
 export default router;
