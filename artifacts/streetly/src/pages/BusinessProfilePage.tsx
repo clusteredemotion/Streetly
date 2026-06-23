@@ -14,6 +14,7 @@ import {
   MapPin, Star, ShieldCheck, Phone, MessageCircle, Globe,
   Clock, ArrowLeft, ExternalLink, CheckCircle
 } from "lucide-react";
+import { MapView } from "@/components/MapView";
 
 export default function BusinessProfilePage() {
   const { id } = useParams();
@@ -127,18 +128,33 @@ export default function BusinessProfilePage() {
               </div>
             )}
 
-            {/* Map Placeholder */}
-            <div className="rounded-xl border bg-muted/30 h-48 flex items-center justify-center">
-              <div className="text-center text-muted-foreground">
-                <MapPin className="h-8 w-8 mx-auto mb-2 text-primary/50" />
-                <p className="text-sm">
-                  {business.latitude && business.longitude
-                    ? `${business.latitude.toFixed(4)}, ${business.longitude.toFixed(4)}`
-                    : "Location not specified"}
-                </p>
-                <p className="text-xs mt-1">Map view coming soon</p>
+            {/* Map */}
+            {business.latitude && business.longitude ? (
+              <div className="rounded-xl overflow-hidden border shadow-sm">
+                <MapView lat={business.latitude} lon={business.longitude} name={business.name} height={260} />
+                <div className="bg-muted/40 px-3 py-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    {business.latitude.toFixed(5)}, {business.longitude.toFixed(5)}
+                  </span>
+                  <a
+                    href={`https://www.openstreetmap.org/?mlat=${business.latitude}&mlon=${business.longitude}#map=17/${business.latitude}/${business.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline flex items-center gap-1"
+                  >
+                    View larger map <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-xl border bg-muted/30 h-32 flex items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <MapPin className="h-7 w-7 mx-auto mb-1.5 text-primary/40" />
+                  <p className="text-sm">No GPS coordinates yet</p>
+                </div>
+              </div>
+            )}
 
             <Separator />
 
