@@ -60,34 +60,34 @@
 }
 
 :root {
-  --background: 40 33% 98%; /* warm white */
-  --foreground: 222 47% 11%;
-  
+  --background: 0 0% 99%;
+  --foreground: 220 20% 10%;
+
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 91%;
-  
+  --card-foreground: 220 20% 10%;
+  --card-border: 220 14% 92%;
+
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 91%;
-  
-  --primary: 217 94% 36%; /* #0547B6 */
+  --popover-foreground: 220 20% 10%;
+  --popover-border: 220 14% 92%;
+
+  --primary: 217 94% 36%;
   --primary-foreground: 210 40% 98%;
-  
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  
-  --destructive: 0 83% 49%; /* #E61515 */
+
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 20% 10%;
+
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 10% 50%;
+
+  --accent: 220 14% 96%;
+  --accent-foreground: 220 20% 10%;
+
+  --destructive: 0 83% 49%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
+  --border: 220 14% 92%;
+  --input: 220 14% 92%;
   --ring: 217 94% 36%;
 
   --chart-1: 12 76% 61%;
@@ -96,50 +96,199 @@
   --chart-4: 43 74% 66%;
   --chart-5: 27 87% 67%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 }
 
 .dark {
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;
-  
   --card: 222 47% 11%;
   --card-foreground: 210 40% 98%;
   --card-border: 217 32% 17%;
-  
   --popover: 222 47% 11%;
   --popover-foreground: 210 40% 98%;
   --popover-border: 217 32% 17%;
-  
-  --primary: 217 94% 36%;
+  --primary: 217 94% 55%;
   --primary-foreground: 210 40% 98%;
-  
   --secondary: 217 32% 17%;
   --secondary-foreground: 210 40% 98%;
-  
   --muted: 217 32% 17%;
   --muted-foreground: 215 20.2% 65.1%;
-  
   --accent: 217 32% 17%;
   --accent-foreground: 210 40% 98%;
-  
   --destructive: 0 83% 49%;
   --destructive-foreground: 210 40% 98%;
-
   --border: 217 32% 17%;
   --input: 217 32% 17%;
-  --ring: 217 94% 36%;
+  --ring: 217 94% 55%;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* ─── Glassmorphism ─── */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.glass-dark {
+  background: rgba(8, 12, 30, 0.75);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.glass-nav {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.glass-nav-transparent {
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Location pulse ─── */
+@keyframes location-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 71, 182, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(5, 71, 182, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 71, 182, 0);
+  }
+}
+@keyframes location-pulse-ring {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+.user-location-dot {
+  animation: location-pulse 1.8s ease-out infinite;
+}
+.user-location-ring {
+  animation: location-pulse-ring 1.8s ease-out infinite;
+}
+
+/* ─── Floating orbs ─── */
+@keyframes orb-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -30px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+@keyframes orb-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-50px, 30px) scale(1.05); }
+  66% { transform: translate(30px, -20px) scale(0.9); }
+}
+@keyframes orb-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -40px) scale(1.08); }
+}
+.orb-1 { animation: orb-float-1 12s ease-in-out infinite; }
+.orb-2 { animation: orb-float-2 15s ease-in-out infinite; }
+.orb-3 { animation: orb-float-3 10s ease-in-out infinite; }
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #fff 0%, #b3ccff 50%, #ffd700 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-blue {
+  background: linear-gradient(135deg, #0547B6 0%, #2563eb 50%, #6d28d9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Route line ─── */
+.leaflet-route-line {
+  stroke: #0547B6;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 2px 4px rgba(5,71,182,0.4));
+}
+
+/* ─── Leaflet custom styles ─── */
+.leaflet-container {
+  border-radius: 16px;
+  font-family: var(--app-font-sans);
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 14px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+  border: 1px solid rgba(255,255,255,0.8);
+  font-family: var(--app-font-sans);
+}
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  font-family: var(--app-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.leaflet-popup-tip {
+  background: white !important;
+}
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.leaflet-control-zoom a {
+  border: none !important;
+  color: #0f172a !important;
+  font-weight: 500 !important;
+}
+.leaflet-control-zoom a:hover {
+  background: #f1f5f9 !important;
+}
+.leaflet-attribution-flag { display: none !important; }
+.leaflet-control-attribution { font-size: 10px !important; opacity: 0.5; }
+
+/* ─── Smooth scroll ─── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Card hover lift ─── */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Mobile bottom safe area ─── */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
