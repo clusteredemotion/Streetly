@@ -1,0 +1,410 @@
+# STREETLY PREMIUM APPLE + GOOGLE MAPS EXPERIENCE
+
+Redesign Streetly into a world-class platform that combines:
+
+* Apple's premium elegance
+* Google Maps' immersive map experience
+* Airbnb's usability
+* Stripe's clean design
+* Arc Browser's futuristic feel
+
+Streetly should NOT feel like a traditional business directory.
+
+Streetly should feel like a map-first technology platform.
+
+The first impression should immediately communicate:
+
+"Explore your city visually."
+
+---
+
+# CORE DESIGN PHILOSOPHY
+
+The map is the product.
+
+The website should feel similar to opening Google Maps for the first time.
+
+Users should immediately see a large immersive map and begin exploring.
+
+The search experience should be central to the entire platform.
+
+Streetly should be:
+
+* Map-first
+* Mobile-first
+* Search-first
+* Discovery-first
+
+---
+
+# HOMEPAGE LAYOUT
+
+## SECTION 1 — IMMERSIVE FULLSCREEN MAP HERO
+
+The homepage should open with a massive interactive map.
+
+The map should occupy:
+
+90–100% of the viewport height.
+
+Users should immediately see:
+
+* Businesses
+* Streets
+* Areas
+* Landmarks
+* Property opportunities
+
+The map should feel alive.
+
+Use Mapbox.
+
+---
+
+# FULLSCREEN MAP EXPERIENCE
+
+The map should include:
+
+* Business markers
+* Verified businesses
+* Vacant shops
+* Commercial buildings
+* Featured businesses
+* Street Scores
+* Deals and promotions
+
+Users should be able to:
+
+* Zoom
+* Pan
+* Search directly on map
+* Explore nearby areas
+
+The map should be the dominant visual element.
+
+---
+
+# FLOATING GLASS SEARCH BAR
+
+Place a giant floating search bar over the map.
+
+Centered near the top-middle.
+
+Design inspiration:
+
+* Apple Spotlight
+* Google Maps Search
+
+Glassmorphism style:
+
+backdrop-filter: blur(20px)
+
+Rounded corners.
+
+Soft shadows.
+
+Large size.
+
+Placeholder:
+
+Search businesses, streets, landmarks, areas, services, vacant shops...
+
+Icons:
+
+* Search
+* Voice Search
+* GPS Location
+* AI Assistant
+
+---
+
+# FLOATING MAP CONTROLS
+
+Add premium floating controls:
+
+* Locate Me
+* Zoom In
+* Zoom Out
+* Layers
+* Map Style
+* Directions
+
+Apple-style glass buttons.
+
+---
+
+# QUICK FILTER PILLS
+
+Directly under search bar.
+
+Examples:
+
+* Restaurants
+* Real Estate
+* Hotels
+* Shopping
+* Pharmacies
+* Vacant Shops
+* Offices
+* Deals
+* Verified Businesses
+
+Glass pills with smooth animations.
+
+---
+
+# LIVE MAP CARDS
+
+Display floating cards over the map.
+
+Examples:
+
+Street Score:
+90/100
+
+Featured Business:
+Business Name
+
+Vacant Shop:
+Available Now
+
+Top Deal:
+50% Discount
+
+Cards should animate subtly.
+
+---
+
+# MAP MODES
+
+Allow switching between:
+
+* Standard Map
+* Satellite View
+* Hybrid View
+* Property Intelligence View
+* Business Density View
+* Street Score View
+
+---
+
+# APPLE-STYLE GLASS NAVBAR
+
+Floating top navigation.
+
+Transparent initially.
+
+Blurred on scroll.
+
+Logo:
+Streetly
+
+Links:
+
+* Explore
+* Streets
+* Businesses
+* Property Intelligence
+* Deals
+* Street Scouts
+
+Buttons:
+
+* Login
+* Sign Up
+
+---
+
+# SECTION 2 — DISCOVER STREETS
+
+After the map hero.
+
+Display beautiful street cards.
+
+Show:
+
+* Street Name
+* Street Score
+* Business Count
+* Growth Potential
+
+Glass cards.
+
+---
+
+# SECTION 3 — FEATURED BUSINESSES
+
+Premium business showcase.
+
+Apple-style cards.
+
+Include:
+
+* Photos
+* Verification badge
+* Ratings
+* Street information
+
+---
+
+# SECTION 4 — PROPERTY INTELLIGENCE
+
+Show:
+
+* Vacant Shops
+* Vacant Offices
+* Commercial Buildings
+* Investment Opportunities
+
+Interactive property cards.
+
+---
+
+# SECTION 5 — STREET SCOUTS
+
+Headline:
+
+Earn Money Mapping Your City.
+
+Display:
+
+* Top Scouts
+* Earnings
+* Businesses Added
+
+CTA:
+
+Become a Street Scout
+
+---
+
+# SECTION 6 — LOCAL DEALS
+
+Display:
+
+* Promotions
+* Events
+* Discounts
+
+Beautiful modern layout.
+
+---
+
+# BUSINESS PROFILE PAGES
+
+Every business should have:
+
+* Hero Cover Image
+* Logo
+* Verification Badge
+* Street Information
+* Map Location
+* Gallery
+* Video Gallery
+* Reviews
+* Nearby Businesses
+* Directions
+
+---
+
+# STREET PAGES
+
+Every street should have:
+
+* Street Score
+* Interactive Map
+* Businesses
+* Vacancies
+* Timeline
+* Analytics
+
+---
+
+# AI SEARCH EXPERIENCE
+
+Search should support:
+
+* Businesses
+* Streets
+* Areas
+* Landmarks
+* Services
+* Products
+* Vacant Properties
+
+Examples:
+
+"Restaurants in Jabi"
+
+"Vacant shop in Wuse"
+
+"Pharmacy near me"
+
+"Real estate company in Utako"
+
+Provide AI-powered recommendations.
+
+---
+
+# GLASSMORPHISM SYSTEM
+
+Apply throughout:
+
+background:
+rgba(255,255,255,0.65)
+
+border:
+1px solid rgba(255,255,255,0.18)
+
+backdrop-filter:
+blur(20px)
+
+Premium shadows.
+
+Floating cards.
+
+---
+
+# ANIMATIONS
+
+Use Framer Motion.
+
+Implement:
+
+* Smooth zoom transitions
+* Floating cards
+* Scroll reveal
+* Hover effects
+* Premium page transitions
+
+Everything should feel fluid.
+
+---
+
+# MOBILE EXPERIENCE
+
+The mobile experience should feel like a native Google Maps application.
+
+When users open Streetly on mobile:
+
+The map should appear first.
+
+Search bar should remain pinned.
+
+Bottom sheets should slide up like Google Maps.
+
+Touch gestures should feel natural.
+
+---
+
+# FINAL OBJECTIVE
+
+Create a platform where users immediately land on a giant interactive map and begin exploring businesses, streets, properties, and opportunities.
+
+The map must be the hero.
+
+The search bar must be the centerpiece.
+
+The design must feel like Apple designed Google Maps for business discovery.
+
+Build all pages, components, animations, map interactions, search systems, filters, dashboards, and responsive experiences required to achieve this vision.
