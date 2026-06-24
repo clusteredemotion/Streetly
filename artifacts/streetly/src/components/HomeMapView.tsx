@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import {
   Search, MapPin, Navigation, Layers, X, Star, ShieldCheck,
-  ArrowRight, Mic, ChevronDown, Zap, Clock
+  ArrowRight, Mic, ChevronDown, Zap, Clock, Radio, ChevronRight,
+  MapPinOff, Activity
 } from "lucide-react";
+import { NIGERIA_STATES } from "@/data/nigeria-locations";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -16,7 +18,7 @@ interface Business {
   reviewCount?: number; verified?: boolean; featured?: boolean;
   streetName?: string | null; areaName?: string | null; cityName?: string | null;
   phone?: string | null; openingHours?: string | null;
-  photos?: Array<{ url: string }>;
+  photos?: Array<{ url: string; id?: number }>;
 }
 
 function useMapBusinesses() {
@@ -45,54 +47,75 @@ const CATEGORY_COLORS: Record<string, string> = {
   "Entertainment": "#a855f7",
   "Real Estate": "#14b8a6",
 };
-const DEFAULT_COLOR = "#0547B6";
+const DEFAULT_COLOR = "#2563eb";
 
-const TILE_STYLES: Record<string, { url: string; label: string; emoji: string }> = {
+const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; attribution: string }> = {
   explore: {
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
     label: "Explore",
     emoji: "🗺",
+    attribution: "© OpenStreetMap © CARTO",
   },
   light: {
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     label: "Light",
     emoji: "☀️",
+    attribution: "© OpenStreetMap © CARTO",
   },
   dark: {
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     label: "Dark",
     emoji: "🌙",
+    attribution: "© OpenStreetMap © CARTO",
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    label: "Satellite",
+    emoji: "🛰",
+    attribution: "© Esri, Maxar, Earthstar Geographics",
   },
 };
 
 const FILTER_PILLS = [
   { label: "All", value: "" },
   { label: "🍽 Food", value: "Food & Drinks" },
-  { label: "💊 Pharmacy", value: "Health & Wellness" },
+  { label: "💊 Health", value: "Health & Wellness" },
   { label: "🏨 Hotels", value: "Hospitality" },
   { label: "🛍 Shopping", value: "Retail & Shopping" },
   { label: "🏦 Banks", value: "Financial Services" },
   { label: "💻 Tech", value: "Technology" },
   { label: "✨ Beauty", value: "Beauty & Personal Care" },
   { label: "🚗 Auto", value: "Automotive" },
+  { label: "📚 Edu", value: "Education" },
 ];
 
-function makeMarkerHtml(color: string, size = 36, featured = false) {
+function makeMarkerHtml(color: string, size = 34, featured = false) {
+  const ringSize = size + 12;
   return `
-    <div style="position:relative;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">
-      ${featured ? `<div style="position:absolute;inset:-4px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);opacity:0.4;animation:location-pulse-ring 2s ease-out infinite;"></div>` : ""}
-      <div style="
+    <div style="position:relative;width:${ringSize}px;height:${ringSize}px;display:flex;align-items:center;justify-content:center;">
+      <div class="marker-ring" style="position:absolute;width:${size}px;height:${size}px;border-radius:50% 50% 50% 4px;background:${color};opacity:0.35;"></div>
+      ${featured ? `<div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle,${color}55,transparent);animation:location-pulse-ring 2s ease-out infinite;"></div>` : ""}
+      <div class="marker-blink" style="
+        position:relative;z-index:2;
         width:${size}px;height:${size}px;
-        background:${color};
+        background:linear-gradient(135deg,${color},${color}cc);
         border-radius:50% 50% 50% 4px;
         transform:rotate(-45deg);
-        border:${featured ? "3px" : "2.5px"} solid white;
-        box-shadow:0 4px 16px ${color}66;
-        transition:transform 0.15s ease;
+        border:${featured ? "3px" : "2.5px"} solid rgba(255,255,255,0.9);
+        box-shadow:0 4px 20px ${color}88,0 0 0 1px ${color}33;
       "></div>
     </div>
   `;
 }
+
+const LIVE_ACTIVITY = [
+  "Mama Nkechi Kitchen just opened",
+  "New review on The Lekki Grill",
+  "3 users viewing Victoria Island",
+  "Glamour Studio — high traffic now",
+  "TechVault verified today",
+  "Sunrise Pharmacy — 5 check-ins",
+];
 
 export function HomeMapView() {
   const [, navigate] = useLocation();
@@ -102,6 +125,9 @@ export function HomeMapView() {
   const mapRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
   const markersRef = useRef<Array<{ marker: any; biz: Business }>>([]);
+  const userMarkerRef = useRef<any>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const activityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -109,43 +135,55 @@ export function HomeMapView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);
   const [locating, setLocating] = useState(false);
+  const [liveTracking, setLiveTracking] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Business[]>([]);
   const [mapReady, setMapReady] = useState(false);
+  const [showMovement, setShowMovement] = useState(false);
+  const [activityIndex, setActivityIndex] = useState(0);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [pickerState, setPickerState] = useState("");
+  const [pickerCity, setPickerCity] = useState("");
 
-  // Filter markers based on search + category
+  const selectedState = NIGERIA_STATES.find(s => s.name === pickerState);
+  const selectedCityData = selectedState?.cities.find(c => c.name === pickerCity);
+
+  // Rotate live activity feed
+  useEffect(() => {
+    activityTimerRef.current = setInterval(() => {
+      setActivityIndex(i => (i + 1) % LIVE_ACTIVITY.length);
+    }, 3500);
+    return () => { if (activityTimerRef.current) clearInterval(activityTimerRef.current); };
+  }, []);
+
+  // Filter markers
   useEffect(() => {
     markersRef.current.forEach(({ marker, biz }) => {
-      const matchesSearch = !search || biz.name.toLowerCase().includes(search.toLowerCase())
-        || (biz.categoryName ?? "").toLowerCase().includes(search.toLowerCase())
-        || (biz.streetName ?? "").toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = !search ||
+        biz.name.toLowerCase().includes(search.toLowerCase()) ||
+        (biz.categoryName ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (biz.streetName ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (biz.areaName ?? "").toLowerCase().includes(search.toLowerCase());
       const matchesCat = !category || biz.categoryName === category;
-      const visible = matchesSearch && matchesCat;
-      if (visible) {
-        marker.setOpacity(1);
-        marker.getElement()?.style && (marker.getElement().style.transform =
-          marker.getElement().style.transform.replace(" scale(0)", ""));
-      } else {
-        marker.setOpacity(0);
-      }
+      marker.setOpacity(matchesSearch && matchesCat ? 1 : 0);
     });
-    // Update suggestions
     if (search.length > 0) {
       setSuggestions(
         businesses.filter(b =>
           b.latitude && b.longitude && (
             b.name.toLowerCase().includes(search.toLowerCase()) ||
             (b.categoryName ?? "").toLowerCase().includes(search.toLowerCase()) ||
-            (b.streetName ?? "").toLowerCase().includes(search.toLowerCase())
+            (b.streetName ?? "").toLowerCase().includes(search.toLowerCase()) ||
+            (b.areaName ?? "").toLowerCase().includes(search.toLowerCase())
           )
-        ).slice(0, 5)
+        ).slice(0, 6)
       );
     } else {
       setSuggestions([]);
     }
   }, [search, category, businesses]);
 
-  // Switch tile layer style
+  // Switch tile layer
   useEffect(() => {
     if (!mapRef.current || !tileLayerRef.current) return;
     tileLayerRef.current.setUrl(TILE_STYLES[tileStyle].url);
@@ -163,8 +201,8 @@ export function HomeMapView() {
       if (!containerRef.current) return;
 
       map = L.map(containerRef.current, {
-        center: [6.5244, 3.3792], // Lagos default
-        zoom: 13,
+        center: [6.5244, 3.3792],
+        zoom: 12,
         zoomControl: false,
         attributionControl: true,
       });
@@ -175,31 +213,27 @@ export function HomeMapView() {
       tileLayerRef.current = L.tileLayer(TILE_STYLES[tileStyle].url, {
         subdomains: "abcd",
         maxZoom: 20,
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+        attribution: TILE_STYLES[tileStyle].attribution,
       }).addTo(map);
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
-
-      map.on("click", () => {
-        setSelected(null);
-        setShowStylePicker(false);
-      });
+      map.on("click", () => { setSelected(null); setShowStylePicker(false); });
     };
 
     init();
     return () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
       markersRef.current = [];
     };
   }, []);
 
-  // Add business markers when businesses load (and map is ready)
+  // Add business markers
   useEffect(() => {
     const map = mapRef.current;
     const L = map?._L;
     if (!map || !L || !businesses.length || !mapReady) return;
 
-    // Clear old markers
     markersRef.current.forEach(({ marker }) => map.removeLayer(marker));
     markersRef.current = [];
 
@@ -210,10 +244,10 @@ export function HomeMapView() {
       const color = CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR;
       const icon = L.divIcon({
         className: "",
-        html: makeMarkerHtml(color, biz.featured ? 40 : 32, !!biz.featured),
-        iconSize: [biz.featured ? 40 : 32, biz.featured ? 40 : 32],
-        iconAnchor: [biz.featured ? 20 : 16, biz.featured ? 40 : 32],
-        popupAnchor: [0, -(biz.featured ? 44 : 36)],
+        html: makeMarkerHtml(color, biz.featured ? 38 : 30, !!biz.featured),
+        iconSize: [biz.featured ? 50 : 42, biz.featured ? 50 : 42],
+        iconAnchor: [biz.featured ? 25 : 21, biz.featured ? 50 : 42],
+        popupAnchor: [0, -50],
       });
 
       const marker = L.marker([biz.latitude, biz.longitude], { icon }).addTo(map);
@@ -222,38 +256,65 @@ export function HomeMapView() {
         setSelected(biz);
         map.panTo([biz.latitude!, biz.longitude!], { animate: true, duration: 0.5 });
       });
-
       markersRef.current.push({ marker, biz });
     });
 
-    // Fit map to show all markers
     const bounds = L.latLngBounds(mappable.map(b => [b.latitude!, b.longitude!]));
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: false });
+    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 14, animate: false });
   }, [businesses, mapReady]);
 
+  // Navigate map to a Nigeria location
+  const flyToNigeriaLocation = useCallback((lat: number, lon: number, zoom = 14) => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo([lat, lon], zoom, { duration: 1.5 });
+  }, []);
+
+  // Live GPS tracking
   const handleLocateMe = useCallback(() => {
     const map = mapRef.current;
     const L = map?._L;
     if (!map || !L) return;
+
+    if (liveTracking) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (userMarkerRef.current) {
+        map.removeLayer(userMarkerRef.current);
+        userMarkerRef.current = null;
+      }
+      setLiveTracking(false);
+      return;
+    }
+
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        map.flyTo([latitude, longitude], 15, { duration: 1.5 });
-        const html = `
-          <div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
-            <div style="position:absolute;width:24px;height:24px;border-radius:50%;background:rgba(5,71,182,0.25);animation:location-pulse-ring 1.8s ease-out infinite;"></div>
-            <div class="user-location-dot" style="width:14px;height:14px;background:#0547B6;border:2.5px solid white;border-radius:50%;position:relative;z-index:2;box-shadow:0 2px 8px rgba(5,71,182,0.5);"></div>
-          </div>`;
-        const icon = L.divIcon({ className: "", html, iconSize: [24, 24], iconAnchor: [12, 12] });
-        L.marker([latitude, longitude], { icon, zIndexOffset: 1000 }).addTo(map)
-          .bindPopup("📍 You are here").openPopup();
+        const { latitude, longitude, accuracy } = pos.coords;
+        if (userMarkerRef.current) {
+          userMarkerRef.current.setLatLng([latitude, longitude]);
+        } else {
+          const html = `
+            <div style="position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+              <div style="position:absolute;width:32px;height:32px;border-radius:50%;background:rgba(5,71,182,0.2);animation:live-track-ring 1.6s ease-out infinite;"></div>
+              <div style="position:absolute;width:20px;height:20px;border-radius:50%;background:rgba(5,71,182,0.15);animation:live-track-ring 1.6s ease-out 0.4s infinite;"></div>
+              <div class="user-location-dot" style="width:14px;height:14px;background:#2563eb;border:3px solid white;border-radius:50%;position:relative;z-index:2;box-shadow:0 2px 12px rgba(5,71,182,0.6);"></div>
+            </div>`;
+          const icon = L.divIcon({ className: "", html, iconSize: [32, 32], iconAnchor: [16, 16] });
+          userMarkerRef.current = L.marker([latitude, longitude], { icon, zIndexOffset: 2000 }).addTo(map);
+          map.flyTo([latitude, longitude], 16, { duration: 1.8 });
+        }
         setLocating(false);
+        setLiveTracking(true);
       },
       () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
     );
-  }, []);
+    watchIdRef.current = watchId;
+  }, [liveTracking]);
 
   const handleSuggestionClick = (biz: Business) => {
     if (!biz.latitude || !biz.longitude) return;
@@ -264,12 +325,14 @@ export function HomeMapView() {
     setSearchFocused(false);
   };
 
+  const visibleCount = businesses.filter(b => b.latitude && b.longitude).length;
+
   return (
     <div className="relative w-full overflow-hidden" style={{ height: "100dvh" }}>
-      {/* Map */}
+      {/* Map canvas */}
       <div ref={containerRef} className="absolute inset-0" />
 
-      {/* Floating Search + Filter */}
+      {/* Floating Search + Filters */}
       <div className="absolute top-20 left-0 right-0 z-[1000] flex flex-col items-center px-3 sm:px-6 gap-2">
 
         {/* Search Bar */}
@@ -279,21 +342,15 @@ export function HomeMapView() {
           transition={{ delay: 0.3, duration: 0.5 }}
           className="w-full max-w-2xl relative"
         >
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-2xl shadow-2xl"
-            style={{
-              background: "rgba(255,255,255,0.92)",
-              backdropFilter: "blur(24px) saturate(180%)",
-              border: "1px solid rgba(255,255,255,0.8)",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1)",
-            }}>
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-2xl glass-search">
             <Search className="h-5 w-5 text-primary flex-shrink-0 ml-1" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
-              placeholder="Search businesses, streets, areas, services..."
+              onBlur={() => setTimeout(() => setSearchFocused(false), 160)}
+              placeholder="Search businesses, streets, areas..."
               className="flex-1 bg-transparent outline-none text-sm text-gray-800 placeholder:text-gray-400 min-w-0"
             />
             {search && (
@@ -302,27 +359,123 @@ export function HomeMapView() {
               </button>
             )}
             <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => setShowLocationPicker(!showLocationPicker)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{pickerCity || pickerState || "Nigeria"}</span>
+              </button>
               <button className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
                 <Mic className="h-4 w-4" />
               </button>
               <button
                 onClick={handleLocateMe}
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-primary hover:bg-primary/10 transition-colors"
+                title={liveTracking ? "Stop live tracking" : "Find my location"}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${liveTracking ? "bg-blue-500 text-white" : "text-primary hover:bg-primary/10"}`}
               >
                 <Navigation className={`h-4 w-4 ${locating ? "animate-pulse" : ""}`} />
               </button>
             </div>
           </div>
 
-          {/* Suggestions */}
+          {/* Location picker dropdown */}
+          <AnimatePresence>
+            {showLocationPicker && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden shadow-2xl z-50"
+                style={{ background: "rgba(8,15,38,0.97)", backdropFilter: "blur(28px)", border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                <div className="p-3 border-b border-white/10">
+                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Browse by State</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-52 overflow-y-auto hide-scrollbar">
+                  {NIGERIA_STATES.map(state => (
+                    <button
+                      key={state.code}
+                      onClick={() => {
+                        setPickerState(state.name);
+                        setPickerCity("");
+                        flyToNigeriaLocation(state.lat, state.lon, 11);
+                        if (!pickerCity) setShowLocationPicker(false);
+                      }}
+                      className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerState === state.name ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
+                    >
+                      {state.name}
+                    </button>
+                  ))}
+                </div>
+                {selectedState && (
+                  <>
+                    <div className="p-3 border-t border-white/10">
+                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Cities in {selectedState.name}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 p-3 max-h-40 overflow-y-auto hide-scrollbar">
+                      {selectedState.cities.map(city => (
+                        <button
+                          key={city.name}
+                          onClick={() => {
+                            setPickerCity(city.name);
+                            flyToNigeriaLocation(city.lat, city.lon, 14);
+                            setShowLocationPicker(false);
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${pickerCity === city.name ? "bg-primary text-white" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                        >
+                          {city.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {selectedCityData && (
+                  <>
+                    <div className="p-3 border-t border-white/10">
+                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Areas in {selectedCityData.name}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 p-3 pb-4">
+                      {selectedCityData.areas.map(area => (
+                        <button
+                          key={area}
+                          onClick={() => {
+                            setSearch(area);
+                            setShowLocationPicker(false);
+                          }}
+                          className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
+                        >
+                          {area}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div className="p-2 border-t border-white/5 flex justify-between items-center">
+                  {(pickerState || pickerCity) && (
+                    <button onClick={() => { setPickerState(""); setPickerCity(""); flyToNigeriaLocation(9.082, 8.6753, 6); }}
+                      className="text-xs text-white/40 hover:text-white/70 px-3 py-1">
+                      Clear
+                    </button>
+                  )}
+                  <button onClick={() => setShowLocationPicker(false)}
+                    className="ml-auto text-xs text-primary/80 hover:text-primary px-3 py-1">
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Search Suggestions */}
           <AnimatePresence>
             {searchFocused && suggestions.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden shadow-2xl"
-                style={{ background: "rgba(255,255,255,0.96)", backdropFilter: "blur(24px)", border: "1px solid rgba(0,0,0,0.06)" }}
+                className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden shadow-2xl z-50"
+                style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(24px)", border: "1px solid rgba(0,0,0,0.06)" }}
               >
                 {suggestions.map((biz) => (
                   <button
@@ -334,7 +487,7 @@ export function HomeMapView() {
                       style={{ background: `${CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR}20` }}>
                       <MapPin className="h-4 w-4" style={{ color: CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR }} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-900 truncate">{biz.name}</p>
                       <p className="text-xs text-gray-500 truncate">{[biz.streetName, biz.areaName, biz.cityName].filter(Boolean).join(", ")}</p>
                     </div>
@@ -352,7 +505,6 @@ export function HomeMapView() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.5 }}
           className="flex gap-2 overflow-x-auto pb-1 w-full max-w-2xl hide-scrollbar"
-          style={{ scrollbarWidth: "none" }}
         >
           {FILTER_PILLS.map((pill) => (
             <button
@@ -361,20 +513,8 @@ export function HomeMapView() {
               className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 active:scale-95"
               style={
                 (pill.value === "" && category === "") || category === pill.value
-                  ? {
-                    background: "rgba(5,71,182,0.9)",
-                    backdropFilter: "blur(12px)",
-                    color: "white",
-                    border: "1px solid rgba(5,71,182,0.3)",
-                    boxShadow: "0 4px 12px rgba(5,71,182,0.3)",
-                  }
-                  : {
-                    background: "rgba(255,255,255,0.88)",
-                    backdropFilter: "blur(12px)",
-                    color: "#374151",
-                    border: "1px solid rgba(255,255,255,0.6)",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  }
+                  ? { background: "rgba(37,99,235,0.9)", backdropFilter: "blur(12px)", color: "white", border: "1px solid rgba(37,99,235,0.4)", boxShadow: "0 4px 16px rgba(37,99,235,0.4)" }
+                  : { background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", color: "#374151", border: "1px solid rgba(255,255,255,0.7)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }
               }
             >
               {pill.label}
@@ -383,23 +523,85 @@ export function HomeMapView() {
         </motion.div>
       </div>
 
+      {/* Street Movement Panel */}
+      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-[1000]">
+        <AnimatePresence>
+          {showMovement && (
+            <motion.div
+              initial={{ opacity: 0, x: 20, scale: 0.96 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.96 }}
+              className="mb-2 w-56 rounded-2xl overflow-hidden glass-panel"
+            >
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
+                <div className="live-dot w-2 h-2 rounded-full bg-green-400" />
+                <span className="text-xs font-bold text-white/90 uppercase tracking-wider">Live Activity</span>
+              </div>
+              <div className="p-3 space-y-2">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activityIndex}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-start gap-2 p-2 rounded-xl bg-white/5"
+                  >
+                    <Activity className="h-3.5 w-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-white/80 leading-snug">{LIVE_ACTIVITY[activityIndex]}</p>
+                  </motion.div>
+                </AnimatePresence>
+                {liveTracking && (
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-blue-500/15 border border-blue-500/25">
+                    <Navigation className="h-3.5 w-3.5 text-blue-400" />
+                    <p className="text-xs text-blue-300 font-medium">Live tracking active</p>
+                  </div>
+                )}
+                <div className="pt-1 border-t border-white/10 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-white/50">Businesses visible</span>
+                    <span className="text-white/90 font-bold">{visibleCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-white/50">Map style</span>
+                    <span className="text-white/90 font-medium capitalize">{TILE_STYLES[tileStyle].emoji} {TILE_STYLES[tileStyle].label}</span>
+                  </div>
+                  {(pickerState || pickerCity) && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/50">Location</span>
+                      <span className="text-white/90 font-medium truncate ml-2">{pickerCity || pickerState}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowMovement(!showMovement); }}
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transition-all glass-panel"
+          style={{ border: showMovement ? "1px solid rgba(37,99,235,0.4)" : undefined }}
+        >
+          <Radio className={`h-5 w-5 ${showMovement ? "text-blue-400" : "text-white/70"}`} />
+        </button>
+      </div>
+
       {/* Map Style Switcher */}
-      <div className="absolute bottom-24 right-4 z-[1000]">
+      <div className="absolute bottom-28 right-4 z-[1000]">
         <AnimatePresence>
           {showStylePicker && (
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="flex flex-col gap-1.5 mb-2 p-2 rounded-2xl shadow-2xl"
-              style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.7)" }}
+              className="flex flex-col gap-1 mb-2 p-2 rounded-2xl shadow-2xl glass-panel"
             >
               {Object.entries(TILE_STYLES).map(([key, val]) => (
                 <button
                   key={key}
                   onClick={() => { setTileStyle(key); setShowStylePicker(false); }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors hover:bg-gray-100"
-                  style={{ color: tileStyle === key ? "#0547B6" : "#374151", fontWeight: tileStyle === key ? 700 : 500 }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors hover:bg-white/10"
+                  style={{ color: tileStyle === key ? "#60a5fa" : "rgba(255,255,255,0.8)", fontWeight: tileStyle === key ? 700 : 500, background: tileStyle === key ? "rgba(37,99,235,0.2)" : undefined }}
                 >
                   <span>{val.emoji}</span>
                   {val.label}
@@ -410,50 +612,58 @@ export function HomeMapView() {
         </AnimatePresence>
         <button
           onClick={(e) => { e.stopPropagation(); setShowStylePicker(!showStylePicker); }}
-          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transition-colors"
-          style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.7)" }}
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl glass-panel"
         >
-          <Layers className="h-5 w-5 text-gray-700" />
+          <Layers className="h-5 w-5 text-white/80" />
         </button>
       </div>
 
-      {/* Stats chip */}
+      {/* Bottom left: stats + live tracking indicator */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.6 }}
-        className="absolute bottom-8 left-4 z-[1000] hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg"
-        style={{ background: "rgba(255,255,255,0.92)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.7)" }}
+        className="absolute bottom-8 left-4 z-[1000] hidden sm:flex flex-col gap-2"
       >
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-semibold text-gray-800">
-            {businesses.filter(b => b.latitude && b.longitude).length} businesses on map
-          </span>
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg glass-panel">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-green-400 live-dot" />
+            <span className="text-xs font-semibold text-white/90">{visibleCount} businesses</span>
+          </div>
+          <div className="h-3.5 w-px bg-white/15" />
+          <div className="flex items-center gap-1 text-xs text-white/60">
+            <Zap className="h-3.5 w-3.5 text-yellow-400" />
+            Live
+          </div>
         </div>
-        <div className="h-4 w-px bg-gray-200" />
-        <div className="flex items-center gap-1 text-xs text-gray-500">
-          <Zap className="h-3.5 w-3.5 text-yellow-500" />
-          Live
-        </div>
+        {liveTracking && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl glass-panel border border-blue-500/30"
+          >
+            <Navigation className="h-3.5 w-3.5 text-blue-400" />
+            <span className="text-xs font-semibold text-blue-300">Tracking your movement</span>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Scroll down hint */}
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
+        transition={{ delay: 1.2 }}
         onClick={() => window.scrollBy({ top: window.innerHeight, behavior: "smooth" })}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors"
-        style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))" }}
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-1 text-white/60 hover:text-white transition-colors"
+        style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
       >
-        <span className="text-xs font-medium tracking-wide uppercase">Discover more</span>
-        <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.4 }}>
+        <span className="text-[10px] font-semibold tracking-widest uppercase">Discover more</span>
+        <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
           <ChevronDown className="h-5 w-5" />
         </motion.div>
       </motion.button>
 
-      {/* Business Bottom Sheet */}
+      {/* Business Bottom Sheet — dark glass */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -461,79 +671,79 @@ export function HomeMapView() {
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 400, damping: 40 }}
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.4 }}
             onDragEnd={(_, info) => { if (info.offset.y > 80) setSelected(null); }}
-            className="absolute bottom-0 left-0 right-0 z-[2000] rounded-t-3xl shadow-2xl overflow-hidden"
-            style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(24px)", maxHeight: "65vh" }}
+            className="absolute bottom-0 left-0 right-0 z-[2000] rounded-t-3xl shadow-2xl overflow-hidden glass-sheet"
+            style={{ maxHeight: "65vh" }}
           >
-            {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
+              <div className="w-10 h-1 rounded-full bg-white/20" />
             </div>
 
-            <div className="px-5 pb-6 overflow-y-auto">
+            <div className="px-5 pb-8 overflow-y-auto hide-scrollbar">
               <div className="flex items-start gap-3 mb-4">
-                {/* Photo thumbnail */}
                 {selected.photos?.[0] && (
-                  <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-md">
+                  <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg">
                     <img src={selected.photos[0].url} alt={selected.name} className="w-full h-full object-cover" />
                   </div>
                 )}
+                {!selected.photos?.[0] && (
+                  <div className="w-20 h-20 rounded-2xl flex-shrink-0 flex items-center justify-center bg-white/5 border border-white/10">
+                    <MapPinOff className="h-7 w-7 text-white/20" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-lg font-bold text-gray-900 leading-tight">{selected.name}</h3>
-                    {selected.verified && <ShieldCheck className="h-4 w-4 text-blue-500 flex-shrink-0" />}
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-bold text-white leading-tight">{selected.name}</h3>
+                    {selected.verified && <ShieldCheck className="h-4 w-4 text-blue-400 flex-shrink-0" />}
                   </div>
                   {selected.categoryName && (
-                    <span className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full mb-1.5"
-                      style={{ background: `${CATEGORY_COLORS[selected.categoryName] ?? DEFAULT_COLOR}18`, color: CATEGORY_COLORS[selected.categoryName] ?? DEFAULT_COLOR }}>
+                    <span className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full mb-2"
+                      style={{ background: `${CATEGORY_COLORS[selected.categoryName] ?? DEFAULT_COLOR}25`, color: CATEGORY_COLORS[selected.categoryName] ?? DEFAULT_COLOR, border: `1px solid ${CATEGORY_COLORS[selected.categoryName] ?? DEFAULT_COLOR}40` }}>
                       {selected.categoryName}
                     </span>
                   )}
                   {selected.rating && (
                     <div className="flex items-center gap-1">
                       <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-bold text-gray-800">{selected.rating}</span>
-                      <span className="text-xs text-gray-500">({selected.reviewCount ?? 0} reviews)</span>
+                      <span className="text-sm font-bold text-white/90">{selected.rating}</span>
+                      <span className="text-xs text-white/50">({selected.reviewCount ?? 0})</span>
                     </div>
                   )}
                 </div>
-                <button onClick={() => setSelected(null)} className="p-1.5 rounded-full hover:bg-gray-100">
-                  <X className="h-4 w-4 text-gray-400" />
+                <button onClick={() => setSelected(null)} className="p-1.5 rounded-full hover:bg-white/10">
+                  <X className="h-4 w-4 text-white/50" />
                 </button>
               </div>
 
-              {/* Location */}
-              <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+              <div className="flex items-center gap-2 text-xs text-white/50 mb-1">
                 <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                <span className="truncate">{[selected.streetName, selected.areaName, selected.cityName].filter(Boolean).join(", ")}</span>
+                <span className="truncate">{[selected.streetName, selected.areaName, selected.cityName].filter(Boolean).join(", ") || "Lagos, Nigeria"}</span>
               </div>
               {selected.openingHours && (
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
+                <div className="flex items-center gap-2 text-xs text-white/50 mb-4">
                   <Clock className="h-3.5 w-3.5 flex-shrink-0" />
                   {selected.openingHours}
                 </div>
               )}
 
-              {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => navigate(`/businesses/${selected.id}`)}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg,#0547B6,#2563eb)", boxShadow: "0 4px 16px rgba(5,71,182,0.35)" }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white btn-glow"
+                  style={{ background: "linear-gradient(135deg,#0547B6,#2563eb)" }}
                 >
-                  View Profile
-                  <ArrowRight className="h-4 w-4" />
+                  View Profile <ArrowRight className="h-4 w-4" />
                 </button>
                 {selected.latitude && selected.longitude && (
                   <a
                     href={`https://maps.google.com/?q=${selected.latitude},${selected.longitude}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl text-sm font-semibold text-primary border border-primary/20 bg-primary/5"
+                    className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl text-sm font-semibold text-blue-400 border border-blue-500/30 hover:bg-blue-500/10 transition-colors"
                   >
                     <Navigation className="h-4 w-4" />
                     Navigate
