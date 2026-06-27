@@ -129,14 +129,17 @@ export function HomeMapView() {
   const [, navigate] = useLocation();
   const { data: businesses = [] } = useMapBusinesses();
 
+  const outerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
-  const labelsLayerRef = useRef<any>(null);   // satellite street-name overlay
+  const labelsLayerRef = useRef<any>(null);
   const markersRef = useRef<Array<{ marker: any; biz: Business }>>([]);
   const userMarkerRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
   const activityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rotationRef = useRef(0);                     // always-fresh rotation for touch handler
+  const touchStartRef = useRef<{ angle: number; baseRotation: number } | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -166,12 +169,54 @@ export function HomeMapView() {
     return () => { if (activityTimerRef.current) clearInterval(activityTimerRef.current); };
   }, []);
 
+  /* ── Keep rotationRef in sync (avoids stale closures in touch handler) ── */
+  useEffect(() => { rotationRef.current = rotationDeg; }, [rotationDeg]);
+
   /* ── Apply CSS rotation to map container ── */
   useEffect(() => {
     if (!containerRef.current) return;
     containerRef.current.style.transform = `rotate(${rotationDeg}deg)`;
     containerRef.current.style.transformOrigin = "center center";
   }, [rotationDeg]);
+
+  /* ── Two-finger twist-to-rotate gesture on the outer wrapper ── */
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el) return;
+
+    function getTouchAngle(touches: TouchList): number {
+      const dx = touches[1].clientX - touches[0].clientX;
+      const dy = touches[1].clientY - touches[0].clientY;
+      return Math.atan2(dy, dx) * (180 / Math.PI);
+    }
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        touchStartRef.current = {
+          angle: getTouchAngle(e.touches),
+          baseRotation: rotationRef.current,
+        };
+      }
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touchStartRef.current) {
+        const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
+        setRotationDeg(((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360);
+      }
+    };
+
+    const onEnd = () => { touchStartRef.current = null; };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, []);
 
   /* ── Filter markers ── */
   useEffect(() => {
@@ -254,17 +299,23 @@ export function HomeMapView() {
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
-      /* Show/hide business name labels based on zoom */
+      /* Show/hide name labels (business + user location) based on zoom */
       map.on("zoomend", () => {
         const z = map.getZoom();
         const showLabels = z >= 15;
-        /* Toggle .biz-name-label opacity via the marker element */
+        /* Business markers */
         markersRef.current.forEach(({ marker }) => {
           const el = marker.getElement?.() as HTMLElement | undefined;
           if (!el) return;
           const label = el.querySelector<HTMLElement>(".biz-name-label");
           if (label) label.style.opacity = showLabels ? "1" : "0";
         });
+        /* User location marker */
+        const userEl = userMarkerRef.current?.getElement?.() as HTMLElement | undefined;
+        if (userEl) {
+          const label = userEl.querySelector<HTMLElement>(".biz-name-label");
+          if (label) label.style.opacity = showLabels ? "1" : "0";
+        }
       });
 
       map.on("click", () => { setSelected(null); setShowStylePicker(false); });
@@ -345,10 +396,19 @@ export function HomeMapView() {
           userMarkerRef.current.setLatLng([latitude, longitude]);
         } else {
           const html = `
-            <div style="position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
-              <div style="position:absolute;width:32px;height:32px;border-radius:50%;background:rgba(5,71,182,0.2);animation:live-track-ring 1.6s ease-out infinite;"></div>
-              <div style="position:absolute;width:20px;height:20px;border-radius:50%;background:rgba(5,71,182,0.15);animation:live-track-ring 1.6s ease-out 0.4s infinite;"></div>
-              <div class="user-location-dot" style="width:14px;height:14px;background:#2563eb;border:3px solid white;border-radius:50%;position:relative;z-index:2;box-shadow:0 2px 12px rgba(5,71,182,0.6);"></div>
+            <div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
+              <div class="biz-name-label" style="
+                position:absolute;top:-24px;left:50%;transform:translateX(-50%);
+                background:rgba(5,71,182,0.88);color:white;
+                font-size:10px;font-weight:700;white-space:nowrap;
+                padding:2px 8px;border-radius:20px;
+                border:1px solid rgba(255,255,255,0.25);
+                backdrop-filter:blur(8px);pointer-events:none;
+                opacity:0;transition:opacity 0.2s;
+              ">📍 Your Current Location</div>
+              <div style="position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(5,71,182,0.15);animation:live-track-ring 1.6s ease-out infinite;"></div>
+              <div style="position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(5,71,182,0.12);animation:live-track-ring 1.6s ease-out 0.4s infinite;"></div>
+              <div class="user-location-dot" style="width:16px;height:16px;background:#2563eb;border:3px solid white;border-radius:50%;position:relative;z-index:2;box-shadow:0 2px 16px rgba(5,71,182,0.7);"></div>
             </div>`;
           const icon = L.divIcon({ className: "", html, iconSize: [32, 32], iconAnchor: [16, 16] });
           userMarkerRef.current = L.marker([latitude, longitude], { icon, zIndexOffset: 2000 }).addTo(map);
@@ -380,7 +440,7 @@ export function HomeMapView() {
   const visibleCount = businesses.filter(b => b.latitude && b.longitude).length;
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: "100dvh" }}>
+    <div ref={outerRef} className="relative w-full overflow-hidden" style={{ height: "100dvh" }}>
       {/* Map canvas — rotation applied here via CSS transform in useEffect */}
       <div ref={containerRef} className="absolute inset-0" style={{ transition: "transform 0.3s ease" }} />
 
