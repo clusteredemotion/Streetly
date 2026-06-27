@@ -35,14 +35,19 @@ export function Navbar() {
     { href: "/agents", label: "Become an Agent" },
   ];
 
-  const transparent = isHome && !scrolled && !isOpen;
+  /* onMap = sitting at the top of the home page (map is fully visible behind us)
+     → needs a light frosted glass bar with dark-blue text so it reads on light map tiles.
+     scrolledHome = user has scrolled past the map into the dark content sections
+     → needs white text on the dark glass bar.
+     otherPage = any non-home route → same dark glass + white text. */
+  const onMap = isHome && !scrolled && !isOpen;
 
   return (
     <>
       <header
         className={cn(
           "fixed top-0 z-50 w-full transition-all duration-300",
-          transparent ? "glass-nav-transparent" : "glass-nav"
+          onMap ? "glass-nav-transparent" : "glass-nav"
         )}
       >
         <div className="container mx-auto flex h-[58px] items-center justify-between px-4 md:px-6">
@@ -50,13 +55,13 @@ export function Navbar() {
           <Link href="/" className="flex items-center gap-2 group">
             <div className={cn(
               "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
-              transparent ? "bg-white/15" : "bg-primary/10"
+              onMap ? "bg-blue-700/10" : "bg-white/10"
             )}>
-              <MapPin className={cn("h-4 w-4", transparent ? "text-white" : "text-primary")} />
+              <MapPin className={cn("h-4 w-4", onMap ? "text-[#0547B6]" : "text-white")} />
             </div>
             <span className={cn(
-              "font-bold text-lg tracking-tight",
-              transparent ? "text-white" : "text-foreground"
+              "font-bold text-lg tracking-tight transition-colors",
+              onMap ? "text-[#0547B6]" : "text-white"
             )}>
               Streetly
             </span>
@@ -70,13 +75,13 @@ export function Navbar() {
                 href={link.href}
                 className={cn(
                   "text-sm font-medium px-3.5 py-2 rounded-lg transition-all duration-150",
-                  transparent
+                  onMap
                     ? location === link.href
-                      ? "bg-white/20 text-white"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                      ? "bg-blue-700/10 text-[#0547B6]"
+                      : "text-[#0547B6]/75 hover:bg-blue-700/8 hover:text-[#0547B6]"
                     : location === link.href
-                      ? "bg-primary/8 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-white/15 text-white"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
                 )}
               >
                 {link.label}
@@ -96,7 +101,10 @@ export function Navbar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={cn(transparent ? "text-white/80 hover:bg-white/10 hover:text-white" : "")}
+                    className={cn(onMap
+                      ? "text-[#0547B6]/80 hover:bg-blue-700/8 hover:text-[#0547B6]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                    )}
                   >
                     Dashboard
                   </Button>
@@ -105,7 +113,10 @@ export function Navbar() {
                   size="sm"
                   variant="ghost"
                   onClick={logout}
-                  className={cn(transparent ? "text-white/60 hover:bg-white/10 hover:text-white" : "")}
+                  className={cn(onMap
+                    ? "text-[#0547B6]/60 hover:bg-blue-700/8 hover:text-[#0547B6]"
+                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                  )}
                 >
                   Logout
                 </Button>
@@ -116,7 +127,10 @@ export function Navbar() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={cn(transparent ? "text-white hover:bg-white/10" : "")}
+                    className={cn(onMap
+                      ? "text-[#0547B6] hover:bg-blue-700/8"
+                      : "text-white hover:bg-white/10"
+                    )}
                   >
                     Log in
                   </Button>
@@ -126,9 +140,9 @@ export function Navbar() {
                     size="sm"
                     className={cn(
                       "rounded-full px-5 font-semibold",
-                      transparent
-                        ? "bg-white text-primary hover:bg-white/90 shadow-lg"
-                        : "shadow-sm"
+                      onMap
+                        ? "bg-[#0547B6] text-white hover:bg-[#0437a0] shadow-lg"
+                        : "bg-white text-[#0547B6] hover:bg-white/90 shadow-lg"
                     )}
                   >
                     Sign up
@@ -142,7 +156,9 @@ export function Navbar() {
           <button
             className={cn(
               "md:hidden w-9 h-9 flex items-center justify-center rounded-lg transition-colors",
-              transparent ? "text-white hover:bg-white/10" : "text-foreground hover:bg-muted"
+              onMap
+                ? "text-[#0547B6] hover:bg-blue-700/8"
+                : "text-white hover:bg-white/10"
             )}
             onClick={() => setIsOpen(!isOpen)}
             aria-label="Toggle menu"
@@ -185,8 +201,8 @@ export function Navbar() {
                       className={cn(
                         "flex items-center justify-between text-sm font-medium p-3 rounded-xl transition-colors",
                         location === link.href
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-muted"
+                          ? "bg-white/15 text-white"
+                          : "text-white/80 hover:bg-white/10 hover:text-white"
                       )}
                     >
                       {link.label}
@@ -195,23 +211,23 @@ export function Navbar() {
                   </motion.div>
                 ))}
 
-                <div className="h-px bg-border my-2" />
+                <div className="h-px bg-white/10 my-2" />
 
                 {user ? (
                   <div className="flex flex-col gap-2">
                     <Link href={user.role === "field_agent" ? "/agent-dashboard" : user.role === "business_owner" ? "/owner-dashboard" : "/admin"}>
-                      <Button variant="outline" className="w-full rounded-xl" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full rounded-xl text-white border-white/20 hover:bg-white/10" onClick={() => setIsOpen(false)}>
                         Dashboard
                       </Button>
                     </Link>
-                    <Button variant="ghost" className="w-full rounded-xl" onClick={() => { logout(); setIsOpen(false); }}>
+                    <Button variant="ghost" className="w-full rounded-xl text-white/70 hover:bg-white/10" onClick={() => { logout(); setIsOpen(false); }}>
                       Logout
                     </Button>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 pt-1">
                     <Link href="/auth/login">
-                      <Button variant="outline" className="w-full rounded-xl" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full rounded-xl text-white border-white/20 hover:bg-white/10" onClick={() => setIsOpen(false)}>
                         Log in
                       </Button>
                     </Link>
