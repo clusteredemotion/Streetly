@@ -17,8 +17,9 @@ import {
 } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/utils";
-import { Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
+import { Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle, ShieldCheck, Plus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import AddBusinessForm from "@/components/admin/AddBusinessForm";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -134,8 +135,12 @@ export default function AdminPage() {
         )}
 
         {/* Tabs */}
-        <Tabs defaultValue="businesses">
+        <Tabs defaultValue="add-business">
           <TabsList className="mb-6 flex-wrap h-auto gap-1">
+            <TabsTrigger value="add-business" className="gap-2">
+              <Plus className="h-3.5 w-3.5" />
+              Add Business
+            </TabsTrigger>
             <TabsTrigger value="businesses" className="gap-2">
               Pending Businesses
               {(stats?.pendingBusinesses ?? 0) > 0 && (
@@ -161,6 +166,19 @@ export default function AdminPage() {
               )}
             </TabsTrigger>
           </TabsList>
+
+          {/* Add Business */}
+          <TabsContent value="add-business">
+            <div className="max-w-2xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-foreground">Add New Business</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Register a business directly to the Streetly directory. Pin its location on the map, upload photos, and publish immediately.
+                </p>
+              </div>
+              <AddBusinessForm />
+            </div>
+          </TabsContent>
 
           {/* Pending Businesses */}
           <TabsContent value="businesses">

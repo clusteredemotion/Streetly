@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { businessesTable, agentsTable, usersTable, withdrawalsTable, businessClaimsTable } from "@workspace/db";
-import { eq, count, sql } from "drizzle-orm";
+import {
+  businessesTable, agentsTable, usersTable, withdrawalsTable,
+  businessClaimsTable, businessPhotosTable, categoriesTable,
+  citiesTable, areasTable, streetsTable,
+} from "@workspace/db";
+import { eq, count, sql, ilike, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -82,6 +86,100 @@ router.patch("/agents/:id/approve", async (req, res) => {
 
   if (!agent) return res.status(404).json({ error: "Agent not found" });
   return res.json(agent);
+});
+
+// GET /admin/categories (for dropdowns)
+router.get("/categories", async (_req, res) => {
+  const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.name);
+  return res.json(cats);
+});
+
+// POST /admin/businesses — admin creates a fully-specified business
+router.post("/businesses", async (req, res) => {
+  const {
+    name, description, categoryId,
+    stateName, cityName, areaName, streetName,
+    address, phone, whatsapp, website, registrationNumber,
+    latitude, longitude, openingHours,
+    photos = [],
+    verified = false,
+    featured = false,
+    publish = false,
+  } = req.body;
+
+  if (!name || !categoryId || !cityName || !areaName || !streetName) {
+    return res.status(400).json({ error: "name, categoryId, cityName, areaName, streetName are required" });
+  }
+
+  // Find or create city
+  let cityRows = await db.select().from(citiesTable)
+    .where(and(ilike(citiesTable.name, cityName), ilike(citiesTable.state, stateName || "%")))
+    .limit(1);
+  let city = cityRows[0];
+  if (!city) {
+    const inserted = await db.insert(citiesTable).values({
+      name: cityName, state: stateName || "Unknown", country: "Nigeria",
+    }).returning();
+    city = inserted[0];
+  }
+
+  // Find or create area
+  let areaRows = await db.select().from(areasTable)
+    .where(and(ilike(areasTable.name, areaName), eq(areasTable.cityId, city.id)))
+    .limit(1);
+  let area = areaRows[0];
+  if (!area) {
+    const inserted = await db.insert(areasTable).values({ name: areaName, cityId: city.id }).returning();
+    area = inserted[0];
+  }
+
+  // Find or create street
+  let streetRows = await db.select().from(streetsTable)
+    .where(and(ilike(streetsTable.name, streetName), eq(streetsTable.areaId, area.id)))
+    .limit(1);
+  let street = streetRows[0];
+  if (!street) {
+    const inserted = await db.insert(streetsTable).values({ name: streetName, areaId: area.id }).returning();
+    street = inserted[0];
+  }
+
+  // Build description with optional registration number
+  const fullDescription = [
+    description || "",
+    registrationNumber ? `Registration No: ${registrationNumber}` : "",
+  ].filter(Boolean).join("\n\n") || undefined;
+
+  // Create business
+  const bizInsert = await db.insert(businessesTable).values({
+    name,
+    description: fullDescription,
+    categoryId: Number(categoryId),
+    streetId: street.id,
+    address,
+    phone,
+    whatsapp,
+    website,
+    latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
+    longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
+    openingHours,
+    status: publish ? "approved" : "pending",
+    verified: Boolean(verified),
+    featured: Boolean(featured),
+  }).returning();
+  const biz = bizInsert[0];
+
+  // Save photos (stored as data URLs or external URLs)
+  if (Array.isArray(photos) && photos.length > 0) {
+    await db.insert(businessPhotosTable).values(
+      photos.slice(0, 10).map((p: { url: string; caption?: string }) => ({
+        businessId: biz.id,
+        url: p.url,
+        caption: p.caption ?? null,
+      }))
+    );
+  }
+
+  return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });
 });
 
 // GET /admin/claims/pending
