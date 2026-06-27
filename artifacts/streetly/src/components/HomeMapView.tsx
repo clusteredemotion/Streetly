@@ -172,14 +172,15 @@ export function HomeMapView() {
   /* ── Keep rotationRef in sync (avoids stale closures in touch handler) ── */
   useEffect(() => { rotationRef.current = rotationDeg; }, [rotationDeg]);
 
-  /* ── Apply CSS rotation to map container ── */
+  /* ── Apply CSS rotation to map container (from state, e.g. button clicks) ── */
   useEffect(() => {
     if (!containerRef.current) return;
-    containerRef.current.style.transform = `rotate(${rotationDeg}deg)`;
     containerRef.current.style.transformOrigin = "center center";
+    containerRef.current.style.transform = `rotate(${rotationDeg}deg) scale(1.18)`;
+    containerRef.current.style.transition = "transform 0.25s ease";
   }, [rotationDeg]);
 
-  /* ── Two-finger twist-to-rotate gesture on the outer wrapper ── */
+  /* ── Two-finger twist-to-rotate gesture — direct DOM, no React re-renders ── */
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
@@ -196,25 +197,43 @@ export function HomeMapView() {
           angle: getTouchAngle(e.touches),
           baseRotation: rotationRef.current,
         };
+        /* Disable CSS transition for instant gesture response */
+        if (containerRef.current) {
+          containerRef.current.style.transition = "none";
+        }
       }
     };
 
     const onMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && touchStartRef.current) {
-        const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
-        setRotationDeg(((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360);
+      if (e.touches.length !== 2 || !touchStartRef.current) return;
+      const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
+      const newDeg = ((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360;
+      rotationRef.current = newDeg;
+      /* Apply directly to DOM — no React setState, no re-render */
+      if (containerRef.current) {
+        containerRef.current.style.transform = `rotate(${newDeg}deg) scale(1.18)`;
       }
     };
 
-    const onEnd = () => { touchStartRef.current = null; };
+    const onEnd = () => {
+      if (!touchStartRef.current) return;
+      touchStartRef.current = null;
+      /* Restore smooth transition and sync React state (single update) */
+      if (containerRef.current) {
+        containerRef.current.style.transition = "transform 0.25s ease";
+      }
+      setRotationDeg(Math.round(rotationRef.current));
+    };
 
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: true });
     el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
     return () => {
       el.removeEventListener("touchstart", onStart);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
     };
   }, []);
 
