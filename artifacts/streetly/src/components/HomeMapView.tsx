@@ -191,24 +191,30 @@ export function HomeMapView() {
   }, []);
 
   /**
-   * Compute the minimum CSS scale factor needed so the rotated map container
-   * fully covers the viewport with NO edge gaps, for any phone aspect ratio.
-   * Formula: |cos θ| + (H/W) × |sin θ|  (derived from corner-coverage proof)
+   * Counter-rotate the satellite labels pane so street-name text stays upright
+   * while the map geography rotates underneath.  The pane fills the container,
+   * so its transform-origin (50% 50%) equals the container's rotation center.
    */
-  const mapScale = useCallback((deg: number): number => {
-    const r = (deg * Math.PI) / 180;
-    const ar = window.innerHeight / window.innerWidth; // >1 on portrait phones
-    return Math.abs(Math.cos(r)) + ar * Math.abs(Math.sin(r)) + 0.04;
+  const counterRotateLabels = useCallback((deg: number) => {
+    const pane = mapRef.current?.getPane?.("labelsPane") as HTMLElement | undefined;
+    if (pane) {
+      pane.style.transformOrigin = "50% 50%";
+      pane.style.transform = `rotate(${-deg}deg)`;
+    }
   }, []);
 
-  /** Apply rotation + exact scale to map container, then counter-rotate markers */
+  /**
+   * Apply pure CSS rotation (no scale — the physical 3× container provides
+   * the edge buffer), counter-rotate markers, and counter-rotate labels pane.
+   */
   const applyRotation = useCallback((deg: number, transition = true) => {
     if (!containerRef.current) return;
     containerRef.current.style.transformOrigin = "center center";
     containerRef.current.style.transition = transition ? "transform 0.25s ease" : "none";
-    containerRef.current.style.transform = `rotate(${deg}deg) scale(${mapScale(deg)})`;
+    containerRef.current.style.transform = `rotate(${deg}deg)`;
     counterRotateAll(deg);
-  }, [mapScale, counterRotateAll]);
+    counterRotateLabels(deg);
+  }, [counterRotateAll, counterRotateLabels]);
 
   /* ── Apply rotation when rotationDeg state changes (button clicks / reset) ── */
   useEffect(() => {
@@ -245,15 +251,21 @@ export function HomeMapView() {
       const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
       const newDeg = ((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360;
       rotationRef.current = newDeg;
+      // Pure rotation — no scale() since the 3× physical container covers all gaps
       if (containerRef.current) {
-        containerRef.current.style.transform = `rotate(${newDeg}deg) scale(${mapScale(newDeg)})`;
+        containerRef.current.style.transform = `rotate(${newDeg}deg)`;
       }
+      // Keep business markers upright
       markersRef.current.forEach(({ marker }) => {
         const iconEl = (marker.getElement?.() as HTMLElement | undefined)?.firstElementChild as HTMLElement | undefined;
         if (iconEl) iconEl.style.transform = `rotate(${-newDeg}deg)`;
       });
+      // Keep user location dot upright
       const userIcon = (userMarkerRef.current?.getElement?.() as HTMLElement | undefined)?.firstElementChild as HTMLElement | undefined;
       if (userIcon) userIcon.style.transform = `rotate(${-newDeg}deg)`;
+      // Keep satellite street-name labels upright
+      const labelsPane = mapRef.current?.getPane?.("labelsPane") as HTMLElement | undefined;
+      if (labelsPane) labelsPane.style.transform = `rotate(${-newDeg}deg)`;
     };
 
     const onEnd = () => {
@@ -280,7 +292,7 @@ export function HomeMapView() {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [mapScale]);
+  }, []);
 
   /* ── Filter markers ── */
   useEffect(() => {
@@ -324,6 +336,7 @@ export function HomeMapView() {
           maxZoom: 20,
           opacity: 0.9,
           attribution: "© OpenStreetMap © CARTO",
+          pane: "labelsPane",   // counter-rotated pane keeps text upright
         }).addTo(map);
       }
     } else {
@@ -350,7 +363,15 @@ export function HomeMapView() {
         zoom: 12,
         zoomControl: false,
         attributionControl: true,
+        zoomSnap: 0.5,          // allow fractional zoom for precise compensation
+        zoomDelta: 0.5,
       });
+
+      /* Dedicated pane for satellite street labels so we can counter-rotate
+         them independently — keeping text upright while the map geography rotates */
+      map.createPane("labelsPane");
+      map.getPane("labelsPane").style.zIndex = "450";
+      map.getPane("labelsPane").style.pointerEvents = "none";
       mapRef.current = map;
       (mapRef.current as any)._L = L;
       setMapReady(true);
@@ -432,6 +453,12 @@ export function HomeMapView() {
 
     const bounds = L.latLngBounds(mappable.map(b => [b.latitude!, b.longitude!]));
     map.fitBounds(bounds, { padding: [80, 80], maxZoom: 14, animate: false });
+
+    /* The physical map container is 3× the viewport in each dimension so Leaflet
+       loads tiles for 3× the area (= free pan buffer when rotated).  fitBounds
+       will therefore zoom in ~log2(3)≈1.5 levels too far from the user's
+       perspective, so zoom back out to match the original portrait feel. */
+    map.setZoom(map.getZoom() - Math.log2(3), { animate: false });
   }, [businesses, mapReady, counterRotateAll]);
 
   /* ── Navigate map to a Nigeria location ── */
@@ -513,7 +540,14 @@ export function HomeMapView() {
   return (
     <div ref={outerRef} className="relative w-full overflow-hidden" style={{ height: "100dvh", touchAction: "pan-x pan-y" }}>
       {/* Map canvas — rotation applied here via CSS transform in useEffect */}
-      <div ref={containerRef} className="absolute inset-0" style={{ transition: "transform 0.3s ease" }} />
+      {/* Physical 3× container — Leaflet loads tiles for 3× viewport area,
+          giving a full free-pan buffer in every direction when rotated.
+          transform-origin defaults to 50% 50% = viewport center (correct). */}
+      <div ref={containerRef} style={{
+        position: "absolute",
+        width: "300vw", height: "300dvh",
+        top: "-100dvh", left: "-100vw",
+      }} />
 
       {/* ── Floating Search + Filters ── */}
       <div className="absolute top-20 left-0 right-0 z-[1000] flex flex-col items-center px-3 sm:px-6 gap-2">
