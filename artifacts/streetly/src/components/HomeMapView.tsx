@@ -171,6 +171,11 @@ export function HomeMapView() {
   const stepPreAnnouncedRef  = useRef(false);
   const voiceRef             = useRef<SpeechSynthesisVoice | null>(null);
   const nominatimOriginTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const driveCurrentPosRef   = useRef<[number, number] | null>(null); // latest GPS pos during driving
+  const driveFollowing       = useRef(true);   // true = map auto-follows GPS
+  const driveSnapTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [driveOffCenter, setDriveOffCenter] = useState(false); // recenter button visibility
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -742,16 +747,38 @@ export function HomeMapView() {
   }, []);
 
   const stopDriving = useCallback(() => {
+    const map = mapRef.current;
     if (driveWatchRef.current !== null) { navigator.geolocation.clearWatch(driveWatchRef.current); driveWatchRef.current = null; }
+    /* Remove drive-specific drag listener */
+    if (map && (map as any)._driveDragHandler) {
+      map.off("dragstart", (map as any)._driveDragHandler);
+      delete (map as any)._driveDragHandler;
+    }
+    if (driveSnapTimerRef.current) { clearTimeout(driveSnapTimerRef.current); driveSnapTimerRef.current = null; }
     clearRoute();
     window.speechSynthesis?.cancel?.();
-    drivePrevPosRef.current     = null;
-    driveStepsRef.current       = [];
-    driveStepIdxRef.current     = 0;
-    stepPreAnnouncedRef.current = false;
-    alertedIdsRef.current       = new Set();
+    drivePrevPosRef.current      = null;
+    driveCurrentPosRef.current   = null;
+    driveFollowing.current       = true;
+    driveStepsRef.current        = [];
+    driveStepIdxRef.current      = 0;
+    stepPreAnnouncedRef.current  = false;
+    alertedIdsRef.current        = new Set();
     if (nearbyTimerRef2.current) clearTimeout(nearbyTimerRef2.current);
+    /* Restore the regular user-location dot on the existing marker */
+    if (map && userMarkerRef.current && leafletRef.current) {
+      const L = leafletRef.current;
+      const regularHtml = `
+        <div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
+          <div style="position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(5,71,182,0.15);animation:live-track-ring 1.6s ease-out infinite;"></div>
+          <div style="position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(5,71,182,0.12);animation:live-track-ring 1.6s ease-out 0.4s infinite;"></div>
+          <div class="user-location-dot" style="width:16px;height:16px;background:#2563eb;border:3px solid white;border-radius:50%;position:relative;z-index:2;box-shadow:0 2px 16px rgba(5,71,182,0.7);"></div>
+        </div>`;
+      const regularIcon = L.divIcon({ className: "", html: regularHtml, iconSize: [44, 44], iconAnchor: [22, 22] });
+      userMarkerRef.current.setIcon(regularIcon);
+    }
     setDrivingActive(false);
+    setDriveOffCenter(false);
     setRouteInfo(null);
     setNearbyAlert(null);
     setDriveDestCoords(null);
@@ -761,55 +788,98 @@ export function HomeMapView() {
     setDriveOrigin(null);
     setShowDriveSheet(false);
     applyRotRef.current(0, true);
-    /* Re-enable Leaflet drag now that we're no longer rotating the map */
-    try { mapRef.current?.dragging?.enable(); } catch {}
-    mapRef.current?.setZoom?.(14, { animate: true });
+    map?.setZoom?.(14, { animate: true });
   }, [clearRoute]);
 
   const startDriving = useCallback(() => {
     if (!driveOrigin || !driveDestCoords) return;
-    const map = mapRef.current; if (!map) return;
+    const map  = mapRef.current; if (!map) return;
+    const Lmod = leafletRef.current; if (!Lmod) return;
+
     setDrivingActive(true);
     setShowDriveSheet(false);
-    alertedIdsRef.current       = new Set();
-    driveStepIdxRef.current     = 1;   // 0 is "depart" — announce it on start, skip in loop
-    stepPreAnnouncedRef.current = false;
-    drivePrevPosRef.current     = driveOrigin;
+    setDriveOffCenter(false);
+    driveFollowing.current       = true;
+    alertedIdsRef.current        = new Set();
+    driveStepIdxRef.current      = 1;
+    stepPreAnnouncedRef.current  = false;
+    drivePrevPosRef.current      = driveOrigin;
+    driveCurrentPosRef.current   = driveOrigin;
 
-    /* Disable Leaflet's own drag — we drive the map via setView() in the GPS
-       watcher. With the map CSS-rotated for heading-up, Leaflet's drag uses
-       raw screen coords and pans the wrong direction when rotated >90°. */
-    try { map.dragging.disable(); } catch {}
+    /* ── Swap / create the navigation dot (Google Maps-style pulsing blue arrow) ── */
+    const navDotHtml = `
+      <div style="position:relative;width:60px;height:60px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;width:60px;height:60px;border-radius:50%;
+          background:rgba(37,99,235,0.15);animation:live-track-ring 2s ease-out infinite;"></div>
+        <div style="position:absolute;width:42px;height:42px;border-radius:50%;
+          background:rgba(37,99,235,0.18);animation:live-track-ring 2s ease-out 0.55s infinite;"></div>
+        <div style="position:absolute;top:3px;left:50%;transform:translateX(-50%);
+          width:0;height:0;
+          border-left:8px solid transparent;border-right:8px solid transparent;
+          border-bottom:15px solid #2563eb;
+          filter:drop-shadow(0 1px 6px rgba(37,99,235,0.9));"></div>
+        <div style="width:22px;height:22px;background:#2563eb;border:3.5px solid white;
+          border-radius:50%;position:relative;z-index:2;
+          box-shadow:0 2px 18px rgba(37,99,235,0.85);"></div>
+      </div>`;
+    const navIcon = Lmod.divIcon({ className: "", html: navDotHtml, iconSize: [60, 60], iconAnchor: [30, 30] });
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setIcon(navIcon);
+      userMarkerRef.current.setLatLng(driveOrigin);
+    } else {
+      userMarkerRef.current = Lmod.marker(driveOrigin, { icon: navIcon, zIndexOffset: 3000 }).addTo(map);
+    }
 
-    /* Step 1: fit full A→B route into view for 1.5 s so the user can see the line */
-    const routeLine = routeLayersRef.current[1]; // index 1 = the blue line (0 = shadow)
+    /* ── Re-enable drag so the user can briefly look around ── */
+    try { map.dragging.enable(); } catch {}
+
+    /* ── Detect when user pans away: enter "off-center" mode ── */
+    const onDragStart = () => {
+      driveFollowing.current = false;
+      setDriveOffCenter(true);
+      if (driveSnapTimerRef.current) clearTimeout(driveSnapTimerRef.current);
+      /* Auto-re-engage following after 5 s of no interaction */
+      driveSnapTimerRef.current = setTimeout(() => {
+        driveFollowing.current = true;
+        setDriveOffCenter(false);
+        const pos = driveCurrentPosRef.current;
+        if (pos) map.setView(pos, Math.max(map.getZoom(), 17), { animate: true, duration: 0.6 });
+      }, 5000);
+    };
+    map.on("dragstart", onDragStart);
+    /* Store cleanup on the map object so stopDriving can remove it */
+    (map as any)._driveDragHandler = onDragStart;
+
+    /* ── Step 1: show full route overview ── */
+    const routeLine = routeLayersRef.current[1];
     if (routeLine) {
       try { map.fitBounds(routeLine.getBounds(), { padding: [60, 60], animate: true, duration: 0.8 }); } catch {}
     }
 
-    /* Step 2: after a short pause, fly to origin and begin GPS tracking */
+    /* ── Step 2: fly to origin, begin navigation ── */
     setTimeout(() => {
       map.flyTo(driveOrigin, 18, { duration: 1.2 });
     }, 1600);
 
-    /* Announce route summary + first instruction */
-    const ri = routeInfo;  // captured from closure; stays stable
+    /* ── Announce route + first instruction ── */
+    const ri = routeInfo;
     const firstStep = driveStepsRef.current[0];
-    const etaText = ri
+    const etaText   = ri
       ? `Route calculated. ${ri.distKm.toFixed(1)} kilometers, approximately ${ri.durationMin} minutes. `
       : "Navigation started. ";
-    const firstInstr = firstStep ? buildInstruction(firstStep) : "";
-    speak(etaText + firstInstr);
+    speak(etaText + (firstStep ? buildInstruction(firstStep) : ""));
 
+    /* ── GPS watcher ── */
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude: lat, longitude: lon } = pos.coords;
         const curr: [number, number] = [lat, lon];
+        driveCurrentPosRef.current = curr;
 
-        /* Move user location marker */
+        /* Update navigation dot position */
         if (userMarkerRef.current) userMarkerRef.current.setLatLng(curr);
 
-        /* Heading-up rotation — only update if moved more than 3 m */
+        /* Heading-up rotation — only when moved > 3 m */
         if (drivePrevPosRef.current) {
           const [pLat, pLon] = drivePrevPosRef.current;
           if (haversineM(pLat, pLon, lat, lon) > 3) {
@@ -822,30 +892,27 @@ export function HomeMapView() {
           }
         }
 
-        /* Smooth-follow GPS position at navigation zoom */
-        map.setView(curr, Math.max(map.getZoom(), 17), { animate: true, duration: 0.8, noMoveStart: true });
+        /* Follow GPS — skip if user is looking around */
+        if (driveFollowing.current) {
+          map.setView(curr, Math.max(map.getZoom(), 17), { animate: true, duration: 0.8, noMoveStart: true });
+        }
 
         /* ── Voice turn-by-turn ── */
         const steps   = driveStepsRef.current;
         const stepIdx = driveStepIdxRef.current;
         if (steps.length > 0 && stepIdx < steps.length) {
-          const nextStep            = steps[stepIdx];
-          const [sLon, sLat]        = nextStep.maneuver.location;
-          const distToStep          = haversineM(lat, lon, sLat, sLon);
-          const roundedDist         = Math.round(distToStep / 10) * 10;
-          const instr               = buildInstruction(nextStep);
+          const nextStep   = steps[stepIdx];
+          const [sLon, sLat] = nextStep.maneuver.location;
+          const distToStep = haversineM(lat, lon, sLat, sLon);
+          const instr      = buildInstruction(nextStep);
 
           if (distToStep < 50) {
-            /* Execute turn */
             speak(instr);
             driveStepIdxRef.current     = stepIdx + 1;
             stepPreAnnouncedRef.current = false;
-            if (nextStep.maneuver.type === "arrive") {
-              setTimeout(() => stopDriving(), 3500);
-            }
+            if (nextStep.maneuver.type === "arrive") setTimeout(() => stopDriving(), 3500);
           } else if (distToStep < 220 && !stepPreAnnouncedRef.current) {
-            /* Pre-announce ("In 150 meters, turn right") */
-            speak(`In ${roundedDist} meters, ${instr}`);
+            speak(`In ${Math.round(distToStep / 10) * 10} meters, ${instr}`);
             stepPreAnnouncedRef.current = true;
           }
         }
@@ -861,7 +928,6 @@ export function HomeMapView() {
           setNearbyAlert(nearby);
           if (nearbyTimerRef2.current) clearTimeout(nearbyTimerRef2.current);
           nearbyTimerRef2.current = setTimeout(() => setNearbyAlert(null), 4500);
-          /* Voice alert for the business */
           speak(`Nearby: ${nearby.name}${nearby.categoryName ? `, ${nearby.categoryName}` : ""}.`);
         }
       },
@@ -1205,7 +1271,7 @@ export function HomeMapView() {
       </div>
 
       {/* ── Drive Mode Button (left side) ── */}
-      <div className="absolute bottom-28 left-4 z-[1000]">
+      <div className="absolute bottom-28 left-4 z-[1000] flex flex-col items-start gap-2">
         <button
           onClick={drivingActive ? stopDriving : openDriveSheet}
           title={drivingActive ? "Stop driving" : "Drive mode"}
@@ -1220,6 +1286,31 @@ export function HomeMapView() {
             : <Car className="h-5 w-5 text-white/85" />}
         </button>
       </div>
+
+      {/* ── Recenter Button — shown while driving and map has been panned away ── */}
+      <AnimatePresence>
+        {drivingActive && driveOffCenter && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 12 }}
+            transition={{ type: "spring", stiffness: 420, damping: 32 }}
+            onClick={() => {
+              const pos = driveCurrentPosRef.current;
+              if (!pos) return;
+              driveFollowing.current = true;
+              setDriveOffCenter(false);
+              if (driveSnapTimerRef.current) { clearTimeout(driveSnapTimerRef.current); driveSnapTimerRef.current = null; }
+              mapRef.current?.setView(pos, Math.max(mapRef.current?.getZoom() ?? 17, 17), { animate: true, duration: 0.6 });
+            }}
+            className="absolute bottom-44 left-4 z-[2600] flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-2xl"
+            style={{ background: "rgba(5,10,30,0.95)", backdropFilter: "blur(16px)", border: "1px solid rgba(37,99,235,0.5)" }}
+          >
+            <LocateFixed className="h-4 w-4 text-blue-400" />
+            <span className="text-xs font-bold text-white">Recenter</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* ── Map Style Switcher ── */}
       <div className="absolute bottom-28 right-4 z-[1000]">
