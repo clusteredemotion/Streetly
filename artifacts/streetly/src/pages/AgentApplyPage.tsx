@@ -61,6 +61,33 @@ function GpsPickerMap({ lat, lon, onChange }: {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const placePin = useCallback(async (pLat: number, pLon: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const ll: L.LatLngExpression = [pLat, pLon];
+    if (markerRef.current) markerRef.current.setLatLng(ll);
+    else markerRef.current = L.marker(ll).addTo(map);
+    map.setView(ll, 17);
+    setGeocoding(true);
+    const address = await reverseGeocode(pLat, pLon);
+    setGeocoding(false);
+    onChange(pLat.toFixed(6), pLon.toFixed(6), address);
+  }, [onChange]);
+
+  const handleGetLocation = useCallback(() => {
+    if (!navigator.geolocation || !mapRef.current) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setLocating(false);
+        await placePin(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [placePin]);
 
   useEffect(() => {
     if (!divRef.current || mapRef.current) return;
@@ -101,13 +128,28 @@ function GpsPickerMap({ lat, lon, onChange }: {
   return (
     <div className="relative">
       <div ref={divRef} style={{ height: 260, borderRadius: 12, overflow: "hidden" }} />
+
+      {/* Get Address button */}
+      <button
+        type="button"
+        onClick={handleGetLocation}
+        disabled={locating || geocoding}
+        className="absolute top-2 right-2 z-[500] flex items-center gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-colors"
+      >
+        {locating ? (
+          <><Loader2 className="h-3 w-3 animate-spin" /> Locating…</>
+        ) : (
+          <><Navigation className="h-3 w-3" /> Get Address</>
+        )}
+      </button>
+
       {geocoding && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#0a1628]/90 backdrop-blur text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 z-[500]">
           <Loader2 className="h-3 w-3 animate-spin" /> Looking up address…
         </div>
       )}
       <div className="absolute bottom-2 left-2 bg-[#0a1628]/80 backdrop-blur text-[#a8c0e8] text-[11px] px-2 py-1 rounded z-[500]">
-        Click map to pin your location
+        Tap map to pin · or press Get Address
       </div>
     </div>
   );
@@ -383,26 +425,15 @@ export default function AgentApplyPage() {
                       <GlassInput value={form.bankName && ""} onChange={() => {}} placeholder="+234 801 234 5678" />
                     </div>
                   </div>
-                  <div>
-                    <FieldLabel>Home Address</FieldLabel>
-                    <input
-                      type="text"
-                      value={form.address}
-                      onChange={(e) => set("address")(e.target.value)}
-                      placeholder="Your residential address (auto-filled from map)"
-                      className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
-                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
-                    />
-                  </div>
                 </div>
               </SectionCard>
             </motion.div>
 
             {/* 2 — GPS Location */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <SectionCard icon={Navigation} title="Your Location (GPS)">
+              <SectionCard icon={Navigation} title="GPS Location & Office Address">
                 <p className="text-xs text-white/40 mb-4">
-                  Click anywhere on the map to pin your location. This helps us assign you to the right area.
+                  Press <span className="text-[#4a9eff] font-medium">Get Address</span> to pin your exact current location, or tap anywhere on the map. Then add your office/work address below.
                 </p>
                 <GpsPickerMap lat={form.latitude} lon={form.longitude} onChange={handleGps} />
                 <div className="grid grid-cols-2 gap-3 mt-4">
@@ -416,11 +447,25 @@ export default function AgentApplyPage() {
                   </div>
                 </div>
                 {form.latitude && form.longitude && (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-[#4a9eff]">
+                  <div className="mt-2 flex items-center gap-2 text-xs text-[#4a9eff]">
                     <MapPin className="h-3.5 w-3.5" />
                     Pinned at {parseFloat(form.latitude).toFixed(4)}°N, {parseFloat(form.longitude).toFixed(4)}°E
                   </div>
                 )}
+                <div className="mt-4">
+                  <FieldLabel>Office Address</FieldLabel>
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={(e) => set("address")(e.target.value)}
+                    placeholder="e.g. 12 Broad Street, Lagos Island, Lagos"
+                    className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                  />
+                  <p className="text-[11px] text-white/30 mt-1.5">
+                    Your operational address. Auto-filled from the map pin — edit to add specific details.
+                  </p>
+                </div>
               </SectionCard>
             </motion.div>
 

@@ -66,6 +66,36 @@ function GpsPickerMap({ lat, lon, onChange }: GpsPickerProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const placePin = useCallback(async (pLat: number, pLon: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const ll: L.LatLngExpression = [pLat, pLon];
+    if (markerRef.current) {
+      markerRef.current.setLatLng(ll);
+    } else {
+      markerRef.current = L.marker(ll).addTo(map);
+    }
+    map.setView(ll, 17);
+    setGeocoding(true);
+    const address = await reverseGeocode(pLat, pLon);
+    setGeocoding(false);
+    onChange(pLat.toFixed(6), pLon.toFixed(6), address);
+  }, [onChange]);
+
+  const handleGetLocation = useCallback(() => {
+    if (!navigator.geolocation || !mapRef.current) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setLocating(false);
+        await placePin(pos.coords.latitude, pos.coords.longitude);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [placePin]);
 
   useEffect(() => {
     if (!divRef.current || mapRef.current) return;
@@ -81,15 +111,13 @@ function GpsPickerMap({ lat, lon, onChange }: GpsPickerProps) {
       { maxZoom: 19, attribution: "© Esri" },
     ).addTo(map);
 
-    // Labels overlay
     L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
       { opacity: 0.8, maxZoom: 19 },
     ).addTo(map);
 
     if (lat && lon) {
-      const m = L.marker([parseFloat(lat), parseFloat(lon)]).addTo(map);
-      markerRef.current = m;
+      markerRef.current = L.marker([parseFloat(lat), parseFloat(lon)]).addTo(map);
     }
 
     map.on("click", async (e) => {
@@ -114,7 +142,6 @@ function GpsPickerMap({ lat, lon, onChange }: GpsPickerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep marker in sync when lat/lon change externally
   useEffect(() => {
     if (!mapRef.current || !lat || !lon) return;
     const ll: L.LatLngExpression = [parseFloat(lat), parseFloat(lon)];
@@ -129,6 +156,21 @@ function GpsPickerMap({ lat, lon, onChange }: GpsPickerProps) {
   return (
     <div className="relative">
       <div ref={divRef} style={{ height: 300, borderRadius: 12, overflow: "hidden" }} />
+
+      {/* Get Address button */}
+      <button
+        type="button"
+        onClick={handleGetLocation}
+        disabled={locating || geocoding}
+        className="absolute top-2 right-2 z-[500] flex items-center gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-colors"
+      >
+        {locating ? (
+          <><Loader2 className="h-3 w-3 animate-spin" /> Locating…</>
+        ) : (
+          <><Navigation className="h-3 w-3" /> Get Address</>
+        )}
+      </button>
+
       {geocoding && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#0a1628]/90 backdrop-blur text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 z-[500]">
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -136,7 +178,7 @@ function GpsPickerMap({ lat, lon, onChange }: GpsPickerProps) {
         </div>
       )}
       <div className="absolute bottom-2 left-2 bg-[#0a1628]/80 backdrop-blur text-[#a8c0e8] text-[11px] px-2 py-1 rounded z-[500]">
-        Click on map to pin location
+        Tap map to pin · or press Get Address
       </div>
     </div>
   );
@@ -700,22 +742,14 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
             </div>
           )}
 
-          <div>
-            <FieldLabel>Full Address</FieldLabel>
-            <InputField
-              value={form.address}
-              onChange={(v) => set("address", v)}
-              placeholder="Full address (auto-filled when you pin on map)"
-            />
-          </div>
         </div>
       </div>
 
-      {/* 3 ── GPS Coordinate Picker */}
+      {/* 3 ── GPS + Office Address */}
       <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
-        <SectionHeader icon={Navigation} title="GPS Coordinates" />
+        <SectionHeader icon={Navigation} title="GPS Location & Office Address" />
         <p className="text-xs text-white/50 mb-4">
-          Click anywhere on the map to pin the exact business location. The address will be auto-filled.
+          Press <span className="text-[#4a9eff] font-medium">Get Address</span> to use your current GPS location, or tap anywhere on the map to pin the exact business spot. Then enter the formal office address below.
         </p>
 
         <GpsPickerMap lat={form.latitude} lon={form.longitude} onChange={handleGpsChange} />
@@ -742,11 +776,23 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
         </div>
 
         {form.latitude && form.longitude && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[#4a9eff]">
+          <div className="mt-2 flex items-center gap-2 text-xs text-[#4a9eff]">
             <MapPin className="h-3.5 w-3.5" />
             Pinned at {parseFloat(form.latitude).toFixed(4)}°N, {parseFloat(form.longitude).toFixed(4)}°E
           </div>
         )}
+
+        <div className="mt-4">
+          <FieldLabel>Office Address</FieldLabel>
+          <InputField
+            value={form.address}
+            onChange={(v) => set("address", v)}
+            placeholder="e.g. Shop 5, 23 Bode Thomas Street, Surulere, Lagos"
+          />
+          <p className="text-[11px] text-white/35 mt-1.5">
+            The formal address displayed on the business listing. Auto-filled from the map pin — edit to add shop/floor details.
+          </p>
+        </div>
       </div>
 
       {/* 4 ── Contact */}
