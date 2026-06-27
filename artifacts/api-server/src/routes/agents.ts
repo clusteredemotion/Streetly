@@ -22,13 +22,16 @@ async function enrichAgent(agent: typeof agentsTable.$inferSelect) {
 
 // POST /agents/apply
 router.post("/apply", async (req, res) => {
-  const { bankName, accountNumber, accountName, idType, idNumber } = req.body;
+  const {
+    bankName, accountNumber, accountName, idType, idNumber,
+    fullName, age, address, latitude, longitude,
+    passportPhotoUrl, ninSlipUrl,
+  } = req.body;
+
   if (!bankName || !accountNumber || !accountName) {
     return res.status(400).json({ error: "Bank details are required" });
   }
 
-  // In real app, get userId from auth token
-  // For now, create a placeholder agent with userId 1 or from body
   const userId = req.body.userId ?? 1;
 
   const existing = await db.select().from(agentsTable).where(eq(agentsTable.userId, userId)).limit(1);
@@ -43,6 +46,13 @@ router.post("/apply", async (req, res) => {
     accountName,
     idType,
     idNumber,
+    fullName: fullName ?? null,
+    age: age ? Number(age) : null,
+    address: address ?? null,
+    latitude: latitude ? Number(latitude) : null,
+    longitude: longitude ? Number(longitude) : null,
+    passportPhotoUrl: passportPhotoUrl ?? null,
+    ninSlipUrl: ninSlipUrl ?? null,
   }).returning();
 
   const enriched = await enrichAgent(agent);

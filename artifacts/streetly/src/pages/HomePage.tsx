@@ -10,19 +10,18 @@ import {
   useGetFeaturedBusinesses,
 } from "@workspace/api-client-react";
 import {
-  ArrowRight, Building2, Map, Users, TrendingUp,
-  CheckCircle, Navigation, Camera, Globe, Star,
-  ShieldCheck, MapPin, Zap, ChevronRight
+  ArrowRight, Building2, Users, Globe,
+  CheckCircle, MapPin, ChevronRight,
+  Star, ShieldCheck, Zap,
 } from "lucide-react";
 import { BusinessCard } from "@/components/business/BusinessCard";
 import { HomeMapView } from "@/components/HomeMapView";
 
-/* ─── Animated counter (RAF-based, no Framer loop) ─── */
+/* ── Animated counter ── */
 function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const started = useRef(false);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -30,32 +29,56 @@ function AnimatedNumber({ value }: { value: number }) {
       ([entry]) => {
         if (entry.isIntersecting && !started.current) {
           started.current = true;
-          const duration = 1400;
-          const startTime = performance.now();
+          const dur = 1400;
+          const t0 = performance.now();
           const tick = (now: number) => {
-            const progress = Math.min((now - startTime) / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setDisplay(Math.round(eased * value));
-            if (progress < 1) requestAnimationFrame(tick);
+            const p = Math.min((now - t0) / dur, 1);
+            setDisplay(Math.round((1 - Math.pow(1 - p, 3)) * value));
+            if (p < 1) requestAnimationFrame(tick);
           };
           requestAnimationFrame(tick);
         }
       },
-      { threshold: 0.3 }
+      { threshold: 0.3 },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, [value]);
-
   return <span ref={ref}>{display.toLocaleString()}</span>;
 }
 
-const CATEGORY_GRADIENTS = [
-  "from-orange-400 to-pink-500", "from-purple-400 to-blue-500",
-  "from-green-400 to-emerald-500", "from-yellow-400 to-orange-500",
-  "from-blue-400 to-cyan-500", "from-pink-400 to-rose-500",
-  "from-indigo-400 to-purple-500", "from-teal-400 to-green-500",
-];
+/* ── Typing Text ── */
+function TypingText({ words }: { words: string[] }) {
+  const [idx, setIdx] = useState(0);
+  const [text, setText] = useState("");
+  const [typing, setTyping] = useState(true);
+  useEffect(() => {
+    const word = words[idx];
+    if (typing) {
+      if (text.length < word.length) {
+        const t = setTimeout(() => setText(word.slice(0, text.length + 1)), 85);
+        return () => clearTimeout(t);
+      } else {
+        const t = setTimeout(() => setTyping(false), 2200);
+        return () => clearTimeout(t);
+      }
+    } else {
+      if (text.length > 0) {
+        const t = setTimeout(() => setText(text.slice(0, -1)), 45);
+        return () => clearTimeout(t);
+      } else {
+        setIdx((i) => (i + 1) % words.length);
+        setTyping(true);
+      }
+    }
+  }, [text, typing, idx, words]);
+  return (
+    <span className="text-[#4a9eff]">
+      {text}
+      <span className="animate-pulse opacity-70">|</span>
+    </span>
+  );
+}
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Food & Drinks": "🍽", "Retail & Shopping": "🛍", "Health & Wellness": "💊",
@@ -70,6 +93,15 @@ const MOCK_SCOUTS = [
   { name: "Tunde O.", area: "Ikeja, Lagos", businesses: 87, earnings: "₦13,050" },
 ];
 
+/* ── Glass card ── */
+function GlassCard({ children, className = "", hover = true }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+  return (
+    <div className={`bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl ${hover ? "hover:bg-white/[0.07] hover:border-white/[0.14] transition-all duration-300" : ""} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [, navigate] = useLocation();
   const { data: stats } = useGetPlatformStats();
@@ -78,35 +110,53 @@ export default function HomePage() {
 
   return (
     <Layout>
-      {/* ── SECTION 1: FULLSCREEN MAP HERO ── */}
+      {/* ── 1: FULLSCREEN MAP HERO ── */}
       <HomeMapView />
 
-      {/* ── SECTION 2: STATS BAR ── */}
+      {/* ── 2: STATS ── */}
       {stats && (
-        <section className="py-14 bg-white border-b border-gray-100">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10">
+        <section className="relative py-16 overflow-hidden"
+          style={{ background: "linear-gradient(180deg, #060c1e 0%, #08122a 100%)" }}>
+          {/* subtle grid */}
+          <div className="absolute inset-0 opacity-[0.03]"
+            style={{ backgroundImage: "linear-gradient(#4a9eff 1px,transparent 1px),linear-gradient(90deg,#4a9eff 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
+          <div className="container mx-auto px-4 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-3">Platform Stats</p>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+                Nigeria's Most Complete{" "}
+                <TypingText words={["Business Map", "Street Directory", "Discovery Platform"]} />
+              </h2>
+            </motion.div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: "Businesses Listed", value: stats.totalBusinesses, icon: Building2, color: "text-blue-600 bg-blue-50" },
-                { label: "Streets Covered", value: stats.totalStreets, icon: MapPin, color: "text-violet-600 bg-violet-50" },
-                { label: "Cities", value: stats.totalCities, icon: Globe, color: "text-emerald-600 bg-emerald-50" },
-                { label: "Street Scouts", value: stats.totalAgents, icon: Users, color: "text-orange-600 bg-orange-50" },
+                { label: "Businesses Listed", value: stats.totalBusinesses, icon: Building2, color: "#4a9eff" },
+                { label: "Streets Covered", value: stats.totalStreets, icon: MapPin, color: "#a78bfa" },
+                { label: "Cities", value: stats.totalCities, icon: Globe, color: "#34d399" },
+                { label: "Street Scouts", value: stats.totalAgents, icon: Users, color: "#fb923c" },
               ].map((item, i) => (
                 <motion.div
                   key={item.label}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="flex flex-col items-center text-center p-6 rounded-2xl group hover:bg-gray-50 transition-colors"
+                  transition={{ delay: i * 0.08 }}
                 >
-                  <div className={`w-12 h-12 rounded-2xl ${item.color} flex items-center justify-center mb-4`}>
-                    <item.icon className="h-6 w-6" />
-                  </div>
-                  <span className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
-                    <AnimatedNumber value={item.value} />
-                  </span>
-                  <span className="text-sm text-muted-foreground mt-1 font-medium">{item.label}</span>
+                  <GlassCard className="p-6 text-center">
+                    <div className="w-11 h-11 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                      style={{ background: `${item.color}18` }}>
+                      <item.icon className="h-5 w-5" style={{ color: item.color }} />
+                    </div>
+                    <div className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+                      <AnimatedNumber value={item.value} />
+                    </div>
+                    <div className="text-sm text-white/50 mt-1 font-medium">{item.label}</div>
+                  </GlassCard>
                 </motion.div>
               ))}
             </div>
@@ -114,9 +164,9 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── SECTION 3: BROWSE CATEGORIES ── */}
+      {/* ── 3: BROWSE CATEGORIES ── */}
       {categories && categories.length > 0 && (
-        <section className="py-20 bg-[#f8faff]">
+        <section className="py-20" style={{ background: "linear-gradient(180deg, #08122a 0%, #060c1e 100%)" }}>
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -125,11 +175,15 @@ export default function HomePage() {
               className="flex items-end justify-between mb-10"
             >
               <div>
-                <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Categories</p>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Browse by Industry</h2>
-                <p className="text-muted-foreground mt-2">Explore businesses across every sector in Nigeria</p>
+                <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Categories</p>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Browse by Industry</h2>
+                <p className="text-white/50 mt-2">Explore businesses across every sector in Nigeria</p>
               </div>
-              <Button variant="ghost" onClick={() => navigate("/businesses")} className="gap-2 hidden sm:flex rounded-full">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/businesses")}
+                className="gap-2 hidden sm:flex rounded-full text-white/60 hover:text-white hover:bg-white/10 border border-white/10"
+              >
                 All Businesses <ArrowRight className="h-4 w-4" />
               </Button>
             </motion.div>
@@ -138,21 +192,19 @@ export default function HomePage() {
               {categories.slice(0, 8).map((cat, i) => (
                 <motion.button
                   key={cat.id}
-                  initial={{ opacity: 0, scale: 0.93 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 24 }}
+                  transition={{ delay: i * 0.05, type: "spring", stiffness: 280, damping: 22 }}
                   whileHover={{ y: -4, scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => navigate(`/businesses?categoryId=${cat.id}`)}
-                  className="group relative p-5 rounded-2xl border bg-white hover:shadow-xl transition-all duration-300 text-left overflow-hidden"
+                  className="group relative p-5 rounded-2xl text-left overflow-hidden cursor-pointer transition-all duration-300 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-[#4a9eff]/30 hover:shadow-[0_0_30px_rgba(74,158,255,0.08)]"
                 >
-                  <div className={`w-12 h-12 rounded-2xl mb-3 flex items-center justify-center text-2xl bg-gradient-to-br ${CATEGORY_GRADIENTS[i % CATEGORY_GRADIENTS.length]}`}>
-                    {CATEGORY_ICONS[cat.name] ?? "🏪"}
-                  </div>
-                  <div className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{cat.name}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{cat.businessCount ?? 0} businesses</div>
-                  <ChevronRight className="absolute bottom-4 right-4 h-4 w-4 text-muted-foreground/30 group-hover:text-primary/40 transition-colors" />
+                  <div className="text-2xl mb-3">{CATEGORY_ICONS[cat.name] ?? "🏪"}</div>
+                  <div className="font-bold text-sm text-white group-hover:text-[#4a9eff] transition-colors">{cat.name}</div>
+                  <div className="text-xs text-white/40 mt-1">{cat.businessCount ?? 0} businesses</div>
+                  <ChevronRight className="absolute bottom-4 right-4 h-4 w-4 text-white/20 group-hover:text-[#4a9eff]/50 transition-colors" />
                 </motion.button>
               ))}
             </div>
@@ -160,9 +212,9 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── SECTION 4: FEATURED BUSINESSES ── */}
+      {/* ── 4: FEATURED BUSINESSES ── */}
       {featuredBusinesses && featuredBusinesses.length > 0 && (
-        <section className="py-20 bg-white">
+        <section className="py-20" style={{ background: "#060c1e" }}>
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -171,15 +223,18 @@ export default function HomePage() {
               className="flex items-end justify-between mb-10"
             >
               <div>
-                <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Spotlight</p>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Featured Businesses</h2>
-                <p className="text-muted-foreground mt-2">Premium verified listings on Streetly</p>
+                <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Spotlight</p>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Featured Businesses</h2>
+                <p className="text-white/50 mt-2">Premium verified listings on Streetly</p>
               </div>
-              <Button variant="ghost" onClick={() => navigate("/businesses?featured=true")} className="gap-2 hidden sm:flex rounded-full">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/businesses?featured=true")}
+                className="gap-2 hidden sm:flex rounded-full text-white/60 hover:text-white hover:bg-white/10 border border-white/10"
+              >
                 View All <ArrowRight className="h-4 w-4" />
               </Button>
             </motion.div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredBusinesses.slice(0, 6).map((biz, i) => (
                 <motion.div
@@ -197,8 +252,8 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── SECTION 5: PROPERTY INTELLIGENCE (mockup) ── */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+      {/* ── 5: PROPERTY INTELLIGENCE ── */}
+      <section className="py-20" style={{ background: "linear-gradient(180deg, #060c1e 0%, #08122a 100%)" }}>
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -206,10 +261,13 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <Badge className="mb-4 text-xs" variant="secondary">Coming Soon</Badge>
-            <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Property Intelligence</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Find Vacant Commercial Spaces</h2>
-            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+            <Badge className="mb-4 text-xs border-white/10 text-white/60"
+              style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(12px)" }}>
+              Coming Soon
+            </Badge>
+            <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Property Intelligence</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Find Vacant Commercial Spaces</h2>
+            <p className="text-white/50 mt-3 max-w-xl mx-auto">
               Discover vacant shops, offices, and commercial buildings across Nigeria's key business districts.
             </p>
           </motion.div>
@@ -217,8 +275,8 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
               { type: "Vacant Shop", area: "Adeola Odeku St, VI", size: "45 sqm", price: "₦2.5M/yr", tag: "Available Now", color: "#22c55e" },
-              { type: "Office Space", area: "Wuse II, Abuja", size: "120 sqm", price: "₦5.8M/yr", tag: "3 Available", color: "#0ea5e9" },
-              { type: "Commercial Building", area: "Ikeja GRA, Lagos", size: "400 sqm", price: "₦18M/yr", tag: "New Listing", color: "#8b5cf6" },
+              { type: "Office Space", area: "Wuse II, Abuja", size: "120 sqm", price: "₦5.8M/yr", tag: "3 Available", color: "#4a9eff" },
+              { type: "Commercial Building", area: "Ikeja GRA, Lagos", size: "400 sqm", price: "₦18M/yr", tag: "New Listing", color: "#a78bfa" },
             ].map((prop, i) => (
               <motion.div
                 key={prop.area}
@@ -227,44 +285,45 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.12 }}
                 whileHover={{ y: -4 }}
-                className="relative p-5 rounded-2xl border bg-white shadow-sm hover:shadow-xl transition-all cursor-default"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-2"
-                      style={{ background: `${prop.color}18`, color: prop.color }}>
-                      {prop.tag}
-                    </span>
-                    <h3 className="font-bold text-base text-foreground">{prop.type}</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">{prop.area}</p>
+                <GlassCard className="p-5 cursor-default">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-2"
+                        style={{ background: `${prop.color}18`, color: prop.color }}>
+                        {prop.tag}
+                      </span>
+                      <h3 className="font-bold text-base text-white">{prop.type}</h3>
+                      <p className="text-sm text-white/50 mt-0.5">{prop.area}</p>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                      style={{ background: `${prop.color}15` }}>
+                      <Building2 className="h-5 w-5" style={{ color: prop.color }} />
+                    </div>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: `${prop.color}15` }}>
-                    <Building2 className="h-5 w-5" style={{ color: prop.color }} />
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/40">{prop.size}</span>
+                    <span className="font-bold text-white">{prop.price}</span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{prop.size}</span>
-                  <span className="font-bold text-foreground">{prop.price}</span>
-                </div>
-                <div className="mt-4 h-1.5 rounded-full bg-gray-100">
-                  <div className="h-full rounded-full w-2/3" style={{ background: prop.color }} />
-                </div>
+                  <div className="mt-4 h-1.5 rounded-full bg-white/[0.06]">
+                    <div className="h-full rounded-full w-2/3" style={{ background: prop.color }} />
+                  </div>
+                </GlassCard>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── SECTION 6: STREET SCOUTS ── */}
+      {/* ── 6: STREET SCOUTS ── */}
       <section className="relative py-24 overflow-hidden"
         style={{ background: "linear-gradient(135deg, #020818 0%, #0a1628 50%, #060e1f 100%)" }}>
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="orb-1 absolute top-0 right-0 w-[400px] h-[400px] rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, #0547B6 0%, transparent 70%)", filter: "blur(60px)" }} />
-          <div className="orb-2 absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full opacity-15"
-            style={{ background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)", filter: "blur(50px)" }} />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full opacity-15"
+            style={{ background: "radial-gradient(circle, #0547B6 0%, transparent 70%)", filter: "blur(80px)" }} />
+          <div className="absolute bottom-0 left-0 w-[350px] h-[350px] rounded-full opacity-12"
+            style={{ background: "radial-gradient(circle, #7c3aed 0%, transparent 70%)", filter: "blur(60px)" }} />
         </div>
-
         <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -284,7 +343,6 @@ export default function HomePage() {
             </p>
           </motion.div>
 
-          {/* Top scouts leaderboard */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12 max-w-3xl mx-auto">
             {MOCK_SCOUTS.map((scout, i) => (
               <motion.div
@@ -294,11 +352,9 @@ export default function HomePage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 className="relative p-5 rounded-2xl text-center"
-                style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}
               >
-                {i === 0 && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl">🥇</div>
-                )}
+                {i === 0 && <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl">🥇</div>}
                 <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center text-lg font-black text-white"
                   style={{ background: ["linear-gradient(135deg,#fbbf24,#f59e0b)", "linear-gradient(135deg,#9ca3af,#6b7280)", "linear-gradient(135deg,#c47d2a,#92400e)"][i] }}>
                   {scout.name[0]}
@@ -312,21 +368,15 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              size="lg"
-              className="h-13 px-8 rounded-full font-semibold text-base bg-white text-primary hover:bg-white/90 border-0 shadow-xl"
-              onClick={() => navigate("/agents/apply")}
-            >
+            <Button size="lg"
+              className="h-13 px-8 rounded-full font-semibold text-base bg-white text-[#0547B6] hover:bg-white/90 border-0 shadow-xl"
+              onClick={() => navigate("/agents/apply")}>
               Become a Street Scout
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
+            <Button size="lg" variant="outline"
               className="h-13 px-8 rounded-full font-semibold text-base border-white/15 text-white hover:bg-white/10 bg-transparent"
-              onClick={() => navigate("/agents")}
-            >
-              How it Works
-              <ArrowRight className="h-4 w-4 ml-2" />
+              onClick={() => navigate("/agents")}>
+              How it Works <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
 

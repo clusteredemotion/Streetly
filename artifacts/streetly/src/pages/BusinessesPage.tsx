@@ -1,14 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearch } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListBusinesses, useListCategories, useListCities } from "@workspace/api-client-react";
-import { Search, Filter, X } from "lucide-react";
+import { Search, X, SlidersHorizontal, Building2, ChevronDown } from "lucide-react";
 import { BusinessCard } from "@/components/business/BusinessCard";
 
 export default function BusinessesPage() {
@@ -37,124 +35,197 @@ export default function BusinessesPage() {
 
   const total = data?.total ?? 0;
   const businesses = data?.businesses ?? [];
+  const hasFilters = q || categoryId || cityId || featured;
 
   const clearFilters = () => {
     setQ(""); setCategoryId(""); setCityId(""); setFeatured(""); setOffset(0);
   };
 
-  const hasFilters = q || categoryId || cityId || featured;
-
   return (
     <Layout>
-      <div className="bg-muted/30 border-b py-8">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">Business Directory</h1>
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search businesses..."
-                value={q}
-                onChange={(e) => { setQ(e.target.value); setOffset(0); }}
-                className="pl-9"
-              />
+      {/* ── Hero Header ── */}
+      <div className="relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #060c1e 0%, #0a1a3a 60%, #060c1e 100%)" }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-[0.08]"
+            style={{ background: "radial-gradient(circle, #4a9eff, transparent 70%)", filter: "blur(60px)" }} />
+          <div className="absolute inset-0 opacity-[0.025]"
+            style={{ backgroundImage: "linear-gradient(#4a9eff 1px,transparent 1px),linear-gradient(90deg,#4a9eff 1px,transparent 1px)", backgroundSize: "50px 50px" }} />
+        </div>
+        <div className="relative z-10 container mx-auto px-4 py-14">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Business Directory</p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
+              Find Every Business,
+            </h1>
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-6"
+              style={{ background: "linear-gradient(90deg, #4a9eff, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Street by Street.
+            </h1>
+
+            {/* Search bar */}
+            <div className="flex flex-col md:flex-row gap-3 max-w-3xl">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Search businesses, categories, streets…"
+                  value={q}
+                  onChange={(e) => { setQ(e.target.value); setOffset(0); }}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-xl text-white placeholder:text-white/35 text-sm outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}
+                />
+              </div>
+
+              {/* Category filter */}
+              <div className="relative">
+                <select
+                  value={categoryId}
+                  onChange={(e) => { setCategoryId(e.target.value === "all" ? "" : e.target.value); setOffset(0); }}
+                  className="appearance-none pl-4 pr-9 py-3.5 rounded-xl text-sm text-white outline-none cursor-pointer md:min-w-[180px]"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}
+                >
+                  <option value="all" style={{ background: "#0a1628" }}>All Categories</option>
+                  {categories?.map(c => (
+                    <option key={c.id} value={c.id} style={{ background: "#0a1628" }}>{c.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+              </div>
+
+              {/* City filter */}
+              <div className="relative">
+                <select
+                  value={cityId}
+                  onChange={(e) => { setCityId(e.target.value === "all" ? "" : e.target.value); setOffset(0); }}
+                  className="appearance-none pl-4 pr-9 py-3.5 rounded-xl text-sm text-white outline-none cursor-pointer md:min-w-[140px]"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}
+                >
+                  <option value="all" style={{ background: "#0a1628" }}>All Cities</option>
+                  {cities?.map(c => (
+                    <option key={c.id} value={c.id} style={{ background: "#0a1628" }}>{c.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+              </div>
             </div>
-            <Select value={categoryId} onValueChange={(v) => { setCategoryId(v === "all" ? "" : v); setOffset(0); }}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories?.map(cat => (
-                  <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={cityId} onValueChange={(v) => { setCityId(v === "all" ? "" : v); setOffset(0); }}>
-              <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder="All Cities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Cities</SelectItem>
-                {cities?.map(city => (
-                  <SelectItem key={city.id} value={String(city.id)}>{city.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {hasFilters && (
-              <Button variant="ghost" onClick={clearFilters} className="gap-2">
-                <X className="h-4 w-4" /> Clear
-              </Button>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ── Filter Bar ── */}
+      <div style={{ background: "linear-gradient(180deg, #0a1a3a 0%, #060c1e 100%)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-white/50">
+              {isLoading ? "Searching…" : (
+                <><span className="text-white font-semibold">{total.toLocaleString()}</span> businesses found</>
+              )}
+            </span>
+            <AnimatePresence>
+              {hasFilters && (
+                <motion.div
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  className="flex items-center gap-2 flex-wrap"
+                >
+                  {q && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">"{q}"</Badge>}
+                  {categoryId && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{categories?.find(c => String(c.id) === categoryId)?.name}</Badge>}
+                  {cityId && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{cities?.find(c => String(c.id) === cityId)?.name}</Badge>}
+                  {featured === "true" && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/20 text-xs">Featured Only</Badge>}
+                  <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors">
+                    <X className="h-3 w-3" /> Clear all
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="flex gap-2">
+            {featured !== "true" && (
+              <button
+                onClick={() => { setFeatured("true"); setOffset(0); }}
+                className="flex items-center gap-1.5 text-xs text-amber-400 border border-amber-500/20 bg-amber-500/10 rounded-full px-3 py-1.5 hover:bg-amber-500/15 transition-colors"
+              >
+                ⭐ Featured Only
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-muted-foreground">
-            {isLoading ? "Searching..." : `${total.toLocaleString()} businesses found`}
-          </p>
-          <div className="flex gap-2">
-            {featured !== "true" && (
-              <Button variant="outline" size="sm" onClick={() => { setFeatured("true"); setOffset(0); }}>
-                Featured Only
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl border overflow-hidden">
-                <Skeleton className="h-48 w-full" />
-                <div className="p-4 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-3 w-2/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : businesses.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-5xl mb-4 opacity-30">🏪</div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">No businesses found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or filters</p>
-            <Button variant="ghost" onClick={clearFilters} className="mt-4">Clear all filters</Button>
-          </div>
-        ) : (
-          <>
+      {/* ── Results ── */}
+      <div className="min-h-screen" style={{ background: "#060c1e" }}>
+        <div className="container mx-auto px-4 py-8">
+          {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {businesses.map((biz, i) => (
-                <motion.div
-                  key={biz.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                >
-                  <BusinessCard business={biz} />
-                </motion.div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <Skeleton className="h-48 w-full" style={{ background: "rgba(255,255,255,0.06)" }} />
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-3/4" style={{ background: "rgba(255,255,255,0.06)" }} />
+                    <Skeleton className="h-3 w-1/2" style={{ background: "rgba(255,255,255,0.04)" }} />
+                    <Skeleton className="h-3 w-2/3" style={{ background: "rgba(255,255,255,0.04)" }} />
+                  </div>
+                </div>
               ))}
             </div>
-
-            {total > limit && (
-              <div className="flex justify-center gap-3 mt-10">
-                <Button variant="outline" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
-                  Previous
-                </Button>
-                <span className="flex items-center text-sm text-muted-foreground px-4">
-                  Page {Math.floor(offset / limit) + 1} of {Math.ceil(total / limit)}
-                </span>
-                <Button variant="outline" disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)}>
-                  Next
-                </Button>
+          ) : businesses.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-24"
+            >
+              <div className="text-6xl mb-5 opacity-20">🏪</div>
+              <h3 className="text-xl font-bold text-white mb-2">No businesses found</h3>
+              <p className="text-white/40 mb-6">Try adjusting your search or filters</p>
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                className="border-white/15 text-white hover:bg-white/10 rounded-full"
+              >
+                Clear all filters
+              </Button>
+            </motion.div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {businesses.map((biz, i) => (
+                  <motion.div
+                    key={biz.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                  >
+                    <BusinessCard business={biz} />
+                  </motion.div>
+                ))}
               </div>
-            )}
-          </>
-        )}
+
+              {total > limit && (
+                <div className="flex justify-center items-center gap-4 mt-12">
+                  <button
+                    disabled={offset === 0}
+                    onClick={() => setOffset(Math.max(0, offset - limit))}
+                    className="px-5 py-2.5 rounded-full text-sm font-medium text-white/60 border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-sm text-white/40 px-2">
+                    Page <span className="text-white font-semibold">{Math.floor(offset / limit) + 1}</span> of {Math.ceil(total / limit)}
+                  </span>
+                  <button
+                    disabled={offset + limit >= total}
+                    onClick={() => setOffset(offset + limit)}
+                    className="px-5 py-2.5 rounded-full text-sm font-medium text-white/60 border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </Layout>
   );
