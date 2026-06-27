@@ -5,6 +5,14 @@ import {
   businessPhotosTable, categoriesTable, citiesTable, areasTable, streetsTable,
 } from "@workspace/db";
 import { eq, desc, count, and, ilike } from "drizzle-orm";
+import { verifyToken } from "./auth.js";
+
+function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
+  const h = req.headers.authorization;
+  if (!h?.startsWith("Bearer ")) return null;
+  const payload = verifyToken(h.slice(7));
+  return payload?.userId ?? null;
+}
 
 const router = Router();
 
@@ -23,6 +31,16 @@ async function enrichAgent(agent: typeof agentsTable.$inferSelect) {
   };
 }
 
+// GET /agents/by-user — get agent profile for the currently logged-in user
+router.get("/by-user", async (req, res) => {
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.userId, userId)).limit(1);
+  if (!agent) return res.status(404).json({ error: "No agent profile found" });
+  const enriched = await enrichAgent(agent);
+  return res.json(enriched);
+});
+
 // POST /agents/apply
 router.post("/apply", async (req, res) => {
   const {
@@ -35,7 +53,8 @@ router.post("/apply", async (req, res) => {
     return res.status(400).json({ error: "Bank details are required" });
   }
 
-  const userId = req.body.userId ?? 1;
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.status(401).json({ error: "You must be logged in to apply" });
 
   const existing = await db.select().from(agentsTable).where(eq(agentsTable.userId, userId)).limit(1);
   if (existing.length > 0) {

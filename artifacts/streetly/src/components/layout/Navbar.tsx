@@ -28,11 +28,13 @@ export function Navbar() {
     window.location.href = "/";
   };
 
+  const isAgent = user?.role === "field_agent";
+
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/businesses", label: "Directory" },
     { href: "/explore", label: "Street Explorer" },
-    { href: "/agents", label: "Become an Agent" },
+    ...(!isAgent ? [{ href: "/agents", label: "Become an Agent" }] : []),
   ];
 
   /* onMap = sitting at the top of the home page (map is fully visible behind us)
