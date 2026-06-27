@@ -21,6 +21,7 @@ import {
   Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
+  FileText, ZoomIn, Camera, List,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -58,7 +59,7 @@ function useAllAgents() {
         bankName: string | null; accountNumber: string | null; accountName: string | null;
         idType: string | null; idNumber: string | null;
         totalEarnings: number; availableBalance: number;
-        passportPhotoUrl: string | null; createdAt: string;
+        passportPhotoUrl: string | null; ninSlipUrl: string | null; createdAt: string;
         userName: string | null; userEmail: string | null; userRole: string | null;
       }>>;
     },
@@ -593,6 +594,201 @@ function AgentProfileModal({ agent, onClose, onEdit }: {
   );
 }
 
+/* ── Agent Review Modal (full profile for pending approval) ── */
+function AgentReviewModal({ agent, onClose, onApprove, onReject, approving }: {
+  agent: {
+    id: number; fullName: string | null; age: number | null; address: string | null;
+    bankName: string | null; accountNumber: string | null; accountName: string | null;
+    idType: string | null; idNumber: string | null;
+    passportPhotoUrl: string | null; ninSlipUrl: string | null;
+    userEmail: string | null; userName: string | null; createdAt: string; status: string;
+  };
+  onClose: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  approving: boolean;
+}) {
+  const [imgView, setImgView] = useState<string | null>(null);
+  const name = agent.fullName ?? agent.userName ?? `Agent #${agent.id}`;
+
+  const infoRows = [
+    { label: "Full Name", value: name },
+    { label: "Email", value: agent.userEmail },
+    { label: "Age", value: agent.age ? `${agent.age} years` : null },
+    { label: "Address", value: agent.address },
+    { label: "Applied", value: new Date(agent.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) },
+  ].filter(r => r.value);
+
+  const bankRows = [
+    { label: "Bank", value: agent.bankName },
+    { label: "Account No.", value: agent.accountNumber },
+    { label: "Account Name", value: agent.accountName },
+  ].filter(r => r.value);
+
+  const idRows = [
+    { label: "ID Type", value: agent.idType?.toUpperCase().replace("_", " ") },
+    { label: "ID Number", value: agent.idNumber },
+  ].filter(r => r.value);
+
+  return (
+    <>
+      {/* Full image lightbox */}
+      <AnimatePresence>
+        {imgView && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-6"
+            style={{ background: "rgba(0,0,0,0.92)" }}
+            onClick={() => setImgView(null)}>
+            <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+              <X className="h-5 w-5" />
+            </button>
+            <img src={imgView} alt="Document" className="max-w-full max-h-full rounded-2xl object-contain shadow-2xl" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          className="w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+          style={{ background: "#0b1929", border: "1px solid rgba(255,255,255,0.10)" }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white text-sm">Agent Application Review</h2>
+                <p className="text-[11px] text-white/40">Agent #{agent.id}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+
+            {/* Photos row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Passport */}
+              <div>
+                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Camera className="h-3 w-3" /> Passport Photo
+                </p>
+                {agent.passportPhotoUrl ? (
+                  <div className="relative group cursor-pointer rounded-xl overflow-hidden"
+                    onClick={() => setImgView(agent.passportPhotoUrl!)}>
+                    <img src={agent.passportPhotoUrl} alt="Passport"
+                      className="w-full h-44 object-cover rounded-xl transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-xl">
+                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white/70">
+                      Tap to enlarge
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-44 rounded-xl flex flex-col items-center justify-center gap-2"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.1)" }}>
+                    <Camera className="h-7 w-7 text-white/15" />
+                    <span className="text-xs text-white/25">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+
+              {/* NIN / ID Slip */}
+              <div>
+                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <FileText className="h-3 w-3" /> ID / NIN Document
+                </p>
+                {agent.ninSlipUrl ? (
+                  <div className="relative group cursor-pointer rounded-xl overflow-hidden"
+                    onClick={() => setImgView(agent.ninSlipUrl!)}>
+                    <img src={agent.ninSlipUrl} alt="ID Document"
+                      className="w-full h-44 object-cover rounded-xl transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-xl">
+                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white/70">
+                      Tap to enlarge
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-44 rounded-xl flex flex-col items-center justify-center gap-2"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.1)" }}>
+                    <FileText className="h-7 w-7 text-white/15" />
+                    <span className="text-xs text-white/25">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Personal Info */}
+            <InfoSection title="Personal Information" icon={User} rows={infoRows} />
+
+            {/* Bank Details */}
+            <InfoSection title="Bank Details" icon={CreditCard} rows={bankRows} />
+
+            {/* Identity */}
+            <InfoSection title="Identity Verification" icon={ShieldCheck} rows={idRows} />
+
+          </div>
+
+          {/* Footer — approve / reject */}
+          <div className="px-5 py-4 border-t border-white/10 flex-shrink-0"
+            style={{ background: "rgba(0,0,0,0.2)" }}>
+            <p className="text-xs text-white/40 mb-3 text-center">
+              Review the documents above before approving this application.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={onReject} disabled={approving}
+                className="flex-1 h-10 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                <XCircle className="h-4 w-4" /> Reject
+              </button>
+              <button onClick={onApprove} disabled={approving}
+                className="flex-1 h-10 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50">
+                {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                Approve Agent
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </>
+  );
+}
+
+function InfoSection({ title, icon: Icon, rows }: {
+  title: string; icon: React.ElementType;
+  rows: Array<{ label: string; value: string | null | undefined }>;
+}) {
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/8"
+        style={{ background: "rgba(255,255,255,0.04)" }}>
+        <Icon className="h-3.5 w-3.5 text-[#4a9eff]" />
+        <span className="text-xs font-semibold text-white/70">{title}</span>
+      </div>
+      {rows.map((row, i) => (
+        <div key={row.label}
+          className={`flex items-start gap-3 px-4 py-2.5 ${i < rows.length - 1 ? "border-b border-white/5" : ""}`}
+          style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
+          <span className="text-xs text-white/40 w-28 flex-shrink-0 pt-0.5">{row.label}</span>
+          <span className="text-xs text-white font-medium break-all">{row.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Edit User Modal ── */
 function EditUserModal({ user, onClose, onSaved }: {
   user: { id: number; name: string; email: string; role: string; createdAt: string };
@@ -704,6 +900,7 @@ export default function AdminPage() {
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
+  const [reviewAgent, setReviewAgent] = useState<(typeof allAgents extends Array<infer T> ? T : never) | null>(null);
   const [bizSearch, setBizSearch] = useState("");
   const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
   const [featuredSaved, setFeaturedSaved] = useState(false);
@@ -795,6 +992,21 @@ export default function AdminPage() {
             onEdit={() => {
               const match = allAgents?.find(a => a.id === viewAgentBiz.agentId);
               if (match) { setViewAgentBiz(null); setEditAgent(match as any); }
+            }}
+          />
+        )}
+        {reviewAgent && (
+          <AgentReviewModal
+            agent={reviewAgent}
+            onClose={() => setReviewAgent(null)}
+            approving={approveAgent.isPending}
+            onApprove={() => {
+              handleAgentApproval(reviewAgent.id, true);
+              setReviewAgent(null);
+            }}
+            onReject={() => {
+              handleAgentApproval(reviewAgent.id, false);
+              setReviewAgent(null);
             }}
           />
         )}
@@ -949,21 +1161,40 @@ export default function AdminPage() {
               <EmptyState icon={<CheckCircle className="h-10 w-10 text-green-500" />} title="No pending agents" sub="All applications have been reviewed" />
             ) : (
               <div className="space-y-3">
-                {pendingAgents.map((agent) => (
-                  <AdminCard key={agent.id}>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground">{agent.fullName ?? `Agent #${agent.id}`}</h3>
-                      <p className="text-sm text-muted-foreground">Bank: {agent.bankName} · {agent.accountNumber}</p>
-                      <p className="text-xs text-muted-foreground">ID: {agent.idType?.toUpperCase()} — {agent.idNumber}</p>
-                      <p className="text-xs text-muted-foreground">Applied: {new Date(agent.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <ApproveRejectButtons
-                      onApprove={() => handleAgentApproval(agent.id, true)}
-                      onReject={() => handleAgentApproval(agent.id, false)}
-                      loading={approveAgent.isPending}
-                    />
-                  </AdminCard>
-                ))}
+                {pendingAgents.map((agent) => {
+                  const fullAgent = allAgents?.find(a => a.id === agent.id) ?? null;
+                  return (
+                    <AdminCard key={agent.id}>
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        {agent.passportPhotoUrl ? (
+                          <img src={agent.passportPhotoUrl} alt=""
+                            className="w-12 h-12 rounded-xl object-cover border border-white/15 flex-shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+                            <User className="h-5 w-5 text-white/20" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground">{agent.fullName ?? `Agent #${agent.id}`}</h3>
+                          <p className="text-xs text-muted-foreground">{agent.userEmail ?? "—"}</p>
+                          <p className="text-xs text-muted-foreground">Applied: {new Date(agent.createdAt).toLocaleDateString()}</p>
+                          <button
+                            onClick={() => fullAgent && setReviewAgent(fullAgent)}
+                            className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors hover:bg-amber-500/20"
+                            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "#fbbf24" }}
+                          >
+                            <List className="h-3 w-3" /> View Full Profile & Documents
+                          </button>
+                        </div>
+                      </div>
+                      <ApproveRejectButtons
+                        onApprove={() => handleAgentApproval(agent.id, true)}
+                        onReject={() => handleAgentApproval(agent.id, false)}
+                        loading={approveAgent.isPending}
+                      />
+                    </AdminCard>
+                  );
+                })}
               </div>
             )}
           </TabsContent>

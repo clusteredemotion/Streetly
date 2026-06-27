@@ -194,6 +194,7 @@ router.get("/agents/all", async (_req, res) => {
       totalEarnings: agentsTable.totalEarnings,
       availableBalance: agentsTable.availableBalance,
       passportPhotoUrl: agentsTable.passportPhotoUrl,
+      ninSlipUrl: agentsTable.ninSlipUrl,
       createdAt: agentsTable.createdAt,
       userName: usersTable.name,
       userEmail: usersTable.email,
