@@ -139,7 +139,7 @@ export function HomeMapView() {
   const watchIdRef = useRef<number | null>(null);
   const activityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rotationRef = useRef(0);                     // always-fresh rotation for touch handler
-  const touchStartRef = useRef<{ angle: number; baseRotation: number } | null>(null);
+  const touchStartRef = useRef<{ angle: number; dist: number; baseRotation: number; rotationActive: boolean } | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -236,11 +236,23 @@ export function HomeMapView() {
       return Math.atan2(dy, dx) * (180 / Math.PI);
     }
 
+    function getTouchDist(touches: TouchList): number {
+      const dx = touches[1].clientX - touches[0].clientX;
+      const dy = touches[1].clientY - touches[0].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /** Minimum angle change (°) before rotation is engaged — prevents pinch
+     *  from accidentally spinning the map (Google Maps uses ~6°). */
+    const ROTATE_DEAD_ZONE = 8;
+
     const onStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         touchStartRef.current = {
           angle: getTouchAngle(e.touches),
+          dist: getTouchDist(e.touches),
           baseRotation: rotationRef.current,
+          rotationActive: false,  // engage only after dead-zone crossed
         };
         if (containerRef.current) containerRef.current.style.transition = "none";
       }
@@ -248,10 +260,23 @@ export function HomeMapView() {
 
     const onMove = (e: TouchEvent) => {
       if (e.touches.length !== 2 || !touchStartRef.current) return;
-      const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
-      const newDeg = ((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360;
+
+      const angleDelta = getTouchAngle(e.touches) - touchStartRef.current.angle;
+
+      /* ── Engage rotation only after deliberate twist (dead zone) ── */
+      if (!touchStartRef.current.rotationActive) {
+        if (Math.abs(angleDelta) < ROTATE_DEAD_ZONE) return; // still in dead zone
+        touchStartRef.current.rotationActive = true;
+        /* Snap base so rotation doesn't jump on activation */
+        touchStartRef.current.angle = getTouchAngle(e.touches);
+        return;
+      }
+
+      /* ── Apply rotation — Leaflet handles pinch-zoom independently ── */
+      const newAngleDelta = getTouchAngle(e.touches) - touchStartRef.current.angle;
+      const newDeg = ((touchStartRef.current.baseRotation + newAngleDelta) % 360 + 360) % 360;
       rotationRef.current = newDeg;
-      // Pure rotation — no scale() since the 3× physical container covers all gaps
+
       if (containerRef.current) {
         containerRef.current.style.transform = `rotate(${newDeg}deg)`;
       }
@@ -363,8 +388,18 @@ export function HomeMapView() {
         zoom: 12,
         zoomControl: false,
         attributionControl: true,
-        zoomSnap: 0.5,          // allow fractional zoom for precise compensation
-        zoomDelta: 0.5,
+        /* ── Google-Maps-like feel ── */
+        zoomSnap: 0,              // fully continuous zoom — no snapping/jumping
+        zoomDelta: 1,
+        wheelPxPerZoomLevel: 80,  // responsive scroll-wheel zoom
+        inertia: true,
+        inertiaDeceleration: 3000,// Google Maps deceleration curve
+        inertiaMaxSpeed: 2000,
+        easeLinearity: 0.2,       // snappy then smooth settle
+        bounceAtZoomLimits: false, // no rubber-band bounce at min/max zoom
+        doubleClickZoom: true,
+        tap: true,
+        tapTolerance: 15,
       });
 
       /* Dedicated pane for satellite street labels so we can counter-rotate
