@@ -365,6 +365,35 @@ router.post("/businesses", async (req, res) => {
   return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });
 });
 
+// GET /admin/businesses/featured — featured+approved businesses ordered by sort_order
+router.get("/businesses/featured", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: businessesTable.id,
+      name: businessesTable.name,
+      categoryName: categoriesTable.name,
+      sortOrder: businessesTable.sortOrder,
+      verified: businessesTable.verified,
+    })
+    .from(businessesTable)
+    .leftJoin(categoriesTable, eq(businessesTable.categoryId, categoriesTable.id))
+    .where(and(eq(businessesTable.featured, true), eq(businessesTable.status, "approved")))
+    .orderBy(sql`sort_order NULLS LAST`, businessesTable.id);
+  return res.json(rows);
+});
+
+// PUT /admin/businesses/featured-order — save new sort order
+router.put("/businesses/featured-order", async (req, res) => {
+  const { order } = req.body as { order: Array<{ id: number; sortOrder: number }> };
+  if (!Array.isArray(order)) return res.status(400).json({ error: "order array required" });
+  await Promise.all(
+    order.map(({ id, sortOrder }) =>
+      db.update(businessesTable).set({ sortOrder }).where(eq(businessesTable.id, id))
+    )
+  );
+  return res.json({ ok: true });
+});
+
 // GET /admin/claims/pending
 router.get("/claims/pending", async (_req, res) => {
   const claims = await db.select().from(businessClaimsTable).where(eq(businessClaimsTable.status, "pending"));

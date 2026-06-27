@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,29 @@ function useApproveWithdrawal() {
     mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
       const res = await fetch(`${BASE}/api/admin/withdrawals/${id}/approve`, {
         method: "PATCH", headers: authHeader(), body: JSON.stringify({ approved }),
+      });
+      return res.json();
+    },
+  });
+}
+
+type FeaturedBiz = { id: number; name: string; categoryName: string | null; sortOrder: number | null; verified: boolean };
+
+function useFeaturedOrder() {
+  return useQuery({
+    queryKey: ["admin", "businesses", "featured-order"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/businesses/featured`, { headers: authHeader() });
+      return res.json() as Promise<FeaturedBiz[]>;
+    },
+  });
+}
+
+function useSaveFeaturedOrder() {
+  return useMutation({
+    mutationFn: async (order: Array<{ id: number; sortOrder: number }>) => {
+      const res = await fetch(`${BASE}/api/admin/businesses/featured-order`, {
+        method: "PUT", headers: authHeader(), body: JSON.stringify({ order }),
       });
       return res.json();
     },
@@ -482,6 +505,7 @@ export default function AdminPage() {
   const { data: allAgents, refetch: refetchAgents } = useAllAgents();
   const { data: allUsers, refetch: refetchUsers } = useAllUsers();
   const { data: allBusinesses, refetch: refetchAllBusinesses } = useAllBusinesses();
+  const { data: featuredOrderData, refetch: refetchFeaturedOrder } = useFeaturedOrder();
   const { data: withdrawals, refetch: refetchWithdrawals } = usePendingWithdrawals();
 
   const approveBiz = useApproveBusiness();
@@ -494,8 +518,32 @@ export default function AdminPage() {
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
   const [bizSearch, setBizSearch] = useState("");
+  const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
+  const [featuredSaved, setFeaturedSaved] = useState(false);
+  const saveFeaturedOrder = useSaveFeaturedOrder();
   const [impersonateData, setImpersonateData] = useState<{ name: string; token: string } | null>(null);
   const [showPassport, setShowPassport] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (featuredOrderData) setFeaturedList(featuredOrderData);
+  }, [featuredOrderData]);
+
+  const moveFeatured = (index: number, dir: -1 | 1) => {
+    const next = [...featuredList];
+    const swap = index + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[index], next[swap]] = [next[swap], next[index]];
+    setFeaturedList(next);
+    setFeaturedSaved(false);
+  };
+
+  const handleSaveFeaturedOrder = async () => {
+    const order = featuredList.map((b, i) => ({ id: b.id, sortOrder: i + 1 }));
+    await saveFeaturedOrder.mutateAsync(order);
+    refetchFeaturedOrder();
+    setFeaturedSaved(true);
+    setTimeout(() => setFeaturedSaved(false), 2500);
+  };
 
   const handleBizApproval = async (id: number, approved: boolean) => {
     await approveBiz.mutateAsync({ id, data: { approved } });
@@ -635,6 +683,9 @@ export default function AdminPage() {
                 {(withdrawals?.length ?? 0) > 0 && (
                   <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{withdrawals?.length}</Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="featured-order" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
+                ⭐ Featured Order
               </TabsTrigger>
               <TabsTrigger value="all-businesses" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
                 <Building2 className="h-3.5 w-3.5" /> All Businesses
@@ -843,6 +894,92 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* ── Featured Order ── */}
+          <TabsContent value="featured-order">
+            <div className="max-w-xl">
+              <div className="mb-5">
+                <h2 className="text-base font-bold text-foreground">Featured Business Order</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Use the arrows to rearrange which businesses appear first in the "Featured" section on the homepage. Click Save when done.
+                </p>
+              </div>
+
+              {!featuredList.length ? (
+                <EmptyState
+                  icon={<span className="text-4xl">⭐</span>}
+                  title="No featured businesses"
+                  sub="Mark businesses as Featured in the All Businesses tab first"
+                />
+              ) : (
+                <div className="space-y-2">
+                  {featuredList.map((biz, i) => (
+                    <motion.div
+                      key={biz.id}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.18 }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    >
+                      {/* Position badge */}
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                        style={{ background: "rgba(74,158,255,0.15)", color: "#4a9eff" }}>
+                        {i + 1}
+                      </div>
+
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{biz.name}</p>
+                        {biz.categoryName && (
+                          <p className="text-xs text-muted-foreground">{biz.categoryName}</p>
+                        )}
+                      </div>
+
+                      {/* Up / Down buttons */}
+                      <div className="flex flex-col gap-0.5 flex-shrink-0">
+                        <button
+                          onClick={() => moveFeatured(i, -1)}
+                          disabled={i === 0}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-20"
+                          style={{ background: i === 0 ? "transparent" : "rgba(255,255,255,0.07)" }}
+                          title="Move up"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5 text-white rotate-180" />
+                        </button>
+                        <button
+                          onClick={() => moveFeatured(i, 1)}
+                          disabled={i === featuredList.length - 1}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-20"
+                          style={{ background: i === featuredList.length - 1 ? "transparent" : "rgba(255,255,255,0.07)" }}
+                          title="Move down"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5 text-white" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  <div className="pt-3">
+                    <Button
+                      onClick={handleSaveFeaturedOrder}
+                      disabled={saveFeaturedOrder.isPending}
+                      className={`w-full gap-2 font-semibold transition-all ${featuredSaved ? "bg-green-600 hover:bg-green-600" : "bg-[#4a9eff] hover:bg-[#3a8ef0]"} text-white`}
+                    >
+                      {saveFeaturedOrder.isPending ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                      ) : featuredSaved ? (
+                        <><Save className="h-4 w-4" /> Saved!</>
+                      ) : (
+                        <><Save className="h-4 w-4" /> Save Order</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* ── All Businesses ── */}

@@ -77,6 +77,7 @@ router.get("/", async (req, res) => {
 router.get("/featured", async (_req, res) => {
   const rows = await db.select().from(businessesTable)
     .where(and(eq(businessesTable.featured, true), eq(businessesTable.status, "approved")))
+    .orderBy(asc(sql`sort_order NULLS LAST`), asc(businessesTable.id))
     .limit(8);
   const enriched = await Promise.all(rows.map(enrichBusiness));
   return res.json(enriched);

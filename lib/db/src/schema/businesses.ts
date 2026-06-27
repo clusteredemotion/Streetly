@@ -27,6 +27,7 @@ export const businessesTable = pgTable("businesses", {
   plan: businessPlanEnum("plan").notNull().default("free"),
   ownerId: integer("owner_id").references(() => usersTable.id),
   agentId: integer("agent_id"),
+  sortOrder: integer("sort_order"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
