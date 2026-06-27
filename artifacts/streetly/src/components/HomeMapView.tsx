@@ -6,6 +6,7 @@ import {
   Search, MapPin, Navigation, Layers, X, Star, ShieldCheck,
   ArrowRight, Mic, ChevronDown, Zap, Clock, Radio, ChevronRight,
   MapPinOff, Activity, RotateCcw, RotateCw, Compass,
+  Car, Square, Navigation2, Flag,
 } from "lucide-react";
 import { NIGERIA_STATES } from "@/data/nigeria-locations";
 
@@ -71,6 +72,21 @@ const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; a
 /* Street-label overlay used in satellite mode */
 const SATELLITE_LABELS_URL =
   "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png";
+
+/* ── Drive Mode: pure geo utilities ── */
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+  const dφ = (lat2 - lat1) * Math.PI / 180, dλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(dλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function geoHeading(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180, dλ = (lon2 - lon1) * Math.PI / 180;
+  const y = Math.sin(dλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(dλ);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
 
 const FILTER_PILLS = [
   { label: "All", value: "" },
@@ -139,7 +155,17 @@ export function HomeMapView() {
   const watchIdRef = useRef<number | null>(null);
   const activityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rotationRef = useRef(0);                     // always-fresh rotation for touch handler
-  const touchStartRef = useRef<{ angle: number; dist: number; baseRotation: number; rotationActive: boolean } | null>(null);
+  const touchStartRef    = useRef<{ angle: number; dist: number; baseRotation: number; rotationActive: boolean } | null>(null);
+  /* Drive mode refs */
+  const routeLayersRef   = useRef<any[]>([]);
+  const driveWatchRef    = useRef<number | null>(null);
+  const drivePrevPosRef  = useRef<[number, number] | null>(null);
+  const nearbyTimerRef2  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alertedIdsRef    = useRef<Set<number>>(new Set());
+  const nominatimTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyRotRef      = useRef<(deg: number, anim?: boolean) => void>(() => {});
+  const businessesRef    = useRef<Business[]>([]);
+  const leafletRef       = useRef<any>(null);   // stores the imported Leaflet module
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -157,6 +183,18 @@ export function HomeMapView() {
   const [pickerState, setPickerState] = useState("");
   const [pickerCity, setPickerCity] = useState("");
   const [rotationDeg, setRotationDeg] = useState(0);
+
+  /* ── Drive Mode state ── */
+  const [showDriveSheet, setShowDriveSheet]     = useState(false);
+  const [driveDest, setDriveDest]               = useState("");
+  const [driveDestCoords, setDriveDestCoords]   = useState<[number, number] | null>(null);
+  const [driveDestName, setDriveDestName]       = useState("");
+  const [driveSuggestions, setDriveSuggestions] = useState<Array<{ label: string; lat: number; lon: number }>>([]);
+  const [routeInfo, setRouteInfo]               = useState<{ distKm: number; durationMin: number } | null>(null);
+  const [drivingActive, setDrivingActive]       = useState(false);
+  const [nearbyAlert, setNearbyAlert]           = useState<Business | null>(null);
+  const [driveLoading, setDriveLoading]         = useState(false);
+  const [driveOrigin, setDriveOrigin]           = useState<[number, number] | null>(null);
 
   const selectedState = NIGERIA_STATES.find(s => s.name === pickerState);
   const selectedCityData = selectedState?.cities.find(c => c.name === pickerCity);
@@ -381,6 +419,7 @@ export function HomeMapView() {
     const init = async () => {
       L = await import("leaflet");
       await import("leaflet/dist/leaflet.css");
+      leafletRef.current = L;
       if (!containerRef.current) return;
 
       map = L.map(containerRef.current, {
@@ -555,6 +594,143 @@ export function HomeMapView() {
     );
     watchIdRef.current = watchId;
   }, [liveTracking]);
+
+  /* ── Drive Mode Logic ── */
+
+  /* Keep stable refs for use inside GPS callbacks (avoid stale closures) */
+  useEffect(() => { applyRotRef.current = applyRotation; }, [applyRotation]);
+  useEffect(() => { businessesRef.current = businesses; }, [businesses]);
+
+  /* Nominatim autocomplete — debounced 400ms, Nigeria only */
+  useEffect(() => {
+    if (nominatimTimer.current) clearTimeout(nominatimTimer.current);
+    if (!driveDest.trim() || driveDest.length < 3) { setDriveSuggestions([]); return; }
+    nominatimTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(driveDest)}&countrycodes=ng&limit=5`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data: any[] = await res.json();
+        setDriveSuggestions(data.map(d => ({
+          label: d.display_name as string,
+          lat: parseFloat(d.lat),
+          lon: parseFloat(d.lon),
+        })));
+      } catch {}
+    }, 400);
+    return () => { if (nominatimTimer.current) clearTimeout(nominatimTimer.current); };
+  }, [driveDest]);
+
+  /* Fetch OSRM route and draw polyline on map */
+  const fetchRoute = useCallback(async (origin: [number, number], dest: [number, number]) => {
+    const map = mapRef.current;
+    if (!map) return;
+    setDriveLoading(true);
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${dest[1]},${dest[0]}?overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code !== "Ok") return;
+      const route = data.routes[0];
+      setRouteInfo({ distKm: route.distance / 1000, durationMin: Math.ceil(route.duration / 60) });
+      /* Clear any old route layers */
+      routeLayersRef.current.forEach(l => { try { map.removeLayer(l); } catch {} });
+      routeLayersRef.current = [];
+      const geo = route.geometry;
+      /* Draw white shadow then blue line on top using the stored Leaflet ref */
+      const Lmod = leafletRef.current;
+      if (Lmod) {
+        const shadow = Lmod.geoJSON(geo, { style: { color: "white",   weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round" } }).addTo(map);
+        const line   = Lmod.geoJSON(geo, { style: { color: "#2563eb", weight:  7, opacity: 0.95, lineCap: "round", lineJoin: "round" } }).addTo(map);
+        routeLayersRef.current = [shadow, line];
+      }
+    } catch {} finally { setDriveLoading(false); }
+  }, []);
+
+  const clearRoute = useCallback(() => {
+    const map = mapRef.current; if (!map) return;
+    routeLayersRef.current.forEach(l => { try { map.removeLayer(l); } catch {} });
+    routeLayersRef.current = [];
+  }, []);
+
+  const stopDriving = useCallback(() => {
+    if (driveWatchRef.current !== null) { navigator.geolocation.clearWatch(driveWatchRef.current); driveWatchRef.current = null; }
+    clearRoute();
+    drivePrevPosRef.current = null;
+    alertedIdsRef.current = new Set();
+    if (nearbyTimerRef2.current) clearTimeout(nearbyTimerRef2.current);
+    setDrivingActive(false);
+    setRouteInfo(null);
+    setNearbyAlert(null);
+    setDriveDestCoords(null);
+    setDriveDestName("");
+    setDriveDest("");
+    setShowDriveSheet(false);
+    applyRotRef.current(0, true);
+    mapRef.current?.setZoom?.(14, { animate: true });
+  }, [clearRoute]);
+
+  const startDriving = useCallback(() => {
+    if (!driveOrigin || !driveDestCoords) return;
+    const map = mapRef.current; if (!map) return;
+    setDrivingActive(true);
+    setShowDriveSheet(false);
+    alertedIdsRef.current = new Set();
+    drivePrevPosRef.current = driveOrigin;
+    map.flyTo(driveOrigin, 18, { duration: 1.5 });
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const curr: [number, number] = [lat, lon];
+
+        /* Move user location marker */
+        if (userMarkerRef.current) userMarkerRef.current.setLatLng(curr);
+
+        /* Heading-up rotation — only update if moved more than 3 m (ignore GPS jitter) */
+        if (drivePrevPosRef.current) {
+          const [pLat, pLon] = drivePrevPosRef.current;
+          if (haversineM(pLat, pLon, lat, lon) > 3) {
+            const heading  = geoHeading(pLat, pLon, lat, lon);
+            const mapRot   = (360 - heading) % 360;
+            applyRotRef.current(mapRot, false);
+            rotationRef.current = mapRot;
+            setRotationDeg(Math.round(mapRot));
+            drivePrevPosRef.current = curr;
+          }
+        }
+
+        /* Smooth-follow GPS position at navigation zoom */
+        map.setView(curr, Math.max(map.getZoom(), 17), { animate: true, duration: 0.8, noMoveStart: true });
+
+        /* Business proximity alert — 150 m threshold */
+        const nearby = businessesRef.current.find(b => {
+          if (!b.latitude || !b.longitude) return false;
+          if (alertedIdsRef.current.has(b.id)) return false;
+          return haversineM(lat, lon, b.latitude, b.longitude) < 150;
+        });
+        if (nearby) {
+          alertedIdsRef.current.add(nearby.id);
+          setNearbyAlert(nearby);
+          if (nearbyTimerRef2.current) clearTimeout(nearbyTimerRef2.current);
+          nearbyTimerRef2.current = setTimeout(() => setNearbyAlert(null), 4500);
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+    driveWatchRef.current = watchId;
+  }, [driveOrigin, driveDestCoords]);
+
+  const openDriveSheet = useCallback(() => {
+    setShowDriveSheet(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setDriveOrigin([pos.coords.latitude, pos.coords.longitude]),
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }, []);
 
   const handleSuggestionClick = (biz: Business) => {
     if (!biz.latitude || !biz.longitude) return;
@@ -863,6 +1039,23 @@ export function HomeMapView() {
         </button>
       </div>
 
+      {/* ── Drive Mode Button ── */}
+      <div className="absolute bottom-[8.5rem] right-4 z-[1000]">
+        <button
+          onClick={drivingActive ? stopDriving : openDriveSheet}
+          title={drivingActive ? "Stop driving" : "Drive mode"}
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-xl transition-all ${
+            drivingActive
+              ? "bg-red-500/90 border border-red-400/60"
+              : "glass-panel hover:bg-white/15"
+          }`}
+        >
+          {drivingActive
+            ? <Square className="h-4 w-4 text-white fill-white" />
+            : <Car className="h-5 w-5 text-white/85" />}
+        </button>
+      </div>
+
       {/* ── Map Style Switcher ── */}
       <div className="absolute bottom-28 right-4 z-[1000]">
         <AnimatePresence>
@@ -946,6 +1139,216 @@ export function HomeMapView() {
           <ChevronDown className="h-5 w-5" />
         </motion.div>
       </motion.button>
+
+      {/* ── Active Driving Bar (top overlay) ── */}
+      <AnimatePresence>
+        {drivingActive && (
+          <motion.div
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
+            className="absolute top-0 left-0 right-0 z-[2500] flex items-center gap-3 px-4 pt-12 pb-4"
+            style={{ background: "linear-gradient(to bottom, rgba(5,10,30,0.96) 60%, transparent)", backdropFilter: "blur(8px)" }}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Navigation2 className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                <p className="text-xs font-semibold text-blue-300 truncate">
+                  Navigating to {driveDestName || "destination"}
+                </p>
+              </div>
+              {routeInfo && (
+                <p className="text-xs text-white/45">
+                  {routeInfo.distKm.toFixed(1)} km · ~{routeInfo.durationMin} min
+                </p>
+              )}
+            </div>
+            <button
+              onClick={stopDriving}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold text-white flex-shrink-0"
+              style={{ background: "rgba(239,68,68,0.85)", border: "1px solid rgba(239,68,68,0.5)" }}
+            >
+              <Square className="h-3.5 w-3.5 fill-white" /> Stop
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Nearby Business Alert (drive mode toast) ── */}
+      <AnimatePresence>
+        {nearbyAlert && (
+          <motion.div
+            key={nearbyAlert.id}
+            initial={{ y: 80, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 80, opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 420, damping: 36 }}
+            className="absolute bottom-32 left-4 right-4 z-[3000] rounded-2xl p-4 flex items-center gap-3 shadow-2xl"
+            style={{ background: "rgba(5,10,30,0.96)", backdropFilter: "blur(24px)", border: "1px solid rgba(37,99,235,0.35)" }}
+          >
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${CATEGORY_COLORS[nearbyAlert.categoryName ?? ""] ?? DEFAULT_COLOR}25` }}
+            >
+              <MapPin className="h-5 w-5" style={{ color: CATEGORY_COLORS[nearbyAlert.categoryName ?? ""] ?? DEFAULT_COLOR }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{nearbyAlert.name}</p>
+              <p className="text-xs text-white/50 truncate">
+                {nearbyAlert.categoryName} · {nearbyAlert.areaName || nearbyAlert.cityName || "Nearby"}
+              </p>
+            </div>
+            <div className="flex-shrink-0 text-right">
+              <p className="text-xs font-semibold text-blue-400">Nearby</p>
+              <p className="text-xs text-white/30">~150 m</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Drive Mode Destination Sheet ── */}
+      <AnimatePresence>
+        {showDriveSheet && !drivingActive && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 380, damping: 38 }}
+            className="absolute bottom-0 left-0 right-0 z-[3000] rounded-t-3xl shadow-2xl overflow-visible"
+            style={{ background: "rgba(5,10,30,0.97)", backdropFilter: "blur(32px)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
+            <div className="px-5 pb-10">
+
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-blue-500/20 flex items-center justify-center">
+                    <Car className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Drive Mode</h3>
+                    <p className="text-xs text-white/40">Real-time business alerts en route</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowDriveSheet(false)} className="p-1.5 rounded-full hover:bg-white/10">
+                  <X className="h-4 w-4 text-white/50" />
+                </button>
+              </div>
+
+              {/* Origin row */}
+              <div className="flex items-center gap-3 px-4 py-3 rounded-2xl mb-2"
+                style={{ background: "rgba(255,255,255,0.05)" }}>
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
+                <span className="text-sm text-white/60">
+                  {driveOrigin ? "Your current location" : "Locating you…"}
+                </span>
+              </div>
+
+              {/* Destination input + autocomplete */}
+              <div className="relative mb-3">
+                <div
+                  className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                >
+                  <Flag className="h-4 w-4 text-orange-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={driveDest}
+                    onChange={e => {
+                      setDriveDest(e.target.value);
+                      setDriveDestCoords(null);
+                      setRouteInfo(null);
+                    }}
+                    placeholder="Where to?"
+                    autoFocus
+                    className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/30"
+                  />
+                  {driveDest && (
+                    <button onClick={() => { setDriveDest(""); setDriveDestCoords(null); setRouteInfo(null); setDriveSuggestions([]); }}>
+                      <X className="h-4 w-4 text-white/30" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Nominatim suggestions dropdown */}
+                {driveSuggestions.length > 0 && !driveDestCoords && (
+                  <div
+                    className="absolute top-full left-0 right-0 mt-1 rounded-2xl overflow-hidden shadow-2xl z-50"
+                    style={{ background: "rgba(5,10,30,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    {driveSuggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={async () => {
+                          const short = s.label.split(",").slice(0, 2).join(",");
+                          setDriveDest(short);
+                          setDriveDestName(s.label.split(",")[0]);
+                          setDriveDestCoords([s.lat, s.lon]);
+                          setDriveSuggestions([]);
+                          if (driveOrigin) await fetchRoute(driveOrigin, [s.lat, s.lon]);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left border-b border-white/5 last:border-0"
+                      >
+                        <MapPin className="h-4 w-4 text-white/30 flex-shrink-0" />
+                        <span className="text-sm text-white/80 truncate">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Route summary card */}
+              <AnimatePresence>
+                {routeInfo && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    className="flex items-center gap-4 px-4 py-3 rounded-2xl mb-4"
+                    style={{ background: "rgba(37,99,235,0.14)", border: "1px solid rgba(37,99,235,0.28)" }}
+                  >
+                    <Navigation2 className="h-5 w-5 text-blue-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-white">{routeInfo.distKm.toFixed(1)} km</p>
+                      <p className="text-xs text-white/50">{routeInfo.durationMin} min by car</p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-xs text-white/35">Fastest route</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Start Driving button */}
+              <button
+                onClick={startDriving}
+                disabled={!driveOrigin || !driveDestCoords || driveLoading}
+                className="w-full py-4 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
+                style={{
+                  background: (driveOrigin && driveDestCoords && !driveLoading)
+                    ? "linear-gradient(135deg,#0547B6,#2563eb)"
+                    : "rgba(255,255,255,0.07)",
+                  boxShadow: (driveOrigin && driveDestCoords) ? "0 8px 32px rgba(37,99,235,0.45)" : undefined,
+                }}
+              >
+                {driveLoading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                  />
+                ) : (
+                  <><Navigation2 className="h-4 w-4" /> Start Driving</>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Business Bottom Sheet ── */}
       <AnimatePresence>
