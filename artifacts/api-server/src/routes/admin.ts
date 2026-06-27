@@ -34,7 +34,7 @@ router.get("/stats", async (_req, res) => {
   });
 });
 
-// GET /admin/businesses/all — all businesses with category/street info
+// GET /admin/businesses/all — all businesses with category/street/agent info
 router.get("/businesses/all", async (_req, res) => {
   const rows = await db
     .select({
@@ -56,10 +56,25 @@ router.get("/businesses/all", async (_req, res) => {
       createdAt: businessesTable.createdAt,
       categoryName: categoriesTable.name,
       streetName: streetsTable.name,
+      agentId: businessesTable.agentId,
+      agentFullName: agentsTable.fullName,
+      agentUserName: usersTable.name,
+      agentUserEmail: usersTable.email,
+      agentBankName: agentsTable.bankName,
+      agentAccountNumber: agentsTable.accountNumber,
+      agentAccountName: agentsTable.accountName,
+      agentStatus: agentsTable.status,
+      agentPassportPhotoUrl: agentsTable.passportPhotoUrl,
+      agentIdType: agentsTable.idType,
+      agentIdNumber: agentsTable.idNumber,
+      agentAddress: agentsTable.address,
+      agentTotalEarnings: agentsTable.totalEarnings,
     })
     .from(businessesTable)
     .leftJoin(categoriesTable, eq(businessesTable.categoryId, categoriesTable.id))
     .leftJoin(streetsTable, eq(businessesTable.streetId, streetsTable.id))
+    .leftJoin(agentsTable, eq(businessesTable.agentId, agentsTable.id))
+    .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id))
     .orderBy(businessesTable.createdAt);
   return res.json(rows);
 });

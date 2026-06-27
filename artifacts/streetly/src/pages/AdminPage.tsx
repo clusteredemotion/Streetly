@@ -20,7 +20,7 @@ import { formatCurrency } from "@/lib/utils";
 import {
   Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
-  Loader2, Eye, EyeOff,
+  Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -146,6 +146,19 @@ type AdminBusiness = {
   categoryId: number | null; streetId: number | null;
   categoryName: string | null; streetName: string | null;
   createdAt: string;
+  agentId: number | null;
+  agentFullName: string | null;
+  agentUserName: string | null;
+  agentUserEmail: string | null;
+  agentBankName: string | null;
+  agentAccountNumber: string | null;
+  agentAccountName: string | null;
+  agentStatus: string | null;
+  agentPassportPhotoUrl: string | null;
+  agentIdType: string | null;
+  agentIdNumber: string | null;
+  agentAddress: string | null;
+  agentTotalEarnings: number | null;
 };
 
 function useAllBusinesses() {
@@ -407,6 +420,179 @@ function EditAgentModal({ agent, onClose, onSaved }: {
   );
 }
 
+/* ── Agent Profile Modal ── */
+function AgentProfileModal({ agent, onClose, onEdit }: {
+  agent: AdminBusiness;
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
+  const agentName = agent.agentFullName ?? agent.agentUserName ?? `Agent #${agent.agentId}`;
+  const [agentListings, setAgentListings] = useState<Array<{ id: number; name: string; status: string; categoryName: string | null; createdAt: string }>>([]);
+  const [loadingListings, setLoadingListings] = useState(true);
+
+  useEffect(() => {
+    if (!agent.agentId) return;
+    fetch(`${BASE}/api/agents/${agent.agentId}/listings`)
+      .then(r => r.json())
+      .then(data => setAgentListings(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoadingListings(false));
+  }, [agent.agentId]);
+
+  const approvedCount = agentListings.filter(l => l.status === "approved").length;
+  const pendingCount = agentListings.filter(l => l.status === "pending").length;
+
+  const infoRows = [
+    { label: "Email", value: agent.agentUserEmail },
+    { label: "Address", value: agent.agentAddress },
+    { label: "ID Type", value: agent.agentIdType?.toUpperCase() },
+    { label: "ID Number", value: agent.agentIdNumber },
+    { label: "Bank", value: agent.agentBankName },
+    { label: "Account Number", value: agent.agentAccountNumber },
+    { label: "Account Name", value: agent.agentAccountName },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(10px)" }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+        style={{ background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-[#4a9eff]" />
+            <h2 className="font-bold text-white text-sm">Agent Profile</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-white/40 hover:text-white transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-5 space-y-5">
+          {/* Identity */}
+          <div className="flex items-center gap-4">
+            {agent.agentPassportPhotoUrl ? (
+              <img src={agent.agentPassportPhotoUrl} alt="" className="w-16 h-16 rounded-2xl object-cover border border-white/15 flex-shrink-0" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(74,158,255,0.1)", border: "1px solid rgba(74,158,255,0.2)" }}>
+                <User className="h-8 w-8 text-[#4a9eff]" />
+              </div>
+            )}
+            <div>
+              <div className="text-base font-bold text-white">{agentName}</div>
+              <div className="text-xs text-white/40 mt-0.5">{agent.agentUserEmail ?? "—"}</div>
+              <div className="flex items-center gap-2 mt-1.5">
+                {agent.agentStatus && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                    agent.agentStatus === "approved" ? "bg-green-500/15 text-green-400 border-green-500/30" :
+                    agent.agentStatus === "pending" ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+                    "bg-red-500/15 text-red-400 border-red-500/30"
+                  }`}>{agent.agentStatus}</span>
+                )}
+                <span className="text-xs text-[#4a9eff] font-semibold">Agent #{agent.agentId}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Total Listings", value: agentListings.length, icon: Building2, color: "text-[#4a9eff]", bg: "bg-[#4a9eff]/10" },
+              { label: "Approved", value: approvedCount, icon: CheckCircle, color: "text-green-400", bg: "bg-green-500/10" },
+              { label: "Total Earned", value: `₦${(agent.agentTotalEarnings ?? 0).toLocaleString()}`, icon: Wallet, color: "text-purple-400", bg: "bg-purple-500/10" },
+            ].map(s => (
+              <div key={s.label} className="rounded-xl p-3 text-center"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mx-auto mb-2`}>
+                  <s.icon className={`h-4 w-4 ${s.color}`} />
+                </div>
+                <div className="text-base font-bold text-white">{loadingListings ? "…" : s.value}</div>
+                <div className="text-[10px] text-white/40 mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Details */}
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+            {infoRows.filter(r => r.value).map((row, i, arr) => (
+              <div key={row.label}
+                className={`flex items-center gap-3 px-4 py-2.5 ${i < arr.length - 1 ? "border-b border-white/5" : ""}`}
+                style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}
+              >
+                <span className="text-xs text-white/40 w-28 flex-shrink-0">{row.label}</span>
+                <span className="text-xs text-white font-medium truncate">{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Listings submitted by this agent */}
+          <div>
+            <h3 className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+              Businesses Registered ({agentListings.length})
+            </h3>
+            {loadingListings ? (
+              <div className="space-y-2">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.05)" }} />
+                ))}
+              </div>
+            ) : agentListings.length === 0 ? (
+              <div className="text-center py-6 text-sm text-white/30">No listings registered yet</div>
+            ) : (
+              <div className="space-y-1.5">
+                {agentListings.map(l => (
+                  <div key={l.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <Building2 className="h-3.5 w-3.5 text-[#4a9eff] flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-white truncate">{l.name}</div>
+                      <div className="text-[10px] text-white/40">{l.categoryName ?? "—"} · {new Date(l.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                      l.status === "approved" ? "bg-green-500/15 text-green-400 border-green-500/25" :
+                      l.status === "pending" ? "bg-amber-500/15 text-amber-400 border-amber-500/25" :
+                      "bg-red-500/15 text-red-400 border-red-500/25"
+                    }`}>{l.status}</span>
+                    {l.status === "approved" && (
+                      <span className="text-[10px] text-green-400 font-bold">+₦100</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {pendingCount > 0 && (
+            <div className="rounded-xl px-4 py-3 flex items-center gap-2 text-xs"
+              style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+              <AlertCircle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+              <span className="text-amber-300">{pendingCount} listing{pendingCount !== 1 ? "s" : ""} from this agent still pending review</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-white/10 flex gap-2 flex-shrink-0">
+          {onEdit && (
+            <Button size="sm" onClick={onEdit}
+              className="gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] text-white flex-1">
+              <Edit2 className="h-3.5 w-3.5" /> Edit Agent Profile
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">
+            Close
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Edit User Modal ── */
 function EditUserModal({ user, onClose, onSaved }: {
   user: { id: number; name: string; email: string; role: string; createdAt: string };
@@ -517,6 +703,7 @@ export default function AdminPage() {
   const [editAgent, setEditAgent] = useState<typeof allAgents extends Array<infer T> ? T | null : null>(null);
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
+  const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
   const [bizSearch, setBizSearch] = useState("");
   const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
   const [featuredSaved, setFeaturedSaved] = useState(false);
@@ -599,6 +786,16 @@ export default function AdminPage() {
             biz={editBusiness}
             onClose={() => setEditBusiness(null)}
             onSaved={() => { refetchAllBusinesses(); qc.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() }); }}
+          />
+        )}
+        {viewAgentBiz && (
+          <AgentProfileModal
+            agent={viewAgentBiz}
+            onClose={() => setViewAgentBiz(null)}
+            onEdit={() => {
+              const match = allAgents?.find(a => a.id === viewAgentBiz.agentId);
+              if (match) { setViewAgentBiz(null); setEditAgent(match as any); }
+            }}
           />
         )}
       </AnimatePresence>
@@ -723,6 +920,17 @@ export default function AdminPage() {
                       <p className="text-sm text-muted-foreground">Category ID: {biz.categoryId} · Street ID: {biz.streetId}</p>
                       {biz.phone && <p className="text-xs text-muted-foreground">Phone: {biz.phone}</p>}
                       <p className="text-xs text-muted-foreground">Added: {new Date(biz.createdAt).toLocaleDateString()}</p>
+                      {(biz as unknown as AdminBusiness).agentId && (
+                        <button
+                          onClick={() => setViewAgentBiz(biz as unknown as AdminBusiness)}
+                          className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full transition-colors hover:bg-[#4a9eff]/20"
+                          style={{ background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.2)", color: "#4a9eff" }}
+                        >
+                          <User className="h-3 w-3" />
+                          {(biz as unknown as AdminBusiness).agentFullName ?? (biz as unknown as AdminBusiness).agentUserName ?? `Agent #${(biz as unknown as AdminBusiness).agentId}`}
+                          <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                        </button>
+                      )}
                     </div>
                     <ApproveRejectButtons
                       onApprove={() => handleBizApproval(biz.id, true)}
@@ -1026,6 +1234,17 @@ export default function AdminPage() {
                         </p>
                         {biz.phone && <p className="text-xs text-muted-foreground">📞 {biz.phone}</p>}
                         <p className="text-xs text-muted-foreground">Added: {new Date(biz.createdAt).toLocaleDateString()}</p>
+                        {biz.agentId && (
+                          <button
+                            onClick={() => setViewAgentBiz(biz)}
+                            className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full transition-colors hover:bg-[#4a9eff]/20"
+                            style={{ background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.2)", color: "#4a9eff" }}
+                          >
+                            <User className="h-3 w-3" />
+                            {biz.agentFullName ?? biz.agentUserName ?? `Agent #${biz.agentId}`}
+                            <ExternalLink className="h-2.5 w-2.5 opacity-70" />
+                          </button>
+                        )}
                       </div>
                       <Button size="sm" variant="outline" onClick={() => setEditBusiness(biz)}
                         className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10 flex-shrink-0">
