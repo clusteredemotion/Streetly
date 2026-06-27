@@ -729,6 +729,8 @@ export function HomeMapView() {
         const shadow = Lmod.geoJSON(geo, { style: { color: "white",   weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round" } }).addTo(map);
         const line   = Lmod.geoJSON(geo, { style: { color: "#2563eb", weight:  7, opacity: 0.95, lineCap: "round", lineJoin: "round" } }).addTo(map);
         routeLayersRef.current = [shadow, line];
+        /* Fit map to show the full A→B route */
+        try { map.fitBounds(line.getBounds(), { padding: [60, 60], animate: true, duration: 0.9 }); } catch {}
       }
     } catch {} finally { setDriveLoading(false); }
   }, []);
@@ -759,6 +761,8 @@ export function HomeMapView() {
     setDriveOrigin(null);
     setShowDriveSheet(false);
     applyRotRef.current(0, true);
+    /* Re-enable Leaflet drag now that we're no longer rotating the map */
+    try { mapRef.current?.dragging?.enable(); } catch {}
     mapRef.current?.setZoom?.(14, { animate: true });
   }, [clearRoute]);
 
@@ -771,7 +775,22 @@ export function HomeMapView() {
     driveStepIdxRef.current     = 1;   // 0 is "depart" — announce it on start, skip in loop
     stepPreAnnouncedRef.current = false;
     drivePrevPosRef.current     = driveOrigin;
-    map.flyTo(driveOrigin, 18, { duration: 1.5 });
+
+    /* Disable Leaflet's own drag — we drive the map via setView() in the GPS
+       watcher. With the map CSS-rotated for heading-up, Leaflet's drag uses
+       raw screen coords and pans the wrong direction when rotated >90°. */
+    try { map.dragging.disable(); } catch {}
+
+    /* Step 1: fit full A→B route into view for 1.5 s so the user can see the line */
+    const routeLine = routeLayersRef.current[1]; // index 1 = the blue line (0 = shadow)
+    if (routeLine) {
+      try { map.fitBounds(routeLine.getBounds(), { padding: [60, 60], animate: true, duration: 0.8 }); } catch {}
+    }
+
+    /* Step 2: after a short pause, fly to origin and begin GPS tracking */
+    setTimeout(() => {
+      map.flyTo(driveOrigin, 18, { duration: 1.2 });
+    }, 1600);
 
     /* Announce route summary + first instruction */
     const ri = routeInfo;  // captured from closure; stays stable
@@ -1290,33 +1309,55 @@ export function HomeMapView() {
       <AnimatePresence>
         {drivingActive && (
           <motion.div
-            initial={{ y: -80, opacity: 0 }}
+            initial={{ y: -120, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -80, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            className="absolute top-0 left-0 right-0 z-[2500] flex items-center gap-3 px-4 pt-12 pb-4"
-            style={{ background: "linear-gradient(to bottom, rgba(5,10,30,0.96) 60%, transparent)", backdropFilter: "blur(8px)" }}
+            exit={{ y: -120, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 340, damping: 36 }}
+            className="absolute top-0 left-0 right-0 z-[2500] px-4 pt-10 pb-3"
+            style={{ background: "linear-gradient(to bottom, rgba(4,8,26,0.97) 70%, transparent)", backdropFilter: "blur(12px)" }}
           >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <Navigation2 className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                <p className="text-xs font-semibold text-blue-300 truncate">
-                  Navigating to {driveDestName || "destination"}
-                </p>
+            {/* Destination row */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-blue-600/25 flex items-center justify-center flex-shrink-0">
+                <Navigation2 className="h-4 w-4 text-blue-400" />
               </div>
-              {routeInfo && (
-                <p className="text-xs text-white/45">
-                  {routeInfo.distKm.toFixed(1)} km · ~{routeInfo.durationMin} min
-                </p>
-              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-blue-400/80 font-semibold uppercase tracking-wider mb-0">Navigating to</p>
+                <p className="text-sm font-bold text-white truncate leading-tight">{driveDestName || "Destination"}</p>
+              </div>
+              <button
+                onClick={stopDriving}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white flex-shrink-0"
+                style={{ background: "rgba(239,68,68,0.88)", border: "1px solid rgba(239,68,68,0.5)" }}
+              >
+                <Square className="h-3 w-3 fill-white" /> End
+              </button>
             </div>
-            <button
-              onClick={stopDriving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold text-white flex-shrink-0"
-              style={{ background: "rgba(239,68,68,0.85)", border: "1px solid rgba(239,68,68,0.5)" }}
-            >
-              <Square className="h-3.5 w-3.5 fill-white" /> Stop
-            </button>
+
+            {/* ETA chips row */}
+            {routeInfo && (() => {
+              const eta = new Date(Date.now() + routeInfo.durationMin * 60 * 1000);
+              const etaStr = eta.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+              return (
+                <div className="flex items-center gap-2">
+                  {/* Distance chip */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(37,99,235,0.18)", border: "1px solid rgba(37,99,235,0.3)" }}>
+                    <span className="text-sm font-bold text-white">{routeInfo.distKm.toFixed(1)}</span>
+                    <span className="text-[11px] text-white/50 font-medium">km</span>
+                  </div>
+                  {/* Duration chip */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(37,99,235,0.18)", border: "1px solid rgba(37,99,235,0.3)" }}>
+                    <span className="text-sm font-bold text-white">{routeInfo.durationMin}</span>
+                    <span className="text-[11px] text-white/50 font-medium">min</span>
+                  </div>
+                  {/* ETA arrival chip */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl ml-auto" style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)" }}>
+                    <span className="text-[11px] text-emerald-400/80 font-medium">ETA</span>
+                    <span className="text-sm font-bold text-emerald-300">{etaStr}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
