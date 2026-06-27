@@ -853,12 +853,16 @@ export function HomeMapView() {
   }, [driveOrigin, driveDestCoords, routeInfo, stopDriving]);
 
   const openDriveSheet = useCallback(() => {
-    /* Snap page back to top so the map view is fully visible behind the sheet */
-    window.scrollTo({ top: 0, behavior: "instant" });
+    /* Scroll the page root back to top so the map is in view */
+    try { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch {}
     setShowDriveSheet(true);
     setDriveOriginText("");
     setDriveOrigin(null);
     setDriveOriginSuggestions([]);
+    setDriveDest("");
+    setDriveDestCoords(null);
+    setDriveSuggestions([]);
+    setRouteInfo(null);
   }, []);
 
   /* Auto-locate origin when user clicks the locate icon */
@@ -1357,13 +1361,16 @@ export function HomeMapView() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            className="absolute bottom-0 left-0 right-0 z-[3000] rounded-t-3xl shadow-2xl overflow-visible"
-            style={{ background: "rgba(5,10,30,0.97)", backdropFilter: "blur(32px)", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "58vh" }}
+            className="absolute bottom-0 left-0 right-0 z-[3000] rounded-t-3xl shadow-2xl overflow-hidden"
+            style={{ background: "rgba(5,10,30,0.97)", backdropFilter: "blur(32px)", border: "1px solid rgba(255,255,255,0.08)", maxHeight: "72vh" }}
           >
-            <div className="flex justify-center pt-3 pb-2">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
               <div className="w-10 h-1 rounded-full bg-white/20" />
             </div>
-            <div className="px-5 pb-10">
+
+            {/* Scrollable content */}
+            <div className="overflow-y-auto px-5 pb-10" style={{ maxHeight: "calc(72vh - 28px)" }}>
 
               {/* Header */}
               <div className="flex items-center justify-between mb-5">
@@ -1381,116 +1388,118 @@ export function HomeMapView() {
                 </button>
               </div>
 
-              {/* Origin row — editable with auto-locate icon */}
-              <div className="relative mb-2">
-                <div
-                  className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              {/* Origin row */}
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl mb-1"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={driveOriginText}
+                  onChange={e => {
+                    setDriveOriginText(e.target.value);
+                    setDriveOrigin(null);
+                    setRouteInfo(null);
+                  }}
+                  placeholder="Starting point…"
+                  className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/30"
+                />
+                <button
+                  onClick={autoLocateOrigin}
+                  title="Use current location"
+                  className="flex-shrink-0 p-1.5 rounded-xl hover:bg-blue-500/20 transition-colors"
                 >
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={driveOriginText}
-                    onChange={e => {
-                      setDriveOriginText(e.target.value);
-                      setDriveOrigin(null);
-                      setRouteInfo(null);
-                    }}
-                    placeholder="Starting point…"
-                    className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/30"
-                  />
-                  <button
-                    onClick={autoLocateOrigin}
-                    title="Use current location"
-                    className="flex-shrink-0 p-1.5 rounded-xl hover:bg-blue-500/20 transition-colors"
-                  >
-                    <LocateFixed className={`h-4 w-4 ${driveOrigin ? "text-blue-400" : "text-white/40"}`} />
-                  </button>
-                </div>
-                {/* Origin autocomplete — pops UPWARD so it stays on screen */}
-                {driveOriginSuggestions.length > 0 && !driveOrigin && (
-                  <div
-                    className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl overflow-hidden shadow-2xl z-[100]"
-                    style={{ background: "rgba(5,10,30,0.99)", border: "1px solid rgba(255,255,255,0.1)" }}
-                  >
-                    {driveOriginSuggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={async () => {
-                          setDriveOriginText(s.label.split(",").slice(0, 2).join(","));
-                          setDriveOrigin([s.lat, s.lon]);
-                          setDriveOriginSuggestions([]);
-                          mapRef.current?.flyTo([s.lat, s.lon], 14, { duration: 1.2 });
-                          if (driveDestCoords) await fetchRoute([s.lat, s.lon], driveDestCoords);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left border-b border-white/5 last:border-0"
-                      >
-                        <MapPin className="h-4 w-4 text-blue-400/60 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm text-white/90 truncate font-medium">{s.label.split(",")[0]}</p>
-                          <p className="text-xs text-white/40 truncate">{s.label.split(",").slice(1, 3).join(",")}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  <LocateFixed className={`h-4 w-4 ${driveOrigin ? "text-blue-400" : "text-white/40"}`} />
+                </button>
               </div>
 
-              {/* Destination input + autocomplete */}
-              <div className="relative mb-3">
+              {/* Origin suggestions — inline, no absolute positioning */}
+              {driveOriginSuggestions.length > 0 && !driveOrigin && (
                 <div
-                  className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                  className="rounded-2xl overflow-hidden mb-3"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
                 >
-                  <Flag className="h-4 w-4 text-orange-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={driveDest}
-                    onChange={e => {
-                      setDriveDest(e.target.value);
-                      setDriveDestCoords(null);
-                      setRouteInfo(null);
-                    }}
-                    placeholder="Where to?"
-                    className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/30"
-                  />
-                  {driveDest && (
-                    <button onClick={() => { setDriveDest(""); setDriveDestCoords(null); setRouteInfo(null); setDriveSuggestions([]); }}>
-                      <X className="h-4 w-4 text-white/30" />
+                  {driveOriginSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={async () => {
+                        setDriveOriginText(s.label.split(",").slice(0, 2).join(","));
+                        setDriveOrigin([s.lat, s.lon]);
+                        setDriveOriginSuggestions([]);
+                        mapRef.current?.flyTo([s.lat, s.lon], 14, { duration: 1.2 });
+                        if (driveDestCoords) await fetchRoute([s.lat, s.lon], driveDestCoords);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left border-b border-white/5 last:border-0"
+                    >
+                      <MapPin className="h-4 w-4 text-blue-400/70 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-white/90 truncate font-medium">{s.label.split(",")[0]}</p>
+                        <p className="text-xs text-white/40 truncate">{s.label.split(",").slice(1, 3).join(",")}</p>
+                      </div>
                     </button>
-                  )}
+                  ))}
                 </div>
+              )}
 
-                {/* Destination suggestions — pops UPWARD to stay on screen */}
-                {driveSuggestions.length > 0 && !driveDestCoords && (
-                  <div
-                    className="absolute bottom-full left-0 right-0 mb-2 rounded-2xl overflow-hidden shadow-2xl z-[100]"
-                    style={{ background: "rgba(5,10,30,0.99)", border: "1px solid rgba(255,255,255,0.1)" }}
-                  >
-                    {driveSuggestions.map((s, i) => (
-                      <button
-                        key={i}
-                        onClick={async () => {
-                          const short = s.label.split(",").slice(0, 2).join(",");
-                          setDriveDest(short);
-                          setDriveDestName(s.label.split(",")[0]);
-                          setDriveDestCoords([s.lat, s.lon]);
-                          setDriveSuggestions([]);
-                          mapRef.current?.flyTo([s.lat, s.lon], 14, { duration: 1.2 });
-                          if (driveOrigin) await fetchRoute(driveOrigin, [s.lat, s.lon]);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left border-b border-white/5 last:border-0"
-                      >
-                        <Flag className="h-4 w-4 text-orange-400/60 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm text-white/90 truncate font-medium">{s.label.split(",")[0]}</p>
-                          <p className="text-xs text-white/40 truncate">{s.label.split(",").slice(1, 3).join(",")}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+              {/* Destination input */}
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl mb-1"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                <Flag className="h-4 w-4 text-orange-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={driveDest}
+                  onChange={e => {
+                    setDriveDest(e.target.value);
+                    setDriveDestCoords(null);
+                    setRouteInfo(null);
+                  }}
+                  placeholder="Where to?"
+                  className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/30"
+                />
+                {driveDest && (
+                  <button onClick={() => { setDriveDest(""); setDriveDestCoords(null); setRouteInfo(null); setDriveSuggestions([]); }}>
+                    <X className="h-4 w-4 text-white/30" />
+                  </button>
                 )}
               </div>
+
+              {/* Destination suggestions — inline, no absolute positioning */}
+              {driveSuggestions.length > 0 && !driveDestCoords && (
+                <div
+                  className="rounded-2xl overflow-hidden mb-3"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  {driveSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={async () => {
+                        const short = s.label.split(",").slice(0, 2).join(",");
+                        setDriveDest(short);
+                        setDriveDestName(s.label.split(",")[0]);
+                        setDriveDestCoords([s.lat, s.lon]);
+                        setDriveSuggestions([]);
+                        mapRef.current?.flyTo([s.lat, s.lon], 14, { duration: 1.2 });
+                        if (driveOrigin) await fetchRoute(driveOrigin, [s.lat, s.lon]);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left border-b border-white/5 last:border-0"
+                    >
+                      <Flag className="h-4 w-4 text-orange-400/70 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm text-white/90 truncate font-medium">{s.label.split(",")[0]}</p>
+                        <p className="text-xs text-white/40 truncate">{s.label.split(",").slice(1, 3).join(",")}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Spacer when no suggestions and no route yet */}
+              {driveSuggestions.length === 0 && driveOriginSuggestions.length === 0 && !routeInfo && (
+                <div className="mb-3" />
+              )}
 
               {/* Route summary card */}
               <AnimatePresence>
