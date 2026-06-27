@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-const DEMO_AGENT_ID = 1;
 const COMMISSION_PER_LISTING = 100;
 
 const NIGERIAN_BANKS = [
@@ -767,6 +766,7 @@ type Tab = "overview" | "listings" | "add" | "profile";
 export default function AgentDashboardPage() {
   const [, navigate] = useLocation();
   const [tab, setTab] = useState<Tab>("overview");
+  const [agentId, setAgentId] = useState<number | null>(null);
   const [dashData, setDashData] = useState<Record<string, unknown> | null>(null);
   const [allListings, setAllListings] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
@@ -776,25 +776,36 @@ export default function AgentDashboardPage() {
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
 
-  const fetchDash = useCallback(async () => {
+  const fetchDash = useCallback(async (id: number) => {
     try {
-      const res = await fetch(`${BASE}/api/agents/${DEMO_AGENT_ID}/dashboard`);
+      const res = await fetch(`${BASE}/api/agents/${id}/dashboard`);
       if (res.ok) setDashData(await res.json());
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, []);
 
-  const fetchListings = useCallback(async () => {
+  const fetchListings = useCallback(async (id: number) => {
     try {
-      const res = await fetch(`${BASE}/api/agents/${DEMO_AGENT_ID}/listings`);
+      const res = await fetch(`${BASE}/api/agents/${id}/listings`);
       if (res.ok) setAllListings(await res.json());
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
-    fetchDash();
-    fetchListings();
-  }, [fetchDash, fetchListings]);
+    const token = localStorage.getItem("streetly_token");
+    if (!token) { navigate("/agents/apply"); return; }
+
+    fetch(`${BASE}/api/agents/by-user`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (res) => {
+      if (!res.ok) { navigate("/agents/apply"); return; }
+      const data = await res.json();
+      const id: number = data.id;
+      setAgentId(id);
+      fetchDash(id);
+      fetchListings(id);
+    }).catch(() => navigate("/agents/apply"));
+  }, [navigate, fetchDash, fetchListings]);
 
   const agent = dashData?.agent as Record<string, unknown> | undefined;
   const recentListings = (dashData?.recentListings as unknown[]) ?? [];
@@ -809,7 +820,7 @@ export default function AgentDashboardPage() {
     setWithdrawError(null);
     setWithdrawing(true);
     try {
-      const res = await fetch(`${BASE}/api/agents/${DEMO_AGENT_ID}/withdraw`, {
+      const res = await fetch(`${BASE}/api/agents/${agentId}/withdraw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: Number(withdrawAmount) }),
@@ -1174,8 +1185,8 @@ export default function AgentDashboardPage() {
               <motion.div key="add" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <h2 className="text-base font-semibold text-white mb-5">Register a Business</h2>
                 <AddBusinessTab
-                  agentId={DEMO_AGENT_ID}
-                  onSuccess={() => { fetchListings(); fetchDash(); setTab("listings"); }}
+                  agentId={agentId!}
+                  onSuccess={() => { if (agentId) { fetchListings(agentId); fetchDash(agentId); } setTab("listings"); }}
                 />
               </motion.div>
             )}
@@ -1187,8 +1198,8 @@ export default function AgentDashboardPage() {
                 {agent ? (
                   <ProfileTab
                     agent={agent}
-                    agentId={DEMO_AGENT_ID}
-                    onRefresh={fetchDash}
+                    agentId={agentId!}
+                    onRefresh={() => { if (agentId) fetchDash(agentId); }}
                   />
                 ) : (
                   <div className="text-center py-20">
