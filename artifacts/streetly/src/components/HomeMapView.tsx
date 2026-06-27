@@ -172,13 +172,33 @@ export function HomeMapView() {
   /* ── Keep rotationRef in sync (avoids stale closures in touch handler) ── */
   useEffect(() => { rotationRef.current = rotationDeg; }, [rotationDeg]);
 
-  /* ── Apply CSS rotation to map container (from state, e.g. button clicks) ── */
+  /**
+   * Counter-rotate every marker's visible icon so it stays upright while the
+   * map container is rotated.  We target el.firstElementChild (our icon div)
+   * so we never disturb Leaflet's own translate3d() positioning on el itself.
+   */
+  const counterRotateAll = useCallback((deg: number) => {
+    // Business markers
+    markersRef.current.forEach(({ marker }) => {
+      const el = marker.getElement?.() as HTMLElement | undefined;
+      const icon = el?.firstElementChild as HTMLElement | undefined;
+      if (icon) icon.style.transform = `rotate(${-deg}deg)`;
+    });
+    // User location marker
+    const userEl = userMarkerRef.current?.getElement?.() as HTMLElement | undefined;
+    const userIcon = userEl?.firstElementChild as HTMLElement | undefined;
+    if (userIcon) userIcon.style.transform = `rotate(${-deg}deg)`;
+  }, []);
+
+  /* ── Apply CSS rotation to map container + keep markers upright (buttons) ── */
   useEffect(() => {
     if (!containerRef.current) return;
     containerRef.current.style.transformOrigin = "center center";
-    containerRef.current.style.transform = `rotate(${rotationDeg}deg) scale(1.18)`;
+    // scale(1.42) = √2, guarantees no edge gaps at any rotation angle
+    containerRef.current.style.transform = `rotate(${rotationDeg}deg) scale(1.42)`;
     containerRef.current.style.transition = "transform 0.25s ease";
-  }, [rotationDeg]);
+    counterRotateAll(rotationDeg);
+  }, [rotationDeg, counterRotateAll]);
 
   /* ── Two-finger twist-to-rotate gesture — direct DOM, no React re-renders ── */
   useEffect(() => {
@@ -197,10 +217,7 @@ export function HomeMapView() {
           angle: getTouchAngle(e.touches),
           baseRotation: rotationRef.current,
         };
-        /* Disable CSS transition for instant gesture response */
-        if (containerRef.current) {
-          containerRef.current.style.transition = "none";
-        }
+        if (containerRef.current) containerRef.current.style.transition = "none";
       }
     };
 
@@ -209,19 +226,23 @@ export function HomeMapView() {
       const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
       const newDeg = ((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360;
       rotationRef.current = newDeg;
-      /* Apply directly to DOM — no React setState, no re-render */
+      // Rotate container
       if (containerRef.current) {
-        containerRef.current.style.transform = `rotate(${newDeg}deg) scale(1.18)`;
+        containerRef.current.style.transform = `rotate(${newDeg}deg) scale(1.42)`;
       }
+      // Keep markers upright — direct DOM, no re-render
+      markersRef.current.forEach(({ marker }) => {
+        const iconEl = (marker.getElement?.() as HTMLElement | undefined)?.firstElementChild as HTMLElement | undefined;
+        if (iconEl) iconEl.style.transform = `rotate(${-newDeg}deg)`;
+      });
+      const userIcon = (userMarkerRef.current?.getElement?.() as HTMLElement | undefined)?.firstElementChild as HTMLElement | undefined;
+      if (userIcon) userIcon.style.transform = `rotate(${-newDeg}deg)`;
     };
 
     const onEnd = () => {
       if (!touchStartRef.current) return;
       touchStartRef.current = null;
-      /* Restore smooth transition and sync React state (single update) */
-      if (containerRef.current) {
-        containerRef.current.style.transition = "transform 0.25s ease";
-      }
+      if (containerRef.current) containerRef.current.style.transition = "transform 0.25s ease";
       setRotationDeg(Math.round(rotationRef.current));
     };
 
@@ -382,9 +403,12 @@ export function HomeMapView() {
       markersRef.current.push({ marker, biz });
     });
 
+    // Apply current rotation counter to any newly-added markers so they start upright
+    counterRotateAll(rotationRef.current);
+
     const bounds = L.latLngBounds(mappable.map(b => [b.latitude!, b.longitude!]));
     map.fitBounds(bounds, { padding: [80, 80], maxZoom: 14, animate: false });
-  }, [businesses, mapReady]);
+  }, [businesses, mapReady, counterRotateAll]);
 
   /* ── Navigate map to a Nigeria location ── */
   const flyToNigeriaLocation = useCallback((lat: number, lon: number, zoom = 14) => {
@@ -429,8 +453,12 @@ export function HomeMapView() {
               <div style="position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(5,71,182,0.12);animation:live-track-ring 1.6s ease-out 0.4s infinite;"></div>
               <div class="user-location-dot" style="width:16px;height:16px;background:#2563eb;border:3px solid white;border-radius:50%;position:relative;z-index:2;box-shadow:0 2px 16px rgba(5,71,182,0.7);"></div>
             </div>`;
-          const icon = L.divIcon({ className: "", html, iconSize: [32, 32], iconAnchor: [16, 16] });
+          const icon = L.divIcon({ className: "", html, iconSize: [44, 44], iconAnchor: [22, 22] });
           userMarkerRef.current = L.marker([latitude, longitude], { icon, zIndexOffset: 2000 }).addTo(map);
+          // Keep the user dot upright if map is already rotated
+          const uEl = userMarkerRef.current.getElement?.() as HTMLElement | undefined;
+          const uIcon = uEl?.firstElementChild as HTMLElement | undefined;
+          if (uIcon) uIcon.style.transform = `rotate(${-rotationRef.current}deg)`;
           map.flyTo([latitude, longitude], 16, { duration: 1.8 });
         }
         setLocating(false);
