@@ -190,20 +190,39 @@ export function HomeMapView() {
     if (userIcon) userIcon.style.transform = `rotate(${-deg}deg)`;
   }, []);
 
-  /* ── Apply CSS rotation to map container + keep markers upright (buttons) ── */
-  useEffect(() => {
+  /**
+   * Compute the minimum CSS scale factor needed so the rotated map container
+   * fully covers the viewport with NO edge gaps, for any phone aspect ratio.
+   * Formula: |cos θ| + (H/W) × |sin θ|  (derived from corner-coverage proof)
+   */
+  const mapScale = useCallback((deg: number): number => {
+    const r = (deg * Math.PI) / 180;
+    const ar = window.innerHeight / window.innerWidth; // >1 on portrait phones
+    return Math.abs(Math.cos(r)) + ar * Math.abs(Math.sin(r)) + 0.04;
+  }, []);
+
+  /** Apply rotation + exact scale to map container, then counter-rotate markers */
+  const applyRotation = useCallback((deg: number, transition = true) => {
     if (!containerRef.current) return;
     containerRef.current.style.transformOrigin = "center center";
-    // scale(1.42) = √2, guarantees no edge gaps at any rotation angle
-    containerRef.current.style.transform = `rotate(${rotationDeg}deg) scale(1.42)`;
-    containerRef.current.style.transition = "transform 0.25s ease";
-    counterRotateAll(rotationDeg);
-  }, [rotationDeg, counterRotateAll]);
+    containerRef.current.style.transition = transition ? "transform 0.25s ease" : "none";
+    containerRef.current.style.transform = `rotate(${deg}deg) scale(${mapScale(deg)})`;
+    counterRotateAll(deg);
+  }, [mapScale, counterRotateAll]);
 
-  /* ── Two-finger twist-to-rotate gesture — direct DOM, no React re-renders ── */
+  /* ── Apply rotation when rotationDeg state changes (button clicks / reset) ── */
+  useEffect(() => {
+    applyRotation(rotationDeg, true);
+  }, [rotationDeg, applyRotation]);
+
+  /* ── Two-finger twist-to-rotate — direct DOM only, zero React re-renders ── */
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
+
+    /* Block iOS Safari's native page-rotation/pinch-zoom gesture so it doesn't
+       rotate the entire browser viewport instead of our map container. */
+    const blockNativeGesture = (e: Event) => e.preventDefault();
 
     function getTouchAngle(touches: TouchList): number {
       const dx = touches[1].clientX - touches[0].clientX;
@@ -226,11 +245,9 @@ export function HomeMapView() {
       const delta = getTouchAngle(e.touches) - touchStartRef.current.angle;
       const newDeg = ((touchStartRef.current.baseRotation + delta) % 360 + 360) % 360;
       rotationRef.current = newDeg;
-      // Rotate container
       if (containerRef.current) {
-        containerRef.current.style.transform = `rotate(${newDeg}deg) scale(1.42)`;
+        containerRef.current.style.transform = `rotate(${newDeg}deg) scale(${mapScale(newDeg)})`;
       }
-      // Keep markers upright — direct DOM, no re-render
       markersRef.current.forEach(({ marker }) => {
         const iconEl = (marker.getElement?.() as HTMLElement | undefined)?.firstElementChild as HTMLElement | undefined;
         if (iconEl) iconEl.style.transform = `rotate(${-newDeg}deg)`;
@@ -246,17 +263,24 @@ export function HomeMapView() {
       setRotationDeg(Math.round(rotationRef.current));
     };
 
+    /* gesturestart/gesturechange are iOS-only events — prevent browser from
+       treating the two-finger twist as a full-page rotation. Non-passive so
+       we can call preventDefault(). */
+    el.addEventListener("gesturestart", blockNativeGesture);
+    el.addEventListener("gesturechange", blockNativeGesture);
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: true });
     el.addEventListener("touchend", onEnd);
     el.addEventListener("touchcancel", onEnd);
     return () => {
+      el.removeEventListener("gesturestart", blockNativeGesture);
+      el.removeEventListener("gesturechange", blockNativeGesture);
       el.removeEventListener("touchstart", onStart);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, []);
+  }, [mapScale]);
 
   /* ── Filter markers ── */
   useEffect(() => {
@@ -487,7 +511,7 @@ export function HomeMapView() {
   const visibleCount = businesses.filter(b => b.latitude && b.longitude).length;
 
   return (
-    <div ref={outerRef} className="relative w-full overflow-hidden" style={{ height: "100dvh" }}>
+    <div ref={outerRef} className="relative w-full overflow-hidden" style={{ height: "100dvh", touchAction: "pan-x pan-y" }}>
       {/* Map canvas — rotation applied here via CSS transform in useEffect */}
       <div ref={containerRef} className="absolute inset-0" style={{ transition: "transform 0.3s ease" }} />
 
