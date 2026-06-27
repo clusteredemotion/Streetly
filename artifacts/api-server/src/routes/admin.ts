@@ -34,6 +34,63 @@ router.get("/stats", async (_req, res) => {
   });
 });
 
+// GET /admin/businesses/all — all businesses with category/street info
+router.get("/businesses/all", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: businessesTable.id,
+      name: businessesTable.name,
+      description: businessesTable.description,
+      phone: businessesTable.phone,
+      whatsapp: businessesTable.whatsapp,
+      website: businessesTable.website,
+      address: businessesTable.address,
+      openingHours: businessesTable.openingHours,
+      latitude: businessesTable.latitude,
+      longitude: businessesTable.longitude,
+      status: businessesTable.status,
+      verified: businessesTable.verified,
+      featured: businessesTable.featured,
+      categoryId: businessesTable.categoryId,
+      streetId: businessesTable.streetId,
+      createdAt: businessesTable.createdAt,
+      categoryName: categoriesTable.name,
+      streetName: streetsTable.name,
+    })
+    .from(businessesTable)
+    .leftJoin(categoriesTable, eq(businessesTable.categoryId, categoriesTable.id))
+    .leftJoin(streetsTable, eq(businessesTable.streetId, streetsTable.id))
+    .orderBy(businessesTable.createdAt);
+  return res.json(rows);
+});
+
+// PUT /admin/businesses/:id — edit any business
+router.put("/businesses/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { name, description, phone, whatsapp, website, openingHours, status, verified, featured, latitude, longitude } = req.body;
+  const [biz] = await db.update(businessesTable)
+    .set({
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(phone !== undefined && { phone }),
+      ...(whatsapp !== undefined && { whatsapp }),
+      ...(website !== undefined && { website }),
+      ...(openingHours !== undefined && { openingHours }),
+      ...(status !== undefined && { status }),
+      ...(verified !== undefined && { verified: Boolean(verified) }),
+      ...(featured !== undefined && { featured: Boolean(featured) }),
+      ...(latitude !== undefined && { latitude: latitude === "" ? null : Number(latitude) }),
+      ...(longitude !== undefined && { longitude: longitude === "" ? null : Number(longitude) }),
+    })
+    .where(eq(businessesTable.id, id))
+    .returning();
+
+  if (!biz) return res.status(404).json({ error: "Business not found" });
+  return res.json(biz);
+});
+
 // GET /admin/businesses/pending
 router.get("/businesses/pending", async (_req, res) => {
   const businesses = await db.select().from(businessesTable).where(eq(businessesTable.status, "pending"));

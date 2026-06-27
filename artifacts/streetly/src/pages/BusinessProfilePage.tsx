@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   MapPin, Star, ShieldCheck, Phone, MessageCircle, Globe,
   Clock, ArrowLeft, ExternalLink, CheckCircle, Navigation,
-  X, Maximize2, Route, ChevronRight
+  X, Maximize2, Route, ChevronRight, Share2, Copy, Check
 } from "lucide-react";
 import { ClaimBusinessModal } from "@/components/ClaimBusinessModal";
 
@@ -160,6 +160,22 @@ export default function BusinessProfilePage() {
   const [claimOpen, setClaimOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: business?.name ?? "Streetly Business", url });
+        return;
+      } catch (_) {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch (_) {}
+  };
 
   const handleReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,14 +228,36 @@ export default function BusinessProfilePage() {
       <div className="min-h-screen" style={{ background: "#060C1E" }}>
         <div className="container mx-auto px-4 py-8 max-w-5xl">
 
-          {/* Back button */}
-          <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}>
+          {/* Back button + Share */}
+          <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+            className="flex items-center justify-between mb-6">
             <button
               onClick={() => navigate("/businesses")}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors mb-6 group"
+              className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors group"
             >
               <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Back to Directory
+            </button>
+
+            <button
+              onClick={handleShare}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                copied
+                  ? "bg-green-500/15 border border-green-500/30 text-green-400"
+                  : "bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Link Copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </>
+              )}
             </button>
           </motion.div>
 

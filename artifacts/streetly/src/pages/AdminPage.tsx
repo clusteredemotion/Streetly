@@ -114,6 +114,38 @@ function useApproveWithdrawal() {
   });
 }
 
+type AdminBusiness = {
+  id: number; name: string; description: string | null;
+  phone: string | null; whatsapp: string | null; website: string | null;
+  address: string | null; openingHours: string | null;
+  latitude: number | null; longitude: number | null;
+  status: string; verified: boolean; featured: boolean;
+  categoryId: number | null; streetId: number | null;
+  categoryName: string | null; streetName: string | null;
+  createdAt: string;
+};
+
+function useAllBusinesses() {
+  return useQuery({
+    queryKey: ["admin", "businesses", "all"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/businesses/all`, { headers: authHeader() });
+      return res.json() as Promise<AdminBusiness[]>;
+    },
+  });
+}
+
+function useAdminUpdateBusiness() {
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Record<string, unknown> }) => {
+      const res = await fetch(`${BASE}/api/admin/businesses/${id}`, {
+        method: "PUT", headers: authHeader(), body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+  });
+}
+
 function useUpdateAgent() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Record<string, unknown> }) => {
@@ -150,6 +182,117 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${map[status] ?? "bg-gray-100 text-gray-600 border-gray-200"}`}>
       {status}
     </span>
+  );
+}
+
+/* ── Edit Business Modal ── */
+function EditBusinessModal({ biz, onClose, onSaved }: {
+  biz: AdminBusiness; onClose: () => void; onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: biz.name,
+    description: biz.description ?? "",
+    phone: biz.phone ?? "",
+    whatsapp: biz.whatsapp ?? "",
+    website: biz.website ?? "",
+    openingHours: biz.openingHours ?? "",
+    address: biz.address ?? "",
+    latitude: biz.latitude?.toString() ?? "",
+    longitude: biz.longitude?.toString() ?? "",
+    status: biz.status,
+    verified: biz.verified,
+    featured: biz.featured,
+  });
+  const update = useAdminUpdateBusiness();
+
+  const save = async () => {
+    await update.mutateAsync({ id: biz.id, data: form });
+    onSaved();
+    onClose();
+  };
+
+  const field = (label: string, key: keyof typeof form, type = "text") => (
+    <div key={key}>
+      <label className="block text-xs font-medium text-white/50 mb-1">{label}</label>
+      <input
+        type={type}
+        value={form[key] as string}
+        onChange={(e) => setForm(f => ({ ...f, [key]: e.target.value }))}
+        className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
+      />
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
+        style={{ background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Edit2 className="h-4 w-4 text-[#4a9eff]" />
+            <h2 className="font-bold text-white text-sm">Edit Business — {biz.name}</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-white/40 hover:text-white"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
+          {field("Business Name", "name")}
+          <div>
+            <label className="block text-xs font-medium text-white/50 mb-1">Description</label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40 resize-none"
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
+            />
+          </div>
+          {field("Phone", "phone")}
+          {field("WhatsApp", "whatsapp")}
+          {field("Website", "website")}
+          {field("Address", "address")}
+          {field("Opening Hours", "openingHours")}
+          <div className="grid grid-cols-2 gap-3">
+            {field("Latitude", "latitude", "number")}
+            {field("Longitude", "longitude", "number")}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-white/50 mb-1">Status</label>
+            <div className="relative">
+              <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+                className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                {["pending", "approved", "rejected"].map(s => (
+                  <option key={s} value={s} style={{ background: "#0d1b2e" }}>{s}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40 pointer-events-none" />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.verified} onChange={(e) => setForm(f => ({ ...f, verified: e.target.checked }))}
+                className="w-4 h-4 rounded accent-[#4a9eff]" />
+              <span className="text-sm text-white/70">Verified</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.featured} onChange={(e) => setForm(f => ({ ...f, featured: e.target.checked }))}
+                className="w-4 h-4 rounded accent-[#4a9eff]" />
+              <span className="text-sm text-white/70">Featured</span>
+            </label>
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-white/10 flex gap-2 justify-end">
+          <Button size="sm" variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">Cancel</Button>
+          <Button size="sm" onClick={save} disabled={update.isPending}
+            className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white gap-1.5">
+            {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Save Changes
+          </Button>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -338,6 +481,7 @@ export default function AdminPage() {
   const { data: pendingClaims } = usePendingClaims();
   const { data: allAgents, refetch: refetchAgents } = useAllAgents();
   const { data: allUsers, refetch: refetchUsers } = useAllUsers();
+  const { data: allBusinesses, refetch: refetchAllBusinesses } = useAllBusinesses();
   const { data: withdrawals, refetch: refetchWithdrawals } = usePendingWithdrawals();
 
   const approveBiz = useApproveBusiness();
@@ -348,6 +492,8 @@ export default function AdminPage() {
   const [adminNotes, setAdminNotes] = useState<Record<number, string>>({});
   const [editAgent, setEditAgent] = useState<typeof allAgents extends Array<infer T> ? T | null : null>(null);
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
+  const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
+  const [bizSearch, setBizSearch] = useState("");
   const [impersonateData, setImpersonateData] = useState<{ name: string; token: string } | null>(null);
   const [showPassport, setShowPassport] = useState<number | null>(null);
 
@@ -398,6 +544,13 @@ export default function AdminPage() {
             user={editUser}
             onClose={() => setEditUser(null)}
             onSaved={() => refetchUsers()}
+          />
+        )}
+        {editBusiness && (
+          <EditBusinessModal
+            biz={editBusiness}
+            onClose={() => setEditBusiness(null)}
+            onSaved={() => { refetchAllBusinesses(); qc.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() }); }}
           />
         )}
       </AnimatePresence>
@@ -482,6 +635,9 @@ export default function AdminPage() {
                 {(withdrawals?.length ?? 0) > 0 && (
                   <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{withdrawals?.length}</Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="all-businesses" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
+                <Building2 className="h-3.5 w-3.5" /> All Businesses
               </TabsTrigger>
               <TabsTrigger value="claims" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
                 Claims
@@ -687,6 +843,62 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* ── All Businesses ── */}
+          <TabsContent value="all-businesses">
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="Search by name, category or street…"
+                value={bizSearch}
+                onChange={(e) => setBizSearch(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+              />
+            </div>
+            {!allBusinesses?.length ? (
+              <EmptyState icon={<Building2 className="h-10 w-10 text-white/20" />} title="No businesses yet" sub="" />
+            ) : (() => {
+              const q = bizSearch.trim().toLowerCase();
+              const filtered = q
+                ? allBusinesses.filter(b =>
+                    b.name.toLowerCase().includes(q) ||
+                    (b.categoryName ?? "").toLowerCase().includes(q) ||
+                    (b.streetName ?? "").toLowerCase().includes(q)
+                  )
+                : allBusinesses;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs text-white/30 mb-3">{filtered.length} business{filtered.length !== 1 ? "es" : ""}</p>
+                  {filtered.map((biz) => (
+                    <AdminCard key={biz.id}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <h3 className="font-semibold text-foreground">{biz.name}</h3>
+                          <StatusBadge status={biz.status} />
+                          {biz.verified && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">✓ Verified</span>
+                          )}
+                          {biz.featured && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">⭐ Featured</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {[biz.categoryName, biz.streetName].filter(Boolean).join(" · ")}
+                        </p>
+                        {biz.phone && <p className="text-xs text-muted-foreground">📞 {biz.phone}</p>}
+                        <p className="text-xs text-muted-foreground">Added: {new Date(biz.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => setEditBusiness(biz)}
+                        className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10 flex-shrink-0">
+                        <Edit2 className="h-3.5 w-3.5" /> Edit
+                      </Button>
+                    </AdminCard>
+                  ))}
+                </div>
+              );
+            })()}
           </TabsContent>
 
           {/* ── Ownership Claims ── */}
