@@ -6,7 +6,7 @@ import {
   Search, MapPin, Navigation, Layers, X, Star, ShieldCheck,
   ArrowRight, Mic, ChevronDown, Zap, Clock, Radio, ChevronRight,
   MapPinOff, Activity, RotateCcw, RotateCw, Compass,
-  Car, Square, Navigation2, Flag,
+  Car, Square, Navigation2, Flag, LocateFixed,
 } from "lucide-react";
 import { NIGERIA_STATES } from "@/data/nigeria-locations";
 
@@ -163,9 +163,14 @@ export function HomeMapView() {
   const nearbyTimerRef2  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alertedIdsRef    = useRef<Set<number>>(new Set());
   const nominatimTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const applyRotRef      = useRef<(deg: number, anim?: boolean) => void>(() => {});
-  const businessesRef    = useRef<Business[]>([]);
-  const leafletRef       = useRef<any>(null);   // stores the imported Leaflet module
+  const applyRotRef          = useRef<(deg: number, anim?: boolean) => void>(() => {});
+  const businessesRef        = useRef<Business[]>([]);
+  const leafletRef           = useRef<any>(null);   // stores the imported Leaflet module
+  const driveStepsRef        = useRef<any[]>([]);   // OSRM turn-by-turn steps
+  const driveStepIdxRef      = useRef(0);
+  const stepPreAnnouncedRef  = useRef(false);
+  const voiceRef             = useRef<SpeechSynthesisVoice | null>(null);
+  const nominatimOriginTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -185,16 +190,18 @@ export function HomeMapView() {
   const [rotationDeg, setRotationDeg] = useState(0);
 
   /* ── Drive Mode state ── */
-  const [showDriveSheet, setShowDriveSheet]     = useState(false);
-  const [driveDest, setDriveDest]               = useState("");
-  const [driveDestCoords, setDriveDestCoords]   = useState<[number, number] | null>(null);
-  const [driveDestName, setDriveDestName]       = useState("");
-  const [driveSuggestions, setDriveSuggestions] = useState<Array<{ label: string; lat: number; lon: number }>>([]);
-  const [routeInfo, setRouteInfo]               = useState<{ distKm: number; durationMin: number } | null>(null);
-  const [drivingActive, setDrivingActive]       = useState(false);
-  const [nearbyAlert, setNearbyAlert]           = useState<Business | null>(null);
-  const [driveLoading, setDriveLoading]         = useState(false);
-  const [driveOrigin, setDriveOrigin]           = useState<[number, number] | null>(null);
+  const [showDriveSheet, setShowDriveSheet]           = useState(false);
+  const [driveDest, setDriveDest]                     = useState("");
+  const [driveDestCoords, setDriveDestCoords]         = useState<[number, number] | null>(null);
+  const [driveDestName, setDriveDestName]             = useState("");
+  const [driveSuggestions, setDriveSuggestions]       = useState<Array<{ label: string; lat: number; lon: number }>>([]);
+  const [driveOriginText, setDriveOriginText]         = useState("");
+  const [driveOriginSuggestions, setDriveOriginSuggestions] = useState<Array<{ label: string; lat: number; lon: number }>>([]);
+  const [routeInfo, setRouteInfo]                     = useState<{ distKm: number; durationMin: number } | null>(null);
+  const [drivingActive, setDrivingActive]             = useState(false);
+  const [nearbyAlert, setNearbyAlert]                 = useState<Business | null>(null);
+  const [driveLoading, setDriveLoading]               = useState(false);
+  const [driveOrigin, setDriveOrigin]                 = useState<[number, number] | null>(null);
 
   const selectedState = NIGERIA_STATES.find(s => s.name === pickerState);
   const selectedCityData = selectedState?.cities.find(c => c.name === pickerCity);
@@ -601,7 +608,60 @@ export function HomeMapView() {
   useEffect(() => { applyRotRef.current = applyRotation; }, [applyRotation]);
   useEffect(() => { businessesRef.current = businesses; }, [businesses]);
 
-  /* Nominatim autocomplete — debounced 400ms, Nigeria only */
+  /* ── Voice navigation: pick the best English female voice available ── */
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    const pick = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const female = voices.find(v =>
+        /samantha|karen|victoria|fiona|moira|tessa|zira|hazel|susan|helen|female/i.test(v.name) &&
+        /en/i.test(v.lang)
+      ) ?? voices.find(v => /en/i.test(v.lang)) ?? voices[0] ?? null;
+      voiceRef.current = female;
+    };
+    pick();
+    window.speechSynthesis.onvoiceschanged = pick;
+  }, []);
+
+  function speak(text: string) {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice  = voiceRef.current;
+    u.rate   = 0.92;
+    u.pitch  = 1.1;
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
+  }
+
+  function buildInstruction(step: any): string {
+    const type = step?.maneuver?.type ?? "";
+    const mod  = step?.maneuver?.modifier ?? "";
+    const road = step?.name ? `onto ${step.name}` : "";
+    if (type === "depart")        return `Head ${mod} ${road}`.trim();
+    if (type === "arrive")        return "You have arrived at your destination.";
+    if (type === "turn") {
+      if (mod === "right")        return `Turn right ${road}`.trim();
+      if (mod === "left")         return `Turn left ${road}`.trim();
+      if (mod === "sharp right")  return `Turn sharp right ${road}`.trim();
+      if (mod === "sharp left")   return `Turn sharp left ${road}`.trim();
+      if (mod === "slight right") return `Keep slight right ${road}`.trim();
+      if (mod === "slight left")  return `Keep slight left ${road}`.trim();
+      if (mod === "straight")     return `Continue straight ${road}`.trim();
+      return `Turn ${mod} ${road}`.trim();
+    }
+    if (type === "continue")      return `Continue ${mod} ${road}`.trim();
+    if (type === "new name")      return `Continue ${road}`.trim();
+    if (type === "roundabout")    return `At the roundabout, take the exit ${road}`.trim();
+    if (type === "merge")         return `Merge ${mod} ${road}`.trim();
+    if (type === "on ramp")       return `Take the ramp ${road}`.trim();
+    if (type === "off ramp")      return `Take the exit ${road}`.trim();
+    if (type === "fork")          return `Keep ${mod} at the fork ${road}`.trim();
+    if (type === "end of road")   return `Turn ${mod} at the end of the road ${road}`.trim();
+    return `Continue ${road}`.trim();
+  }
+
+  /* Nominatim destination autocomplete — debounced 400ms, Nigeria only */
   useEffect(() => {
     if (nominatimTimer.current) clearTimeout(nominatimTimer.current);
     if (!driveDest.trim() || driveDest.length < 3) { setDriveSuggestions([]); return; }
@@ -622,23 +682,48 @@ export function HomeMapView() {
     return () => { if (nominatimTimer.current) clearTimeout(nominatimTimer.current); };
   }, [driveDest]);
 
-  /* Fetch OSRM route and draw polyline on map */
+  /* Nominatim origin autocomplete — debounced 400ms, Nigeria only */
+  useEffect(() => {
+    if (nominatimOriginTimer.current) clearTimeout(nominatimOriginTimer.current);
+    if (!driveOriginText.trim() || driveOriginText.length < 3 || driveOrigin) {
+      setDriveOriginSuggestions([]);
+      return;
+    }
+    nominatimOriginTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(driveOriginText)}&countrycodes=ng&limit=5`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data: any[] = await res.json();
+        setDriveOriginSuggestions(data.map(d => ({
+          label: d.display_name as string,
+          lat: parseFloat(d.lat),
+          lon: parseFloat(d.lon),
+        })));
+      } catch {}
+    }, 400);
+    return () => { if (nominatimOriginTimer.current) clearTimeout(nominatimOriginTimer.current); };
+  }, [driveOriginText, driveOrigin]);
+
+  /* Fetch OSRM route with step-by-step instructions and draw polyline */
   const fetchRoute = useCallback(async (origin: [number, number], dest: [number, number]) => {
     const map = mapRef.current;
     if (!map) return;
     setDriveLoading(true);
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${dest[1]},${dest[0]}?overview=full&geometries=geojson`;
+      const url = `https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${dest[1]},${dest[0]}?overview=full&geometries=geojson&steps=true`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.code !== "Ok") return;
       const route = data.routes[0];
       setRouteInfo({ distKm: route.distance / 1000, durationMin: Math.ceil(route.duration / 60) });
+      /* Store steps for voice turn-by-turn */
+      driveStepsRef.current = route.legs?.[0]?.steps ?? [];
       /* Clear any old route layers */
       routeLayersRef.current.forEach(l => { try { map.removeLayer(l); } catch {} });
       routeLayersRef.current = [];
       const geo = route.geometry;
-      /* Draw white shadow then blue line on top using the stored Leaflet ref */
       const Lmod = leafletRef.current;
       if (Lmod) {
         const shadow = Lmod.geoJSON(geo, { style: { color: "white",   weight: 14, opacity: 0.45, lineCap: "round", lineJoin: "round" } }).addTo(map);
@@ -657,8 +742,12 @@ export function HomeMapView() {
   const stopDriving = useCallback(() => {
     if (driveWatchRef.current !== null) { navigator.geolocation.clearWatch(driveWatchRef.current); driveWatchRef.current = null; }
     clearRoute();
-    drivePrevPosRef.current = null;
-    alertedIdsRef.current = new Set();
+    window.speechSynthesis?.cancel?.();
+    drivePrevPosRef.current     = null;
+    driveStepsRef.current       = [];
+    driveStepIdxRef.current     = 0;
+    stepPreAnnouncedRef.current = false;
+    alertedIdsRef.current       = new Set();
     if (nearbyTimerRef2.current) clearTimeout(nearbyTimerRef2.current);
     setDrivingActive(false);
     setRouteInfo(null);
@@ -666,6 +755,8 @@ export function HomeMapView() {
     setDriveDestCoords(null);
     setDriveDestName("");
     setDriveDest("");
+    setDriveOriginText("");
+    setDriveOrigin(null);
     setShowDriveSheet(false);
     applyRotRef.current(0, true);
     mapRef.current?.setZoom?.(14, { animate: true });
@@ -676,9 +767,20 @@ export function HomeMapView() {
     const map = mapRef.current; if (!map) return;
     setDrivingActive(true);
     setShowDriveSheet(false);
-    alertedIdsRef.current = new Set();
-    drivePrevPosRef.current = driveOrigin;
+    alertedIdsRef.current       = new Set();
+    driveStepIdxRef.current     = 1;   // 0 is "depart" — announce it on start, skip in loop
+    stepPreAnnouncedRef.current = false;
+    drivePrevPosRef.current     = driveOrigin;
     map.flyTo(driveOrigin, 18, { duration: 1.5 });
+
+    /* Announce route summary + first instruction */
+    const ri = routeInfo;  // captured from closure; stays stable
+    const firstStep = driveStepsRef.current[0];
+    const etaText = ri
+      ? `Route calculated. ${ri.distKm.toFixed(1)} kilometers, approximately ${ri.durationMin} minutes. `
+      : "Navigation started. ";
+    const firstInstr = firstStep ? buildInstruction(firstStep) : "";
+    speak(etaText + firstInstr);
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
@@ -688,12 +790,12 @@ export function HomeMapView() {
         /* Move user location marker */
         if (userMarkerRef.current) userMarkerRef.current.setLatLng(curr);
 
-        /* Heading-up rotation — only update if moved more than 3 m (ignore GPS jitter) */
+        /* Heading-up rotation — only update if moved more than 3 m */
         if (drivePrevPosRef.current) {
           const [pLat, pLon] = drivePrevPosRef.current;
           if (haversineM(pLat, pLon, lat, lon) > 3) {
-            const heading  = geoHeading(pLat, pLon, lat, lon);
-            const mapRot   = (360 - heading) % 360;
+            const heading = geoHeading(pLat, pLon, lat, lon);
+            const mapRot  = (360 - heading) % 360;
             applyRotRef.current(mapRot, false);
             rotationRef.current = mapRot;
             setRotationDeg(Math.round(mapRot));
@@ -704,7 +806,32 @@ export function HomeMapView() {
         /* Smooth-follow GPS position at navigation zoom */
         map.setView(curr, Math.max(map.getZoom(), 17), { animate: true, duration: 0.8, noMoveStart: true });
 
-        /* Business proximity alert — 150 m threshold */
+        /* ── Voice turn-by-turn ── */
+        const steps   = driveStepsRef.current;
+        const stepIdx = driveStepIdxRef.current;
+        if (steps.length > 0 && stepIdx < steps.length) {
+          const nextStep            = steps[stepIdx];
+          const [sLon, sLat]        = nextStep.maneuver.location;
+          const distToStep          = haversineM(lat, lon, sLat, sLon);
+          const roundedDist         = Math.round(distToStep / 10) * 10;
+          const instr               = buildInstruction(nextStep);
+
+          if (distToStep < 50) {
+            /* Execute turn */
+            speak(instr);
+            driveStepIdxRef.current     = stepIdx + 1;
+            stepPreAnnouncedRef.current = false;
+            if (nextStep.maneuver.type === "arrive") {
+              setTimeout(() => stopDriving(), 3500);
+            }
+          } else if (distToStep < 220 && !stepPreAnnouncedRef.current) {
+            /* Pre-announce ("In 150 meters, turn right") */
+            speak(`In ${roundedDist} meters, ${instr}`);
+            stepPreAnnouncedRef.current = true;
+          }
+        }
+
+        /* ── Business proximity alert — 150 m ── */
         const nearby = businessesRef.current.find(b => {
           if (!b.latitude || !b.longitude) return false;
           if (alertedIdsRef.current.has(b.id)) return false;
@@ -715,18 +842,31 @@ export function HomeMapView() {
           setNearbyAlert(nearby);
           if (nearbyTimerRef2.current) clearTimeout(nearbyTimerRef2.current);
           nearbyTimerRef2.current = setTimeout(() => setNearbyAlert(null), 4500);
+          /* Voice alert for the business */
+          speak(`Nearby: ${nearby.name}${nearby.categoryName ? `, ${nearby.categoryName}` : ""}.`);
         }
       },
       () => {},
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
     driveWatchRef.current = watchId;
-  }, [driveOrigin, driveDestCoords]);
+  }, [driveOrigin, driveDestCoords, routeInfo, stopDriving]);
 
   const openDriveSheet = useCallback(() => {
     setShowDriveSheet(true);
+    setDriveOriginText("");
+    setDriveOrigin(null);
+    setDriveOriginSuggestions([]);
+  }, []);
+
+  /* Auto-locate origin when user clicks the locate icon */
+  const autoLocateOrigin = useCallback(() => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => setDriveOrigin([pos.coords.latitude, pos.coords.longitude]),
+      (pos) => {
+        setDriveOrigin([pos.coords.latitude, pos.coords.longitude]);
+        setDriveOriginText("Current location");
+        setDriveOriginSuggestions([]);
+      },
       () => {},
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -1039,8 +1179,8 @@ export function HomeMapView() {
         </button>
       </div>
 
-      {/* ── Drive Mode Button ── */}
-      <div className="absolute bottom-[8.5rem] right-4 z-[1000]">
+      {/* ── Drive Mode Button (left side) ── */}
+      <div className="absolute bottom-28 left-4 z-[1000]">
         <button
           onClick={drivingActive ? stopDriving : openDriveSheet}
           title={drivingActive ? "Stop driving" : "Drive mode"}
@@ -1239,13 +1379,55 @@ export function HomeMapView() {
                 </button>
               </div>
 
-              {/* Origin row */}
-              <div className="flex items-center gap-3 px-4 py-3 rounded-2xl mb-2"
-                style={{ background: "rgba(255,255,255,0.05)" }}>
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
-                <span className="text-sm text-white/60">
-                  {driveOrigin ? "Your current location" : "Locating you…"}
-                </span>
+              {/* Origin row — editable with auto-locate icon */}
+              <div className="relative mb-2">
+                <div
+                  className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={driveOriginText}
+                    onChange={e => {
+                      setDriveOriginText(e.target.value);
+                      setDriveOrigin(null);
+                      setRouteInfo(null);
+                    }}
+                    placeholder="Starting point…"
+                    className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/30"
+                  />
+                  <button
+                    onClick={autoLocateOrigin}
+                    title="Use current location"
+                    className="flex-shrink-0 p-1.5 rounded-xl hover:bg-blue-500/20 transition-colors"
+                  >
+                    <LocateFixed className={`h-4 w-4 ${driveOrigin ? "text-blue-400" : "text-white/40"}`} />
+                  </button>
+                </div>
+                {/* Origin autocomplete suggestions */}
+                {driveOriginSuggestions.length > 0 && !driveOrigin && (
+                  <div
+                    className="absolute top-full left-0 right-0 mt-1 rounded-2xl overflow-hidden shadow-2xl z-50"
+                    style={{ background: "rgba(5,10,30,0.98)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    {driveOriginSuggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={async () => {
+                          setDriveOriginText(s.label.split(",").slice(0, 2).join(","));
+                          setDriveOrigin([s.lat, s.lon]);
+                          setDriveOriginSuggestions([]);
+                          if (driveDestCoords) await fetchRoute([s.lat, s.lon], driveDestCoords);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left border-b border-white/5 last:border-0"
+                      >
+                        <MapPin className="h-4 w-4 text-white/30 flex-shrink-0" />
+                        <span className="text-sm text-white/80 truncate">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Destination input + autocomplete */}
