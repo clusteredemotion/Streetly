@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import {
   Search, MapPin, Navigation, Layers, X, Star, ShieldCheck,
   ArrowRight, Mic, ChevronDown, Zap, Clock, Radio, ChevronRight,
-  MapPinOff, Activity
+  MapPinOff, Activity, RotateCcw, RotateCw, Compass,
 } from "lucide-react";
 import { NIGERIA_STATES } from "@/data/nigeria-locations";
 
@@ -52,29 +52,25 @@ const DEFAULT_COLOR = "#2563eb";
 const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; attribution: string }> = {
   explore: {
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    label: "Explore",
-    emoji: "🗺",
-    attribution: "© OpenStreetMap © CARTO",
+    label: "Explore", emoji: "🗺", attribution: "© OpenStreetMap © CARTO",
   },
   light: {
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    label: "Light",
-    emoji: "☀️",
-    attribution: "© OpenStreetMap © CARTO",
+    label: "Light", emoji: "☀️", attribution: "© OpenStreetMap © CARTO",
   },
   dark: {
     url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    label: "Dark",
-    emoji: "🌙",
-    attribution: "© OpenStreetMap © CARTO",
+    label: "Dark", emoji: "🌙", attribution: "© OpenStreetMap © CARTO",
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    label: "Satellite",
-    emoji: "🛰",
-    attribution: "© Esri, Maxar, Earthstar Geographics",
+    label: "Satellite", emoji: "🛰", attribution: "© Esri, Maxar, Earthstar Geographics",
   },
 };
+
+/* Street-label overlay used in satellite mode */
+const SATELLITE_LABELS_URL =
+  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png";
 
 const FILTER_PILLS = [
   { label: "All", value: "" },
@@ -89,10 +85,31 @@ const FILTER_PILLS = [
   { label: "📚 Edu", value: "Education" },
 ];
 
-function makeMarkerHtml(color: string, size = 34, featured = false) {
+const LIVE_ACTIVITY = [
+  "Mama Nkechi Kitchen just opened",
+  "New review on The Lekki Grill",
+  "3 users viewing Victoria Island",
+  "Glamour Studio — high traffic now",
+  "TechVault verified today",
+  "Sunrise Pharmacy — 5 check-ins",
+];
+
+function makeMarkerHtml(color: string, size = 34, featured = false, name = "") {
   const ringSize = size + 12;
+  const label = name
+    ? `<div class="biz-name-label" style="
+        position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+        background:rgba(6,12,30,0.88);color:white;
+        font-size:10px;font-weight:600;
+        white-space:nowrap;padding:2px 7px;border-radius:20px;
+        border:1px solid rgba(255,255,255,0.15);
+        backdrop-filter:blur(8px);
+        pointer-events:none;opacity:0;transition:opacity 0.2s;
+      ">${name}</div>`
+    : "";
   return `
     <div style="position:relative;width:${ringSize}px;height:${ringSize}px;display:flex;align-items:center;justify-content:center;">
+      ${label}
       <div class="marker-ring" style="position:absolute;width:${size}px;height:${size}px;border-radius:50% 50% 50% 4px;background:${color};opacity:0.35;"></div>
       ${featured ? `<div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle,${color}55,transparent);animation:location-pulse-ring 2s ease-out infinite;"></div>` : ""}
       <div class="marker-blink" style="
@@ -108,15 +125,6 @@ function makeMarkerHtml(color: string, size = 34, featured = false) {
   `;
 }
 
-const LIVE_ACTIVITY = [
-  "Mama Nkechi Kitchen just opened",
-  "New review on The Lekki Grill",
-  "3 users viewing Victoria Island",
-  "Glamour Studio — high traffic now",
-  "TechVault verified today",
-  "Sunrise Pharmacy — 5 check-ins",
-];
-
 export function HomeMapView() {
   const [, navigate] = useLocation();
   const { data: businesses = [] } = useMapBusinesses();
@@ -124,6 +132,7 @@ export function HomeMapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const tileLayerRef = useRef<any>(null);
+  const labelsLayerRef = useRef<any>(null);   // satellite street-name overlay
   const markersRef = useRef<Array<{ marker: any; biz: Business }>>([]);
   const userMarkerRef = useRef<any>(null);
   const watchIdRef = useRef<number | null>(null);
@@ -144,11 +153,12 @@ export function HomeMapView() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [pickerState, setPickerState] = useState("");
   const [pickerCity, setPickerCity] = useState("");
+  const [rotationDeg, setRotationDeg] = useState(0);
 
   const selectedState = NIGERIA_STATES.find(s => s.name === pickerState);
   const selectedCityData = selectedState?.cities.find(c => c.name === pickerCity);
 
-  // Rotate live activity feed
+  /* ── Live activity ticker ── */
   useEffect(() => {
     activityTimerRef.current = setInterval(() => {
       setActivityIndex(i => (i + 1) % LIVE_ACTIVITY.length);
@@ -156,7 +166,14 @@ export function HomeMapView() {
     return () => { if (activityTimerRef.current) clearInterval(activityTimerRef.current); };
   }, []);
 
-  // Filter markers
+  /* ── Apply CSS rotation to map container ── */
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.style.transform = `rotate(${rotationDeg}deg)`;
+    containerRef.current.style.transformOrigin = "center center";
+  }, [rotationDeg]);
+
+  /* ── Filter markers ── */
   useEffect(() => {
     markersRef.current.forEach(({ marker, biz }) => {
       const matchesSearch = !search ||
@@ -183,13 +200,32 @@ export function HomeMapView() {
     }
   }, [search, category, businesses]);
 
-  // Switch tile layer
+  /* ── Switch tile layer + satellite street labels ── */
   useEffect(() => {
-    if (!mapRef.current || !tileLayerRef.current) return;
+    const map = mapRef.current;
+    const L = map?._L;
+    if (!map || !L || !tileLayerRef.current) return;
+
     tileLayerRef.current.setUrl(TILE_STYLES[tileStyle].url);
+
+    if (tileStyle === "satellite") {
+      if (!labelsLayerRef.current) {
+        labelsLayerRef.current = L.tileLayer(SATELLITE_LABELS_URL, {
+          subdomains: "abcd",
+          maxZoom: 20,
+          opacity: 0.9,
+          attribution: "© OpenStreetMap © CARTO",
+        }).addTo(map);
+      }
+    } else {
+      if (labelsLayerRef.current) {
+        map.removeLayer(labelsLayerRef.current);
+        labelsLayerRef.current = null;
+      }
+    }
   }, [tileStyle]);
 
-  // Init map
+  /* ── Init map ── */
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     let map: any;
@@ -217,6 +253,20 @@ export function HomeMapView() {
       }).addTo(map);
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
+
+      /* Show/hide business name labels based on zoom */
+      map.on("zoomend", () => {
+        const z = map.getZoom();
+        const showLabels = z >= 15;
+        /* Toggle .biz-name-label opacity via the marker element */
+        markersRef.current.forEach(({ marker }) => {
+          const el = marker.getElement?.() as HTMLElement | undefined;
+          if (!el) return;
+          const label = el.querySelector<HTMLElement>(".biz-name-label");
+          if (label) label.style.opacity = showLabels ? "1" : "0";
+        });
+      });
+
       map.on("click", () => { setSelected(null); setShowStylePicker(false); });
     };
 
@@ -225,10 +275,12 @@ export function HomeMapView() {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
       markersRef.current = [];
+      labelsLayerRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Add business markers
+  /* ── Add business markers ── */
   useEffect(() => {
     const map = mapRef.current;
     const L = map?._L;
@@ -242,12 +294,13 @@ export function HomeMapView() {
 
     mappable.forEach((biz) => {
       const color = CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR;
+      const size = biz.featured ? 38 : 30;
       const icon = L.divIcon({
         className: "",
-        html: makeMarkerHtml(color, biz.featured ? 38 : 30, !!biz.featured),
-        iconSize: [biz.featured ? 50 : 42, biz.featured ? 50 : 42],
-        iconAnchor: [biz.featured ? 25 : 21, biz.featured ? 50 : 42],
-        popupAnchor: [0, -50],
+        html: makeMarkerHtml(color, size, !!biz.featured, biz.name),
+        iconSize: [size + 12, size + 12],
+        iconAnchor: [(size + 12) / 2, size + 12],
+        popupAnchor: [0, -(size + 12)],
       });
 
       const marker = L.marker([biz.latitude, biz.longitude], { icon }).addTo(map);
@@ -263,14 +316,12 @@ export function HomeMapView() {
     map.fitBounds(bounds, { padding: [80, 80], maxZoom: 14, animate: false });
   }, [businesses, mapReady]);
 
-  // Navigate map to a Nigeria location
+  /* ── Navigate map to a Nigeria location ── */
   const flyToNigeriaLocation = useCallback((lat: number, lon: number, zoom = 14) => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.flyTo([lat, lon], zoom, { duration: 1.5 });
+    mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.5 });
   }, []);
 
-  // Live GPS tracking
+  /* ── Live GPS tracking ── */
   const handleLocateMe = useCallback(() => {
     const map = mapRef.current;
     const L = map?._L;
@@ -281,19 +332,15 @@ export function HomeMapView() {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
-      if (userMarkerRef.current) {
-        map.removeLayer(userMarkerRef.current);
-        userMarkerRef.current = null;
-      }
+      if (userMarkerRef.current) { map.removeLayer(userMarkerRef.current); userMarkerRef.current = null; }
       setLiveTracking(false);
       return;
     }
 
     setLocating(true);
-
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
+        const { latitude, longitude } = pos.coords;
         if (userMarkerRef.current) {
           userMarkerRef.current.setLatLng([latitude, longitude]);
         } else {
@@ -325,14 +372,19 @@ export function HomeMapView() {
     setSearchFocused(false);
   };
 
+  /* ── Rotation handlers ── */
+  const rotateCW = () => setRotationDeg(d => (d + 15) % 360);
+  const rotateCCW = () => setRotationDeg(d => (d - 15 + 360) % 360);
+  const resetRotation = () => setRotationDeg(0);
+
   const visibleCount = businesses.filter(b => b.latitude && b.longitude).length;
 
   return (
     <div className="relative w-full overflow-hidden" style={{ height: "100dvh" }}>
-      {/* Map canvas */}
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* Map canvas — rotation applied here via CSS transform in useEffect */}
+      <div ref={containerRef} className="absolute inset-0" style={{ transition: "transform 0.3s ease" }} />
 
-      {/* Floating Search + Filters */}
+      {/* ── Floating Search + Filters ── */}
       <div className="absolute top-20 left-0 right-0 z-[1000] flex flex-col items-center px-3 sm:px-6 gap-2">
 
         {/* Search Bar */}
@@ -439,10 +491,7 @@ export function HomeMapView() {
                       {selectedCityData.areas.map(area => (
                         <button
                           key={area}
-                          onClick={() => {
-                            setSearch(area);
-                            setShowLocationPicker(false);
-                          }}
+                          onClick={() => { setSearch(area); setShowLocationPicker(false); }}
                           className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
                         >
                           {area}
@@ -454,14 +503,10 @@ export function HomeMapView() {
                 <div className="p-2 border-t border-white/5 flex justify-between items-center">
                   {(pickerState || pickerCity) && (
                     <button onClick={() => { setPickerState(""); setPickerCity(""); flyToNigeriaLocation(9.082, 8.6753, 6); }}
-                      className="text-xs text-white/40 hover:text-white/70 px-3 py-1">
-                      Clear
-                    </button>
+                      className="text-xs text-white/40 hover:text-white/70 px-3 py-1">Clear</button>
                   )}
                   <button onClick={() => setShowLocationPicker(false)}
-                    className="ml-auto text-xs text-primary/80 hover:text-primary px-3 py-1">
-                    Done
-                  </button>
+                    className="ml-auto text-xs text-primary/80 hover:text-primary px-3 py-1">Done</button>
                 </div>
               </motion.div>
             )}
@@ -523,7 +568,33 @@ export function HomeMapView() {
         </motion.div>
       </div>
 
-      {/* Street Movement Panel */}
+      {/* ── Map Rotation Controls ── */}
+      <div className="absolute bottom-44 right-4 z-[1000] flex flex-col gap-1.5">
+        <button
+          onClick={rotateCCW}
+          title="Rotate anti-clockwise"
+          className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-xl glass-panel hover:bg-white/15 transition-colors"
+        >
+          <RotateCcw className="h-4.5 w-4.5 text-white/80" />
+        </button>
+        <button
+          onClick={resetRotation}
+          title="Reset north-up"
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-xl glass-panel hover:bg-white/15 transition-colors ${rotationDeg !== 0 ? "border border-primary/50" : ""}`}
+        >
+          <Compass className={`h-4.5 w-4.5 ${rotationDeg !== 0 ? "text-primary" : "text-white/60"}`}
+            style={{ transform: `rotate(${-rotationDeg}deg)`, transition: "transform 0.3s ease" }} />
+        </button>
+        <button
+          onClick={rotateCW}
+          title="Rotate clockwise"
+          className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-xl glass-panel hover:bg-white/15 transition-colors"
+        >
+          <RotateCw className="h-4.5 w-4.5 text-white/80" />
+        </button>
+      </div>
+
+      {/* ── Live Activity Panel ── */}
       <div className="absolute top-1/2 right-4 -translate-y-1/2 z-[1000]">
         <AnimatePresence>
           {showMovement && (
@@ -557,14 +628,20 @@ export function HomeMapView() {
                     <p className="text-xs text-blue-300 font-medium">Live tracking active</p>
                   </div>
                 )}
+                {rotationDeg !== 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                    <Compass className="h-3.5 w-3.5 text-purple-400" />
+                    <p className="text-xs text-purple-300 font-medium">Map rotated {rotationDeg}°</p>
+                  </div>
+                )}
                 <div className="pt-1 border-t border-white/10 space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-white/50">Businesses visible</span>
+                    <span className="text-white/50">Businesses</span>
                     <span className="text-white/90 font-bold">{visibleCount}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-white/50">Map style</span>
-                    <span className="text-white/90 font-medium capitalize">{TILE_STYLES[tileStyle].emoji} {TILE_STYLES[tileStyle].label}</span>
+                    <span className="text-white/90 font-medium">{TILE_STYLES[tileStyle].emoji} {TILE_STYLES[tileStyle].label}</span>
                   </div>
                   {(pickerState || pickerCity) && (
                     <div className="flex items-center justify-between text-xs">
@@ -586,7 +663,7 @@ export function HomeMapView() {
         </button>
       </div>
 
-      {/* Map Style Switcher */}
+      {/* ── Map Style Switcher ── */}
       <div className="absolute bottom-28 right-4 z-[1000]">
         <AnimatePresence>
           {showStylePicker && (
@@ -605,6 +682,7 @@ export function HomeMapView() {
                 >
                   <span>{val.emoji}</span>
                   {val.label}
+                  {key === "satellite" && <span className="text-[10px] opacity-60 ml-auto">+Labels</span>}
                 </button>
               ))}
             </motion.div>
@@ -618,7 +696,7 @@ export function HomeMapView() {
         </button>
       </div>
 
-      {/* Bottom left: stats + live tracking indicator */}
+      {/* ── Bottom left stats ── */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -635,6 +713,12 @@ export function HomeMapView() {
             <Zap className="h-3.5 w-3.5 text-yellow-400" />
             Live
           </div>
+          {tileStyle === "satellite" && (
+            <>
+              <div className="h-3.5 w-px bg-white/15" />
+              <span className="text-xs text-white/50">Street labels on</span>
+            </>
+          )}
         </div>
         {liveTracking && (
           <motion.div
@@ -648,7 +732,7 @@ export function HomeMapView() {
         )}
       </motion.div>
 
-      {/* Scroll down hint */}
+      {/* ── Scroll down hint ── */}
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -663,7 +747,7 @@ export function HomeMapView() {
         </motion.div>
       </motion.button>
 
-      {/* Business Bottom Sheet — dark glass */}
+      {/* ── Business Bottom Sheet ── */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -685,12 +769,11 @@ export function HomeMapView() {
 
             <div className="px-5 pb-8 overflow-y-auto hide-scrollbar">
               <div className="flex items-start gap-3 mb-4">
-                {selected.photos?.[0] && (
+                {selected.photos?.[0] ? (
                   <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-lg">
                     <img src={selected.photos[0].url} alt={selected.name} className="w-full h-full object-cover" />
                   </div>
-                )}
-                {!selected.photos?.[0] && (
+                ) : (
                   <div className="w-20 h-20 rounded-2xl flex-shrink-0 flex items-center justify-center bg-white/5 border border-white/10">
                     <MapPinOff className="h-7 w-7 text-white/20" />
                   </div>

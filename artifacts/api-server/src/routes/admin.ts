@@ -9,6 +9,12 @@ import { eq, count, sql, ilike, and } from "drizzle-orm";
 
 const router = Router();
 
+/* ── tiny token helpers (same algo as auth.ts) ── */
+function generateToken(userId: number): string {
+  const payload = { userId, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 };
+  return Buffer.from(JSON.stringify(payload)).toString("base64");
+}
+
 // GET /admin/stats
 router.get("/stats", async (_req, res) => {
   const [bizTotal] = await db.select({ count: count() }).from(businessesTable);
@@ -41,20 +47,18 @@ router.patch("/businesses/:id/approve", async (req, res) => {
 
   const { approved } = req.body;
   const status = approved ? "approved" : "rejected";
-  const verified = approved ? true : false;
 
   const [biz] = await db.update(businessesTable)
-    .set({ status, verified })
+    .set({ status, verified: !!approved })
     .where(eq(businessesTable.id, id))
     .returning();
 
   if (!biz) return res.status(404).json({ error: "Business not found" });
 
-  // Credit agent if approved and has agentId
   if (approved && biz.agentId) {
     const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, biz.agentId)).limit(1);
     if (agent) {
-      const commission = 100; // ₦100 base commission
+      const commission = 100;
       await db.update(agentsTable).set({
         totalEarnings: agent.totalEarnings + commission,
         availableBalance: agent.availableBalance + commission,
@@ -69,6 +73,35 @@ router.patch("/businesses/:id/approve", async (req, res) => {
 router.get("/agents/pending", async (_req, res) => {
   const agents = await db.select().from(agentsTable).where(eq(agentsTable.status, "pending"));
   return res.json(agents);
+});
+
+// GET /admin/agents/all — all agents with user info
+router.get("/agents/all", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: agentsTable.id,
+      userId: agentsTable.userId,
+      status: agentsTable.status,
+      fullName: agentsTable.fullName,
+      age: agentsTable.age,
+      address: agentsTable.address,
+      bankName: agentsTable.bankName,
+      accountNumber: agentsTable.accountNumber,
+      accountName: agentsTable.accountName,
+      idType: agentsTable.idType,
+      idNumber: agentsTable.idNumber,
+      totalEarnings: agentsTable.totalEarnings,
+      availableBalance: agentsTable.availableBalance,
+      passportPhotoUrl: agentsTable.passportPhotoUrl,
+      createdAt: agentsTable.createdAt,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+      userRole: usersTable.role,
+    })
+    .from(agentsTable)
+    .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id))
+    .orderBy(agentsTable.createdAt);
+  return res.json(rows);
 });
 
 // PATCH /admin/agents/:id/approve
@@ -88,7 +121,121 @@ router.patch("/agents/:id/approve", async (req, res) => {
   return res.json(agent);
 });
 
-// GET /admin/categories (for dropdowns)
+// PUT /admin/agents/:id — edit agent
+router.put("/agents/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { fullName, age, address, bankName, accountNumber, accountName, idType, idNumber, status } = req.body;
+  const [agent] = await db.update(agentsTable)
+    .set({
+      ...(fullName !== undefined && { fullName }),
+      ...(age !== undefined && { age: Number(age) }),
+      ...(address !== undefined && { address }),
+      ...(bankName !== undefined && { bankName }),
+      ...(accountNumber !== undefined && { accountNumber }),
+      ...(accountName !== undefined && { accountName }),
+      ...(idType !== undefined && { idType }),
+      ...(idNumber !== undefined && { idNumber }),
+      ...(status !== undefined && { status }),
+    })
+    .where(eq(agentsTable.id, id))
+    .returning();
+
+  if (!agent) return res.status(404).json({ error: "Agent not found" });
+  return res.json(agent);
+});
+
+// GET /admin/users/all
+router.get("/users/all", async (_req, res) => {
+  const users = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
+    .from(usersTable)
+    .orderBy(usersTable.createdAt);
+  return res.json(users);
+});
+
+// PUT /admin/users/:id — edit user
+router.put("/users/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { name, email, role } = req.body;
+  const [user] = await db.update(usersTable)
+    .set({
+      ...(name !== undefined && { name }),
+      ...(email !== undefined && { email }),
+      ...(role !== undefined && { role }),
+    })
+    .where(eq(usersTable.id, id))
+    .returning();
+
+  if (!user) return res.status(404).json({ error: "User not found" });
+  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
+});
+
+// POST /admin/impersonate/:userId — return a token for that user
+router.post("/impersonate/:userId", async (req, res) => {
+  const userId = parseInt(req.params.userId);
+  if (isNaN(userId)) return res.status(400).json({ error: "Invalid userId" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const token = generateToken(user.id);
+  return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+});
+
+// GET /admin/withdrawals — pending withdrawal requests
+router.get("/withdrawals", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: withdrawalsTable.id,
+      agentId: withdrawalsTable.agentId,
+      amount: withdrawalsTable.amount,
+      status: withdrawalsTable.status,
+      createdAt: withdrawalsTable.createdAt,
+      agentFullName: agentsTable.fullName,
+      agentBankName: agentsTable.bankName,
+      agentAccountNumber: agentsTable.accountNumber,
+      agentAccountName: agentsTable.accountName,
+      agentAvailableBalance: agentsTable.availableBalance,
+    })
+    .from(withdrawalsTable)
+    .leftJoin(agentsTable, eq(withdrawalsTable.agentId, agentsTable.id))
+    .where(eq(withdrawalsTable.status, "pending"))
+    .orderBy(withdrawalsTable.createdAt);
+  return res.json(rows);
+});
+
+// PATCH /admin/withdrawals/:id/approve — approve or reject commission payout
+router.patch("/withdrawals/:id/approve", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { approved } = req.body;
+  const status = approved ? "completed" : "failed";
+
+  const [w] = await db.update(withdrawalsTable)
+    .set({ status })
+    .where(eq(withdrawalsTable.id, id))
+    .returning();
+
+  if (!w) return res.status(404).json({ error: "Withdrawal not found" });
+
+  if (approved) {
+    const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, w.agentId)).limit(1);
+    if (agent) {
+      await db.update(agentsTable)
+        .set({ availableBalance: Math.max(0, agent.availableBalance - w.amount) })
+        .where(eq(agentsTable.id, agent.id));
+    }
+  }
+
+  return res.json(w);
+});
+
+// GET /admin/categories
 router.get("/categories", async (_req, res) => {
   const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.name);
   return res.json(cats);
@@ -111,54 +258,36 @@ router.post("/businesses", async (req, res) => {
     return res.status(400).json({ error: "name, categoryId, cityName, areaName, streetName are required" });
   }
 
-  // Find or create city
   let cityRows = await db.select().from(citiesTable)
     .where(and(ilike(citiesTable.name, cityName), ilike(citiesTable.state, stateName || "%")))
     .limit(1);
   let city = cityRows[0];
   if (!city) {
-    const inserted = await db.insert(citiesTable).values({
-      name: cityName, state: stateName || "Unknown", country: "Nigeria",
-    }).returning();
+    const inserted = await db.insert(citiesTable).values({ name: cityName, state: stateName || "Unknown", country: "Nigeria" }).returning();
     city = inserted[0];
   }
 
-  // Find or create area
-  let areaRows = await db.select().from(areasTable)
-    .where(and(ilike(areasTable.name, areaName), eq(areasTable.cityId, city.id)))
-    .limit(1);
+  let areaRows = await db.select().from(areasTable).where(and(ilike(areasTable.name, areaName), eq(areasTable.cityId, city.id))).limit(1);
   let area = areaRows[0];
   if (!area) {
     const inserted = await db.insert(areasTable).values({ name: areaName, cityId: city.id }).returning();
     area = inserted[0];
   }
 
-  // Find or create street
-  let streetRows = await db.select().from(streetsTable)
-    .where(and(ilike(streetsTable.name, streetName), eq(streetsTable.areaId, area.id)))
-    .limit(1);
+  let streetRows = await db.select().from(streetsTable).where(and(ilike(streetsTable.name, streetName), eq(streetsTable.areaId, area.id))).limit(1);
   let street = streetRows[0];
   if (!street) {
     const inserted = await db.insert(streetsTable).values({ name: streetName, areaId: area.id }).returning();
     street = inserted[0];
   }
 
-  // Build description with optional registration number
-  const fullDescription = [
-    description || "",
-    registrationNumber ? `Registration No: ${registrationNumber}` : "",
-  ].filter(Boolean).join("\n\n") || undefined;
+  const fullDescription = [description || "", registrationNumber ? `Registration No: ${registrationNumber}` : ""].filter(Boolean).join("\n\n") || undefined;
 
-  // Create business
   const bizInsert = await db.insert(businessesTable).values({
-    name,
-    description: fullDescription,
+    name, description: fullDescription,
     categoryId: Number(categoryId),
     streetId: street.id,
-    address,
-    phone,
-    whatsapp,
-    website,
+    address, phone, whatsapp, website,
     latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
     longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
     openingHours,
@@ -168,13 +297,10 @@ router.post("/businesses", async (req, res) => {
   }).returning();
   const biz = bizInsert[0];
 
-  // Save photos (stored as data URLs or external URLs)
   if (Array.isArray(photos) && photos.length > 0) {
     await db.insert(businessPhotosTable).values(
       photos.slice(0, 10).map((p: { url: string; caption?: string }) => ({
-        businessId: biz.id,
-        url: p.url,
-        caption: p.caption ?? null,
+        businessId: biz.id, url: p.url, caption: p.caption ?? null,
       }))
     );
   }
@@ -198,7 +324,6 @@ router.patch("/claims/:id/approve", async (req, res) => {
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
   const { approved, adminNote } = req.body;
-
   const [claim] = await db.update(businessClaimsTable)
     .set({ status: approved ? "approved" : "rejected", adminNote, resolvedAt: new Date() })
     .where(eq(businessClaimsTable.id, id))
