@@ -287,6 +287,7 @@ interface BizForm {
   name: string; description: string; categoryId: string;
   stateName: string; cityName: string; areaName: string; streetName: string;
   address: string; phone: string; whatsapp: string; website: string;
+  instagramUrl: string; facebookUrl: string; tiktokUrl: string;
   openingHours: string; latitude: string; longitude: string;
   photos: Array<{ url: string; caption: string }>;
 }
@@ -294,6 +295,7 @@ const DEFAULT_BIZ: BizForm = {
   name: "", description: "", categoryId: "",
   stateName: "", cityName: "", areaName: "", streetName: "",
   address: "", phone: "", whatsapp: "", website: "",
+  instagramUrl: "", facebookUrl: "", tiktokUrl: "",
   openingHours: "", latitude: "", longitude: "", photos: [],
 };
 
@@ -508,6 +510,54 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
           <div className="col-span-2">
             <FieldLabel>Website</FieldLabel>
             <GlassInput value={form.website} onChange={(v) => set("website", v)} placeholder="https://example.com (optional)" />
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Social Media */}
+      <SectionCard icon={Globe} title="Social Media (Optional)">
+        <div className="space-y-3">
+          <div>
+            <FieldLabel>Instagram</FieldLabel>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-white/30 font-medium select-none">instagram.com/</span>
+              <input
+                type="text"
+                value={form.instagramUrl}
+                onChange={(e) => set("instagramUrl", e.target.value)}
+                placeholder="username"
+                className="w-full pl-28 pr-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+              />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Facebook</FieldLabel>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-white/30 font-medium select-none">facebook.com/</span>
+              <input
+                type="text"
+                value={form.facebookUrl}
+                onChange={(e) => set("facebookUrl", e.target.value)}
+                placeholder="pagename"
+                className="w-full pl-28 pr-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+              />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>TikTok</FieldLabel>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-white/30 font-medium select-none">tiktok.com/@</span>
+              <input
+                type="text"
+                value={form.tiktokUrl}
+                onChange={(e) => set("tiktokUrl", e.target.value)}
+                placeholder="username"
+                className="w-full pl-28 pr-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+              />
+            </div>
           </div>
         </div>
       </SectionCard>

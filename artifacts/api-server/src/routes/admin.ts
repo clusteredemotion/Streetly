@@ -44,6 +44,9 @@ router.get("/businesses/all", async (_req, res) => {
       phone: businessesTable.phone,
       whatsapp: businessesTable.whatsapp,
       website: businessesTable.website,
+      instagramUrl: businessesTable.instagramUrl,
+      facebookUrl: businessesTable.facebookUrl,
+      tiktokUrl: businessesTable.tiktokUrl,
       address: businessesTable.address,
       openingHours: businessesTable.openingHours,
       latitude: businessesTable.latitude,
@@ -113,7 +116,7 @@ router.put("/businesses/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const { name, description, phone, whatsapp, website, openingHours, status, verified, featured, latitude, longitude } = req.body;
+  const { name, description, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, openingHours, status, verified, featured, latitude, longitude } = req.body;
   const [biz] = await db.update(businessesTable)
     .set({
       ...(name !== undefined && { name }),
@@ -121,6 +124,9 @@ router.put("/businesses/:id", async (req, res) => {
       ...(phone !== undefined && { phone }),
       ...(whatsapp !== undefined && { whatsapp }),
       ...(website !== undefined && { website }),
+      ...(instagramUrl !== undefined && { instagramUrl }),
+      ...(facebookUrl !== undefined && { facebookUrl }),
+      ...(tiktokUrl !== undefined && { tiktokUrl }),
       ...(openingHours !== undefined && { openingHours }),
       ...(status !== undefined && { status }),
       ...(verified !== undefined && { verified: Boolean(verified) }),

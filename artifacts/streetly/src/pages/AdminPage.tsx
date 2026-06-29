@@ -232,6 +232,9 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
     phone: biz.phone ?? "",
     whatsapp: biz.whatsapp ?? "",
     website: biz.website ?? "",
+    instagramUrl: (biz as any).instagramUrl ?? "",
+    facebookUrl: (biz as any).facebookUrl ?? "",
+    tiktokUrl: (biz as any).tiktokUrl ?? "",
     openingHours: biz.openingHours ?? "",
     address: biz.address ?? "",
     latitude: biz.latitude?.toString() ?? "",
@@ -288,6 +291,9 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
           {field("Phone", "phone")}
           {field("WhatsApp", "whatsapp")}
           {field("Website", "website")}
+          {field("Instagram (username)", "instagramUrl")}
+          {field("Facebook (page name)", "facebookUrl")}
+          {field("TikTok (username)", "tiktokUrl")}
           {field("Address", "address")}
           {field("Opening Hours", "openingHours")}
           <div className="grid grid-cols-2 gap-3">

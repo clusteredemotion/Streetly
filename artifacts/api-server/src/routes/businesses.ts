@@ -97,14 +97,14 @@ router.get("/:id", async (req, res) => {
 
 // POST /businesses
 router.post("/", async (req, res) => {
-  const { name, categoryId, streetId, description, address, phone, whatsapp, website, latitude, longitude, openingHours } = req.body;
+  const { name, categoryId, streetId, description, address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, latitude, longitude, openingHours } = req.body;
   if (!name || !categoryId || !streetId) {
     return res.status(400).json({ error: "name, categoryId, streetId are required" });
   }
 
   const [biz] = await db.insert(businessesTable).values({
     name, categoryId: Number(categoryId), streetId: Number(streetId),
-    description, address, phone, whatsapp, website,
+    description, address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl,
     latitude: latitude ? Number(latitude) : undefined,
     longitude: longitude ? Number(longitude) : undefined,
     openingHours,
@@ -119,7 +119,7 @@ router.patch("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const { name, categoryId, streetId, description, address, phone, whatsapp, website, latitude, longitude, openingHours } = req.body;
+  const { name, categoryId, streetId, description, address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, latitude, longitude, openingHours } = req.body;
 
   const updates: Partial<typeof businessesTable.$inferInsert> = {};
   if (name) updates.name = name;
@@ -130,6 +130,9 @@ router.patch("/:id", async (req, res) => {
   if (phone !== undefined) updates.phone = phone;
   if (whatsapp !== undefined) updates.whatsapp = whatsapp;
   if (website !== undefined) updates.website = website;
+  if (instagramUrl !== undefined) updates.instagramUrl = instagramUrl;
+  if (facebookUrl !== undefined) updates.facebookUrl = facebookUrl;
+  if (tiktokUrl !== undefined) updates.tiktokUrl = tiktokUrl;
   if (latitude !== undefined) updates.latitude = Number(latitude);
   if (longitude !== undefined) updates.longitude = Number(longitude);
   if (openingHours !== undefined) updates.openingHours = openingHours;

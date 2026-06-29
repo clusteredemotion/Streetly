@@ -148,7 +148,7 @@ router.post("/:agentId/businesses", async (req, res) => {
   const {
     name, description, categoryId,
     stateName, cityName, areaName, streetName,
-    address, phone, whatsapp, website,
+    address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl,
     latitude, longitude, openingHours,
     photos = [],
   } = req.body;
@@ -189,6 +189,9 @@ router.post("/:agentId/businesses", async (req, res) => {
     phone: phone || null,
     whatsapp: whatsapp || null,
     website: website || null,
+    instagramUrl: instagramUrl || null,
+    facebookUrl: facebookUrl || null,
+    tiktokUrl: tiktokUrl || null,
     latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
     longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
     openingHours: openingHours || null,

@@ -435,6 +435,9 @@ interface FormState {
   phone: string;
   whatsapp: string;
   website: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  tiktokUrl: string;
   openingHours: string;
   latitude: string;
   longitude: string;
@@ -457,6 +460,9 @@ const DEFAULT_FORM: FormState = {
   phone: "",
   whatsapp: "",
   website: "",
+  instagramUrl: "",
+  facebookUrl: "",
+  tiktokUrl: "",
   openingHours: "",
   latitude: "",
   longitude: "",
@@ -516,6 +522,9 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
           phone: data.phone,
           whatsapp: data.whatsapp,
           website: data.website,
+          instagramUrl: data.instagramUrl,
+          facebookUrl: data.facebookUrl,
+          tiktokUrl: data.tiktokUrl,
           openingHours: data.openingHours,
           latitude: data.latitude,
           longitude: data.longitude,
@@ -821,6 +830,30 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
               value={form.website}
               onChange={(v) => set("website", v)}
               placeholder="https://example.com (optional)"
+            />
+          </div>
+          <div>
+            <FieldLabel>Instagram (optional)</FieldLabel>
+            <InputField
+              value={form.instagramUrl}
+              onChange={(v) => set("instagramUrl", v)}
+              placeholder="username"
+            />
+          </div>
+          <div>
+            <FieldLabel>Facebook (optional)</FieldLabel>
+            <InputField
+              value={form.facebookUrl}
+              onChange={(v) => set("facebookUrl", v)}
+              placeholder="page name"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <FieldLabel>TikTok (optional)</FieldLabel>
+            <InputField
+              value={form.tiktokUrl}
+              onChange={(v) => set("tiktokUrl", v)}
+              placeholder="@username"
             />
           </div>
         </div>
