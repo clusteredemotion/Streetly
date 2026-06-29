@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "crypto";
 import { db } from "@workspace/db";
 import {
   businessesTable, agentsTable, usersTable, withdrawalsTable,
@@ -259,7 +260,12 @@ router.put("/agents/:id", async (req, res) => {
 // GET /admin/users/all
 router.get("/users/all", async (_req, res) => {
   const users = await db
-    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt })
+    .select({
+      id: usersTable.id, name: usersTable.name, email: usersTable.email,
+      role: usersTable.role, createdAt: usersTable.createdAt,
+      registrationIp: usersTable.registrationIp,
+      passwordHash: usersTable.passwordHash,
+    })
     .from(usersTable)
     .orderBy(usersTable.createdAt);
   return res.json(users);
@@ -282,6 +288,19 @@ router.put("/users/:id", async (req, res) => {
 
   if (!user) return res.status(404).json({ error: "User not found" });
   return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
+});
+
+// POST /admin/users/:id/reset-password — admin sets a new password for a user
+router.post("/users/:id/reset-password", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+
+  const hash = crypto.createHash("sha256").update(newPassword + "streetly_salt").digest("hex");
+  const [user] = await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.id, id)).returning();
+  if (!user) return res.status(404).json({ error: "User not found" });
+  return res.json({ ok: true });
 });
 
 // POST /admin/impersonate/:userId — return a token for that user

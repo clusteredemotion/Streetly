@@ -21,7 +21,7 @@ import {
   Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
-  FileText, ZoomIn, Camera, List,
+  FileText, ZoomIn, Camera, List, Key,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -73,7 +73,20 @@ function useAllUsers() {
       const res = await fetch(`${BASE}/api/admin/users/all`, { headers: authHeader() });
       return res.json() as Promise<Array<{
         id: number; name: string; email: string; role: string; createdAt: string;
+        registrationIp: string | null; passwordHash: string | null;
       }>>;
+    },
+  });
+}
+
+function useResetPassword() {
+  return useMutation({
+    mutationFn: async ({ id, newPassword }: { id: number; newPassword: string }) => {
+      const res = await fetch(`${BASE}/api/admin/users/${id}/reset-password`, {
+        method: "POST", headers: authHeader(), body: JSON.stringify({ newPassword }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      return res.json();
     },
   });
 }
@@ -861,6 +874,75 @@ function EditUserModal({ user, onClose, onSaved }: {
   );
 }
 
+/* ── Reset Password Modal ── */
+function ResetPasswordModal({ user, onClose }: {
+  user: { id: number; name: string };
+  onClose: () => void;
+}) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const reset = useResetPassword();
+
+  const handleSave = async () => {
+    setErr(null);
+    if (newPassword.length < 6) { setErr("Password must be at least 6 characters"); return; }
+    if (newPassword !== confirm) { setErr("Passwords do not match"); return; }
+    try {
+      await reset.mutateAsync({ id: user.id, newPassword });
+      setSuccess(true);
+      setTimeout(onClose, 1500);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to reset password");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+        style={{ background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Key className="h-4 w-4 text-amber-400" />
+            <h2 className="font-bold text-white text-sm">Reset Password — {user.name}</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-white/40 hover:text-white"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {success ? (
+            <div className="flex items-center gap-2 text-emerald-400 text-sm"><CheckCircle className="h-4 w-4" /> Password updated successfully!</div>
+          ) : (
+            <>
+              <p className="text-xs text-white/40">Set a new password for this user. They will need to use it on their next login.</p>
+              {[{ label: "New Password", val: newPassword, set: setNewPassword }, { label: "Confirm Password", val: confirm, set: setConfirm }].map(({ label, val, set }) => (
+                <div key={label}>
+                  <label className="block text-xs font-medium text-white/50 mb-1">{label}</label>
+                  <input type="password" value={val} onChange={(e) => set(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-amber-400/40"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }} />
+                </div>
+              ))}
+              {err && <p className="text-xs text-red-400">{err}</p>}
+            </>
+          )}
+        </div>
+        {!success && (
+          <div className="px-5 py-3 border-t border-white/10 flex gap-2 justify-end">
+            <Button size="sm" variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={reset.isPending}
+              className="bg-amber-500 hover:bg-amber-400 text-white gap-1.5">
+              {reset.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Key className="h-3.5 w-3.5" />}
+              Set Password
+            </Button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Impersonate banner ── */
 function ImpersonateBanner({ name, token, onClear }: { name: string; token: string; onClear: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -906,6 +988,7 @@ export default function AdminPage() {
   const [adminNotes, setAdminNotes] = useState<Record<number, string>>({});
   const [editAgent, setEditAgent] = useState<typeof allAgents extends Array<infer T> ? T | null : null>(null);
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
+  const [resetPwUser, setResetPwUser] = useState<{ id: number; name: string } | null>(null);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
   const [reviewAgent, setReviewAgent] = useState<(typeof allAgents extends Array<infer T> ? T : never) | null>(null);
@@ -984,6 +1067,12 @@ export default function AdminPage() {
             user={editUser}
             onClose={() => setEditUser(null)}
             onSaved={() => refetchUsers()}
+          />
+        )}
+        {resetPwUser && (
+          <ResetPasswordModal
+            user={resetPwUser}
+            onClose={() => setResetPwUser(null)}
           />
         )}
         {editBusiness && (
@@ -1288,12 +1377,26 @@ export default function AdminPage() {
                         <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/60">{user.role}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">{user.email}</p>
-                      <p className="text-xs text-muted-foreground">Joined: {new Date(user.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Registered: {new Date(user.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span className="opacity-50">IP:</span>
+                        <span className="font-mono">{user.registrationIp ?? "—"}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span className="opacity-50">Password hash:</span>
+                        <span className="font-mono truncate max-w-[140px]" title={user.passwordHash ?? ""}>{user.passwordHash ? user.passwordHash.slice(0, 16) + "…" : "—"}</span>
+                      </p>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 flex-col sm:flex-row">
                       <Button size="sm" variant="outline" onClick={() => setEditUser(user)}
                         className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
                         <Edit2 className="h-3.5 w-3.5" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setResetPwUser(user)}
+                        className="gap-1 text-amber-400 border-amber-400/30 hover:bg-amber-400/10">
+                        <Key className="h-3.5 w-3.5" /> Reset PW
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleImpersonate(user.id, user.name)}
                         className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">

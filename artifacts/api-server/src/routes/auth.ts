@@ -25,6 +25,15 @@ export function verifyToken(token: string): { userId: number } | null {
   }
 }
 
+function getClientIp(req: any): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) {
+    const ip = (typeof forwarded === "string" ? forwarded : forwarded[0]).split(",")[0].trim();
+    return ip;
+  }
+  return req.socket?.remoteAddress ?? req.ip ?? "unknown";
+}
+
 // POST /auth/register
 router.post("/register", async (req, res) => {
   const { name, email, password, role } = req.body;
@@ -37,11 +46,14 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Email already registered" });
   }
 
+  const ip = getClientIp(req);
+
   const [user] = await db.insert(usersTable).values({
     name,
     email,
     passwordHash: hashPassword(password),
     role: role as "visitor" | "business_owner" | "field_agent",
+    registrationIp: ip,
   }).returning();
 
   const token = generateToken(user.id);

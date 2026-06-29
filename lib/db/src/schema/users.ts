@@ -10,6 +10,7 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("visitor"),
+  registrationIp: text("registration_ip"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
