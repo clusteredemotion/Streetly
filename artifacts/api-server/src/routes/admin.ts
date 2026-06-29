@@ -5,7 +5,7 @@ import {
   businessClaimsTable, businessPhotosTable, categoriesTable,
   citiesTable, areasTable, streetsTable,
 } from "@workspace/db";
-import { eq, count, sql, ilike, and } from "drizzle-orm";
+import { eq, count, sql, ilike, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -78,7 +78,7 @@ router.get("/businesses/all", async (_req, res) => {
     .leftJoin(streetsTable, eq(businessesTable.streetId, streetsTable.id))
     .leftJoin(agentsTable, eq(businessesTable.agentId, agentsTable.id))
     .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id))
-    .orderBy(businessesTable.createdAt);
+    .orderBy(desc(businessesTable.createdAt));
   return res.json(rows);
 });
 
