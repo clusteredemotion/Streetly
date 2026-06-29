@@ -181,8 +181,23 @@ export default function BusinessProfilePage() {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [claimOpen, setClaimOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
-  const [activePhoto, setActivePhoto] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  const openLightbox = (idx: number) => { setLightboxIdx(idx); setLightboxOpen(true); };
+  const closeLightbox = () => setLightboxOpen(false);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowRight") setLightboxIdx(i => (i + 1) % (business?.photos?.length ?? 1));
+      if (e.key === "ArrowLeft") setLightboxIdx(i => (i - 1 + (business?.photos?.length ?? 1)) % (business?.photos?.length ?? 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxOpen, business?.photos?.length]);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -283,29 +298,135 @@ export default function BusinessProfilePage() {
             </button>
           </motion.div>
 
-          {/* Photo Gallery */}
-          {photos.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="grid grid-cols-3 gap-2 mb-8 rounded-3xl overflow-hidden h-72 border border-white/5"
-            >
-              <button
-                className="col-span-2 row-span-2 relative overflow-hidden"
-                onClick={() => setActivePhoto(0)}
+          {/* Photo Gallery — up to 4 boxes, 4th shows +N if more */}
+          {photos.length > 0 && (() => {
+            const visible = photos.slice(0, 4);
+            const overflow = photos.length - 4;
+            const count = visible.length;
+            const gridClass =
+              count === 1 ? "grid-cols-1 grid-rows-1" :
+              count === 2 ? "grid-cols-2 grid-rows-1" :
+              count === 3 ? "grid-cols-3 grid-rows-1" :
+                            "grid-cols-2 grid-rows-2";
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className={`grid ${gridClass} gap-2 mb-8 rounded-3xl overflow-hidden border border-white/5`}
+                style={{ height: count <= 2 ? "14rem" : "18rem" }}
               >
-                <img src={photos[0].url} alt={business.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-              </button>
-              {photos.slice(1, 3).map((p, i) => (
-                <button key={p.id ?? i} className="relative overflow-hidden" onClick={() => setActivePhoto(i + 1)}>
-                  <img src={p.url} alt={`photo ${i + 2}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                {visible.map((p, i) => {
+                  const isLast = i === 3;
+                  return (
+                    <button
+                      key={p.id ?? i}
+                      className="relative overflow-hidden group"
+                      onClick={() => openLightbox(i)}
+                    >
+                      <img
+                        src={p.url}
+                        alt={`photo ${i + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                      {isLast && overflow > 0 ? (
+                        <div className="absolute inset-0 flex items-center justify-center"
+                          style={{ background: "rgba(6,12,30,0.68)", backdropFilter: "blur(2px)" }}>
+                          <span className="text-3xl font-black text-white tracking-tight">+{overflow}</span>
+                        </div>
+                      ) : (
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                            style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}>
+                            <Maximize2 className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            );
+          })()}
+
+          {/* Lightbox */}
+          <AnimatePresence>
+            {lightboxOpen && photos.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.92)", backdropFilter: "blur(12px)" }}
+                onClick={closeLightbox}
+              >
+                {/* Close */}
+                <button
+                  onClick={closeLightbox}
+                  className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center z-10 text-white/70 hover:text-white transition-colors"
+                  style={{ background: "rgba(255,255,255,0.10)" }}
+                >
+                  <X className="h-5 w-5" />
                 </button>
-              ))}
-            </motion.div>
-          )}
+
+                {/* Counter */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 text-xs text-white/50 font-semibold tabular-nums bg-black/30 px-3 py-1 rounded-full">
+                  {lightboxIdx + 1} / {photos.length}
+                </div>
+
+                {/* Prev */}
+                {photos.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i - 1 + photos.length) % photos.length); }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-colors z-10"
+                    style={{ background: "rgba(255,255,255,0.10)" }}
+                  >
+                    <ChevronRight className="h-5 w-5 rotate-180" />
+                  </button>
+                )}
+
+                {/* Image */}
+                <motion.img
+                  key={lightboxIdx}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  src={photos[lightboxIdx].url}
+                  alt={`photo ${lightboxIdx + 1}`}
+                  className="max-h-[85vh] max-w-[92vw] object-contain rounded-2xl shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                />
+
+                {/* Next */}
+                {photos.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => (i + 1) % photos.length); }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-colors z-10"
+                    style={{ background: "rgba(255,255,255,0.10)" }}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                )}
+
+                {/* Thumbnail strip */}
+                {photos.length > 1 && (
+                  <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 px-4 overflow-x-auto max-w-[90vw]">
+                    {photos.map((p, i) => (
+                      <button
+                        key={p.id ?? i}
+                        onClick={(e) => { e.stopPropagation(); setLightboxIdx(i); }}
+                        className={`flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden border-2 transition-all ${i === lightboxIdx ? "border-white scale-110" : "border-white/20 opacity-60 hover:opacity-90"}`}
+                      >
+                        <img src={p.url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Info */}
