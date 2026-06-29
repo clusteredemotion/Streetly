@@ -287,7 +287,7 @@ interface BizForm {
   name: string; description: string; categoryId: string;
   stateName: string; cityName: string; areaName: string; streetName: string;
   address: string; phone: string; whatsapp: string; website: string;
-  instagramUrl: string; facebookUrl: string; tiktokUrl: string;
+  instagramUrl: string; facebookUrl: string; tiktokUrl: string; youtubeUrl: string;
   openingHours: string; latitude: string; longitude: string;
   photos: Array<{ url: string; caption: string }>;
 }
@@ -295,7 +295,7 @@ const DEFAULT_BIZ: BizForm = {
   name: "", description: "", categoryId: "",
   stateName: "", cityName: "", areaName: "", streetName: "",
   address: "", phone: "", whatsapp: "", website: "",
-  instagramUrl: "", facebookUrl: "", tiktokUrl: "",
+  instagramUrl: "", facebookUrl: "", tiktokUrl: "", youtubeUrl: "",
   openingHours: "", latitude: "", longitude: "", photos: [],
 };
 
@@ -554,6 +554,20 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
                 value={form.tiktokUrl}
                 onChange={(e) => set("tiktokUrl", e.target.value)}
                 placeholder="username"
+                className="w-full pl-28 pr-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+              />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>YouTube</FieldLabel>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-white/30 font-medium select-none">youtube.com/@</span>
+              <input
+                type="text"
+                value={form.youtubeUrl}
+                onChange={(e) => set("youtubeUrl", e.target.value)}
+                placeholder="channel or handle"
                 className="w-full pl-28 pr-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
               />

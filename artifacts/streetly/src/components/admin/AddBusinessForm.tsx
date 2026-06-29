@@ -438,6 +438,7 @@ interface FormState {
   instagramUrl: string;
   facebookUrl: string;
   tiktokUrl: string;
+  youtubeUrl: string;
   openingHours: string;
   latitude: string;
   longitude: string;
@@ -463,6 +464,7 @@ const DEFAULT_FORM: FormState = {
   instagramUrl: "",
   facebookUrl: "",
   tiktokUrl: "",
+  youtubeUrl: "",
   openingHours: "",
   latitude: "",
   longitude: "",
@@ -525,6 +527,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
           instagramUrl: data.instagramUrl,
           facebookUrl: data.facebookUrl,
           tiktokUrl: data.tiktokUrl,
+          youtubeUrl: data.youtubeUrl,
           openingHours: data.openingHours,
           latitude: data.latitude,
           longitude: data.longitude,
@@ -848,12 +851,20 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
               placeholder="page name"
             />
           </div>
-          <div className="sm:col-span-2">
+          <div>
             <FieldLabel>TikTok (optional)</FieldLabel>
             <InputField
               value={form.tiktokUrl}
               onChange={(v) => set("tiktokUrl", v)}
               placeholder="@username"
+            />
+          </div>
+          <div>
+            <FieldLabel>YouTube (optional)</FieldLabel>
+            <InputField
+              value={form.youtubeUrl}
+              onChange={(v) => set("youtubeUrl", v)}
+              placeholder="channel name or @handle"
             />
           </div>
         </div>

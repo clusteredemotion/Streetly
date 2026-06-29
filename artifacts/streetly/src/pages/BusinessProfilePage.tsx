@@ -31,6 +31,11 @@ const TkIcon = () => (
     <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
   </svg>
 );
+const YtIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+    <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+  </svg>
+);
 import { ClaimBusinessModal } from "@/components/ClaimBusinessModal";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -576,6 +581,22 @@ export default function BusinessProfilePage() {
                           style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.10)" }}>
                           <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white/40"><TkIcon /></div>
                           <span className="text-[10px] text-white/40 font-medium">TikTok</span>
+                        </div>
+                      )}
+                      {/* YouTube */}
+                      {(business as any).youtubeUrl ? (
+                        <a href={`https://youtube.com/@${(business as any).youtubeUrl}`}
+                          target="_blank" rel="noreferrer"
+                          className="flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-colors hover:scale-105 active:scale-95"
+                          style={{ background: "rgba(255,0,0,0.10)", border: "1px solid rgba(255,0,0,0.25)" }}>
+                          <div className="w-8 h-8 rounded-xl bg-[#ff0000] flex items-center justify-center text-white"><YtIcon /></div>
+                          <span className="text-[10px] text-white/60 font-medium">YouTube</span>
+                        </a>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1.5 p-3 rounded-2xl opacity-25 cursor-not-allowed"
+                          style={{ background: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.10)" }}>
+                          <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white/40"><YtIcon /></div>
+                          <span className="text-[10px] text-white/40 font-medium">YouTube</span>
                         </div>
                       )}
                     </div>

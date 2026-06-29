@@ -21,6 +21,7 @@ export const businessesTable = pgTable("businesses", {
   instagramUrl: text("instagram_url"),
   facebookUrl: text("facebook_url"),
   tiktokUrl: text("tiktok_url"),
+  youtubeUrl: text("youtube_url"),
   latitude: real("latitude"),
   longitude: real("longitude"),
   openingHours: text("opening_hours"),
