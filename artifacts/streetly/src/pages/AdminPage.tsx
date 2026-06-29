@@ -1274,7 +1274,10 @@ export default function AdminPage() {
               <EmptyState icon={<Users className="h-10 w-10 text-white/20" />} title="No users yet" sub="" />
             ) : (
               <div className="space-y-2">
-                {allUsers.map((user) => (
+                <p className="text-xs text-white/30 mb-3">
+                  Showing non-agent users. Field agents are managed in the <strong className="text-white/50">All Agents</strong> tab.
+                </p>
+                {allUsers.filter(u => u.role !== "field_agent").map((user) => (
                   <AdminCard key={user.id}>
                     <div className="w-10 h-10 rounded-xl bg-[#4a9eff]/15 flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-bold text-[#4a9eff]">{user.name.charAt(0).toUpperCase()}</span>

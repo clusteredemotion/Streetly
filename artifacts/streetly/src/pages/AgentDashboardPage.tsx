@@ -908,6 +908,77 @@ export default function AgentDashboardPage() {
     { id: "profile", label: "My Profile", icon: User },
   ];
 
+  /* ── Pending / Rejected gate ── */
+  if (!loading && agent) {
+    const agentStatus = agent.status as string;
+    if (agentStatus === "pending") {
+      return (
+        <Layout>
+          <div className="min-h-screen flex items-center justify-center px-4"
+            style={{ background: "linear-gradient(135deg,#060c1e 0%,#0a1628 100%)" }}>
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-md text-center">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)" }}>
+                <svg className="w-10 h-10 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-extrabold text-white mb-2">Application Under Review</h1>
+              <p className="text-white/50 text-sm leading-relaxed mb-6">
+                Your field agent application has been submitted successfully. Our team is reviewing your details — you'll have full access to your dashboard once approved.
+              </p>
+              <div className="p-4 rounded-2xl mb-6 text-left space-y-2"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+                  <span className="text-white/60">Identity & ID documents — <span className="text-yellow-400 font-semibold">Pending review</span></span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-white/20 flex-shrink-0" />
+                  <span className="text-white/40">Bank account verification</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="w-2 h-2 rounded-full bg-white/20 flex-shrink-0" />
+                  <span className="text-white/40">Dashboard access granted</span>
+                </div>
+              </div>
+              <p className="text-xs text-white/30">Usually takes 1–2 business days. Check back soon!</p>
+            </motion.div>
+          </div>
+        </Layout>
+      );
+    }
+    if (agentStatus === "rejected") {
+      return (
+        <Layout>
+          <div className="min-h-screen flex items-center justify-center px-4"
+            style={{ background: "linear-gradient(135deg,#060c1e 0%,#0a1628 100%)" }}>
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-md text-center">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-extrabold text-white mb-2">Application Not Approved</h1>
+              <p className="text-white/50 text-sm leading-relaxed mb-6">
+                Unfortunately your agent application was not approved at this time. Please contact support if you believe this is an error or would like to reapply.
+              </p>
+              <a href="mailto:support@streetly.ng"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                Contact Support
+              </a>
+            </motion.div>
+          </div>
+        </Layout>
+      );
+    }
+  }
+
   return (
     <Layout>
       <div style={{ background: "linear-gradient(135deg, #060c1e 0%, #0a1628 100%)", minHeight: "100vh" }}>
