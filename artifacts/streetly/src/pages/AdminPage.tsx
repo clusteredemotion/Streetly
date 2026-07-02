@@ -13,6 +13,7 @@ import {
   getGetPendingBusinessesQueryKey,
   getGetPendingAgentsQueryKey,
   getGetAdminStatsQueryKey,
+  useGetMe,
 } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/utils";
@@ -1205,6 +1206,17 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>("analytics");
   const qc = useQueryClient();
+  const token = localStorage.getItem("streetly_token");
+  const { data: adminUser } = useGetMe({ query: { enabled: !!token } });
+
+  const adminGreeting = (() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "Good morning";
+    if (h >= 12 && h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+  const adminFirstName = adminUser?.name?.split(" ")[0] ?? "Admin";
+
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: pendingBiz } = useGetPendingBusinesses();
   const { data: pendingAgents } = useGetPendingAgents();
@@ -1504,32 +1516,31 @@ export default function AdminPage() {
 
         {/* ── Main content ── */}
         <main className="flex-1 min-w-0 overflow-y-auto">
-          {/* Top bar */}
-          <div className="sticky top-16 z-30 flex items-center gap-3 px-6 py-3.5"
-            style={{ background: "rgba(7,12,26,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            {statsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30 ml-auto" />}
-            {stats && !statsLoading && (
-              <div className="ml-auto flex items-center gap-4">
-                {[
-                  { v: stats.totalBusinesses, l: "Businesses", c: "text-[#4a9eff]" },
-                  { v: stats.totalAgents, l: "Agents", c: "text-green-400" },
-                  { v: stats.totalUsers, l: "Users", c: "text-purple-400" },
-                  { v: formatCurrency(stats.revenue), l: "Revenue", c: "text-emerald-400" },
-                ].map(s => (
-                  <div key={s.l} className="hidden lg:flex flex-col items-end">
-                    <span className={`text-xs font-bold ${s.c}`}>{s.v}</span>
-                    <span className="text-[10px] text-white/25">{s.l}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Section content */}
           <div className="p-6">
 
           {/* ── Analytics ── */}
-          {activeSection === "analytics" && <AdminAnalytics />}
+          {activeSection === "analytics" && (
+            <>
+              {/* Admin greeting card */}
+              <div className="mb-6 rounded-2xl px-6 py-5 flex items-center justify-between"
+                style={{ background: "linear-gradient(135deg, rgba(74,158,255,0.12) 0%, rgba(74,158,255,0.04) 100%)", border: "1px solid rgba(74,158,255,0.18)" }}>
+                <div>
+                  <p className="text-white/50 text-sm mb-0.5">{adminGreeting} 👋</p>
+                  <h2 className="text-xl font-bold text-white">{adminFirstName}</h2>
+                  {adminUser?.msaId && (
+                    <span className="inline-flex items-center gap-1.5 mt-2 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: "rgba(74,158,255,0.15)", color: "#4a9eff", border: "1px solid rgba(74,158,255,0.25)" }}>
+                      <Key className="h-3 w-3" />
+                      {adminUser.msaId}
+                    </span>
+                  )}
+                </div>
+                <ShieldCheck className="h-10 w-10 text-[#4a9eff] opacity-20" />
+              </div>
+              <AdminAnalytics />
+            </>
+          )}
 
           {/* ── Messages ── */}
           {activeSection === "messages" && <AdminMessages />}
