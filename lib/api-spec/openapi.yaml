@@ -747,6 +747,8 @@ components:
       properties:
         id:
           type: integer
+        slug:
+          type: ["string", "null"]
         name:
           type: string
         description:
