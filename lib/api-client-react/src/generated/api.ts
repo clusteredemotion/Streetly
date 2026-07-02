@@ -34,6 +34,7 @@ import type {
   BusinessUpdate,
   Category,
   City,
+  GeoInfo,
   HealthStatus,
   ListBusinessesParams,
   LoginInput,
@@ -420,6 +421,83 @@ export function useGetPlatformStats<TData = Awaited<ReturnType<typeof getPlatfor
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPlatformStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetGeoInfoUrl = () => {
+
+
+
+
+  return `/api/geo/info`
+}
+
+/**
+ * @summary Get the visitor's IP address, IP-based location, and NGN currency conversion rate
+ */
+export const getGeoInfo = async ( options?: RequestInit): Promise<GeoInfo> => {
+
+  return customFetch<GeoInfo>(getGetGeoInfoUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGeoInfoQueryKey = () => {
+    return [
+    `/api/geo/info`
+    ] as const;
+    }
+
+
+export const getGetGeoInfoQueryOptions = <TData = Awaited<ReturnType<typeof getGeoInfo>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGeoInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGeoInfoQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGeoInfo>>> = ({ signal }) => getGeoInfo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGeoInfo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGeoInfoQueryResult = NonNullable<Awaited<ReturnType<typeof getGeoInfo>>>
+export type GetGeoInfoQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the visitor's IP address, IP-based location, and NGN currency conversion rate
+ */
+
+export function useGetGeoInfo<TData = Awaited<ReturnType<typeof getGeoInfo>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGeoInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGeoInfoQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

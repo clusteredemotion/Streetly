@@ -10,12 +10,14 @@ import agentsRouter from "./agents";
 import adminRouter from "./admin";
 import streetExplorerRouter from "./streetexplorer";
 import claimsRouter from "./claims";
+import geoRouter from "./geo";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/auth", authRouter);
 router.use("/stats", statsRouter);
+router.use("/geo", geoRouter);
 router.use("/categories", categoriesRouter);
 router.use(locationsRouter);
 router.use("/businesses", businessesRouter);

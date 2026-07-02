@@ -11,6 +11,8 @@ import type { BusinessStatus } from './businessStatus';
 
 export interface Business {
   id: number;
+  /** @nullable */
+  slug?: string | null;
   name: string;
   /** @nullable */
   description?: string | null;

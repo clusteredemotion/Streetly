@@ -73,6 +73,20 @@ export const GetPlatformStatsResponse = zod.object({
 
 
 /**
+ * @summary Get the visitor's IP address, IP-based location, and NGN currency conversion rate
+ */
+export const GetGeoInfoResponse = zod.object({
+  "ip": zod.string(),
+  "city": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "country": zod.string().nullish(),
+  "countryCode": zod.string().nullish(),
+  "currencyCode": zod.string(),
+  "ngnToLocalRate": zod.number().nullish()
+})
+
+
+/**
  * @summary List all business categories
  */
 export const ListCategoriesResponseItem = zod.object({
@@ -138,6 +152,7 @@ export const GetStreetBusinessesParams = zod.object({
 
 export const GetStreetBusinessesResponseItem = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -189,6 +204,7 @@ export const ListBusinessesQueryParams = zod.object({
 export const ListBusinessesResponse = zod.object({
   "businesses": zod.array(zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -246,6 +262,7 @@ export const CreateBusinessBody = zod.object({
  */
 export const GetFeaturedBusinessesResponseItem = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -288,6 +305,7 @@ export const GetBusinessParams = zod.object({
 
 export const GetBusinessResponse = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -343,6 +361,7 @@ export const UpdateBusinessBody = zod.object({
 
 export const UpdateBusinessResponse = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -453,6 +472,7 @@ export const GetAgentDashboardResponse = zod.object({
 }),
   "recentListings": zod.array(zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -502,6 +522,7 @@ export const GetAgentListingsParams = zod.object({
 
 export const GetAgentListingsResponseItem = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -578,6 +599,7 @@ export const GetAdminStatsResponse = zod.object({
  */
 export const GetPendingBusinessesResponseItem = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),
@@ -625,6 +647,7 @@ export const ApproveBusinessBody = zod.object({
 
 export const ApproveBusinessResponse = zod.object({
   "id": zod.number(),
+  "slug": zod.string().nullish(),
   "name": zod.string(),
   "description": zod.string().nullish(),
   "categoryId": zod.number(),

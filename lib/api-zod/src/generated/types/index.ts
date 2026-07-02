@@ -24,6 +24,7 @@ export * from './businessStatus';
 export * from './businessUpdate';
 export * from './category';
 export * from './city';
+export * from './geoInfo';
 export * from './healthStatus';
 export * from './listBusinessesParams';
 export * from './loginInput';

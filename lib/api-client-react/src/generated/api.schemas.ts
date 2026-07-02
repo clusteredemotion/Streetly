@@ -35,7 +35,6 @@ export interface User {
   name: string;
   email: string;
   role: string;
-  msaId?: string;
   createdAt: string;
 }
 
@@ -51,6 +50,16 @@ export interface PlatformStats {
   totalAgents: number;
   verifiedBusinesses?: number;
   totalEarningsPaid?: number;
+}
+
+export interface GeoInfo {
+  ip: string;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  currencyCode: string;
+  ngnToLocalRate?: number | null;
 }
 
 export interface AdminStats {
