@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { BusinessCard } from "@/components/business/BusinessCard";
 import { HomeMapView } from "@/components/HomeMapView";
+import { AGENT_COMMISSION_PER_LISTING, AGENT_HIGH_QUALITY_BONUS } from "@/lib/constants";
 
 /* ── Animated counter ── */
 function AnimatedNumber({ value }: { value: number }) {
@@ -382,7 +383,7 @@ export default function HomePage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-10">
             {[
-              { icon: CheckCircle, text: "₦100–₦150 per approved listing" },
+              { icon: CheckCircle, text: `₦${AGENT_COMMISSION_PER_LISTING}–₦${AGENT_HIGH_QUALITY_BONUS} per approved listing` },
               { icon: CheckCircle, text: "Paid weekly via bank transfer" },
               { icon: CheckCircle, text: "Work your own hours" },
             ].map((item) => (

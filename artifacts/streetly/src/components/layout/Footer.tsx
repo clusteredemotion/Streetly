@@ -1,7 +1,10 @@
 import { Link } from "wouter";
-import { MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { MapPin, Facebook, Twitter, Instagram, Linkedin, Globe } from "lucide-react";
+import { useVisitorGeo } from "@/hooks/useVisitorGeo";
 
 export function Footer() {
+  const { geo, isLoading } = useVisitorGeo();
+
   return (
     <footer className="bg-background text-foreground py-12 border-t border-white/5">
       <div className="container px-4 md:px-6">
@@ -62,6 +65,22 @@ export function Footer() {
               Made with <span className="text-destructive">♥</span> for the world
             </span>
           </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-center md:justify-start">
+          <span className="text-muted-foreground/70 text-xs flex items-center gap-1.5 font-mono">
+            <Globe className="h-3.5 w-3.5 flex-shrink-0" />
+            {isLoading && "Detecting your location…"}
+            {!isLoading && geo && (
+              <>
+                IP: {geo.ip}
+                {(geo.city || geo.country) && (
+                  <> · Location: {[geo.city, geo.region, geo.country].filter(Boolean).join(", ")}</>
+                )}
+              </>
+            )}
+            {!isLoading && !geo && "Location unavailable"}
+          </span>
         </div>
       </div>
     </footer>

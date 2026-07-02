@@ -217,7 +217,7 @@ router.patch("/businesses/:id/approve", async (req, res) => {
   if (approved && biz.agentId) {
     const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, biz.agentId)).limit(1);
     if (agent) {
-      const commission = 100;
+      const commission = 300;
       await db.update(agentsTable).set({
         totalEarnings: agent.totalEarnings + commission,
         availableBalance: agent.availableBalance + commission,

@@ -16,9 +16,10 @@ import {
   Edit2, Save, LayoutDashboard, List, Image as ImageIcon,
   XCircle, RefreshCw,
 } from "lucide-react";
+import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-const COMMISSION_PER_LISTING = 100;
+const COMMISSION_PER_LISTING = AGENT_COMMISSION_PER_LISTING;
 
 const NIGERIAN_BANKS = [
   "Access Bank", "GTBank", "First Bank", "Zenith Bank", "UBA",

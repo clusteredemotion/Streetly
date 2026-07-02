@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -700,7 +701,7 @@ export default function AgentApplyPage() {
             <p className="text-xs text-[#4a9eff] font-bold uppercase tracking-widest mb-2">Field Agent Programme</p>
             <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Become a Streetly Agent</h1>
             <p className="text-white/50 text-sm max-w-md">
-              Register businesses in your area and earn ₦100 for every listing approved by our team.
+              Register businesses in your area and earn ₦{AGENT_COMMISSION_PER_LISTING} for every listing approved by our team.
             </p>
           </div>
         </div>

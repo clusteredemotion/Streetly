@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRegister } from "@workspace/api-client-react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
-import { MapPin, User, Building2, MapPin as AgentIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MapPin, User, Building2, MapPin as AgentIcon, Info } from "lucide-react";
+import { cn, formatCurrencyWithConversion } from "@/lib/utils";
+import { BUSINESS_REGISTRATION_FEE } from "@/lib/constants";
+import { useVisitorGeo } from "@/hooks/useVisitorGeo";
 
 const ROLES = [
   { value: "visitor", label: "Customer / Visitor", desc: "Discover and contact local businesses", icon: User },
@@ -18,6 +20,7 @@ const ROLES = [
 export default function RegisterPage() {
   const [, navigate] = useLocation();
   const registerMutation = useRegister();
+  const { geo } = useVisitorGeo();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,6 +87,17 @@ export default function RegisterPage() {
                   ))}
                 </div>
               </div>
+
+              {role === "business_owner" && (
+                <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/20 rounded-xl px-3.5 py-3 text-sm text-foreground/90">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                  <span>
+                    A one-time registration fee of{" "}
+                    <span className="font-semibold">{formatCurrencyWithConversion(BUSINESS_REGISTRATION_FEE, geo)}</span>{" "}
+                    applies to list your business. Payment collection is coming soon — for now, you can create your account and set up your listing.
+                  </span>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="name">Full Name</Label>

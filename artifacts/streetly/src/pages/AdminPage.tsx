@@ -16,6 +16,7 @@ import {
 } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/utils";
+import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 import {
   Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
@@ -785,7 +786,7 @@ function AgentProfileModal({ agent, onClose, onEdit }: {
                       "bg-red-500/15 text-red-400 border-red-500/25"
                     }`}>{l.status}</span>
                     {l.status === "approved" && (
-                      <span className="text-[10px] text-green-400 font-bold">+₦100</span>
+                      <span className="text-[10px] text-green-400 font-bold">+₦{AGENT_COMMISSION_PER_LISTING}</span>
                     )}
                   </div>
                 ))}

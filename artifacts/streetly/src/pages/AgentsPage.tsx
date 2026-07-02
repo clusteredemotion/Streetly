@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useGetAgentLeaderboard, useGetPlatformStats } from "@workspace/api-client-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCurrencyWithConversion, getLocalConversionText } from "@/lib/utils";
+import { useVisitorGeo } from "@/hooks/useVisitorGeo";
+import { AGENT_COMMISSION_PER_LISTING, AGENT_HIGH_QUALITY_BONUS, AGENT_CLAIM_BONUS } from "@/lib/constants";
 import {
   TrendingUp, MapPin, Camera, CheckCircle, Award, Users,
   Banknote, ArrowRight, Star, Shield
@@ -15,6 +17,7 @@ export default function AgentsPage() {
   const [, navigate] = useLocation();
   const { data: leaderboard } = useGetAgentLeaderboard();
   const { data: stats } = useGetPlatformStats();
+  const { geo } = useVisitorGeo();
 
   const steps = [
     { icon: Users, title: "Create an Account", desc: "Register as a Field Agent on Streetly", num: "01" },
@@ -25,9 +28,9 @@ export default function AgentsPage() {
   ];
 
   const commissions = [
-    { label: "Standard Approved Listing", amount: 100, color: "bg-blue-50 border-blue-200 text-blue-800" },
-    { label: "High-Quality Verified Listing", amount: 150, color: "bg-green-50 border-green-200 text-green-800" },
-    { label: "Business Owner Claim Bonus", amount: 50, color: "bg-orange-50 border-orange-200 text-orange-800" },
+    { label: "Standard Approved Listing", amount: AGENT_COMMISSION_PER_LISTING, color: "bg-blue-50 border-blue-200 text-blue-800" },
+    { label: "High-Quality Verified Listing", amount: AGENT_HIGH_QUALITY_BONUS, color: "bg-green-50 border-green-200 text-green-800" },
+    { label: "Business Owner Claim Bonus", amount: AGENT_CLAIM_BONUS, color: "bg-orange-50 border-orange-200 text-orange-800" },
   ];
 
   return (
@@ -50,7 +53,7 @@ export default function AgentsPage() {
             </h1>
             <p className="text-blue-100 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
               Walk your neighborhood. Take photos. Register local businesses on Streetly.
-              Earn ₦100–₦150 for every approved listing — directly to your bank account.
+              Earn {formatCurrencyWithConversion(AGENT_COMMISSION_PER_LISTING, geo)}–{formatCurrencyWithConversion(AGENT_HIGH_QUALITY_BONUS, geo)} for every approved listing — directly to your bank account.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
@@ -139,6 +142,9 @@ export default function AgentsPage() {
               className={`rounded-2xl border p-6 text-center ${c.color}`}
             >
               <div className="text-3xl font-extrabold mb-2">{formatCurrency(c.amount)}</div>
+              {getLocalConversionText(c.amount, geo) && (
+                <div className="text-xs font-medium opacity-70 mb-1">{getLocalConversionText(c.amount, geo)}</div>
+              )}
               <div className="text-sm font-medium">{c.label}</div>
             </motion.div>
           ))}
