@@ -744,4 +744,118 @@ router.patch("/claims/:id/approve", async (req, res) => {
   return res.json(claim);
 });
 
+/* ─────────────────────── CSV EXPORT ROUTES ─────────────────────── */
+
+function toCsv(headers: string[], rows: (string | number | boolean | null | undefined)[][]): string {
+  const escape = (v: unknown): string => {
+    const s = v == null ? "" : String(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
+}
+
+// GET /admin/export/users
+router.get("/export/users", async (req, res) => {
+  const users = await db.select().from(usersTable).orderBy(usersTable.id);
+  const csv = toCsv(
+    ["ID", "Name", "Email", "Role", "Status", "MSA ID", "Registration IP", "Joined At"],
+    users.map(u => [u.id, u.name, u.email, u.role, u.status, u.msaId ?? "", u.registrationIp ?? "", u.createdAt.toISOString()])
+  );
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="streetly-users-${Date.now()}.csv"`);
+  return res.send(csv);
+});
+
+// GET /admin/export/agents
+router.get("/export/agents", async (req, res) => {
+  const agents = await db
+    .select({
+      agentId: agentsTable.id,
+      userId: agentsTable.userId,
+      userName: usersTable.name,
+      email: usersTable.email,
+      msaId: usersTable.msaId,
+      status: agentsTable.status,
+      fullName: agentsTable.fullName,
+      age: agentsTable.age,
+      address: agentsTable.address,
+      bankName: agentsTable.bankName,
+      accountNumber: agentsTable.accountNumber,
+      accountName: agentsTable.accountName,
+      idType: agentsTable.idType,
+      idNumber: agentsTable.idNumber,
+      totalEarnings: agentsTable.totalEarnings,
+      availableBalance: agentsTable.availableBalance,
+      createdAt: agentsTable.createdAt,
+    })
+    .from(agentsTable)
+    .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id))
+    .orderBy(agentsTable.id);
+
+  const csv = toCsv(
+    ["Agent ID", "User ID", "Name", "Email", "MSA ID", "Status", "Full Name", "Age", "Address",
+     "Bank Name", "Account Number", "Account Name", "ID Type", "ID Number",
+     "Total Earnings (₦)", "Available Balance (₦)", "Joined At"],
+    agents.map(a => [
+      a.agentId, a.userId, a.userName ?? "", a.email ?? "", a.msaId ?? "",
+      a.status ?? "", a.fullName ?? "", a.age ?? "", a.address ?? "",
+      a.bankName ?? "", a.accountNumber ?? "", a.accountName ?? "",
+      a.idType ?? "", a.idNumber ?? "",
+      a.totalEarnings ?? 0, a.availableBalance ?? 0,
+      a.createdAt.toISOString(),
+    ])
+  );
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="streetly-agents-${Date.now()}.csv"`);
+  return res.send(csv);
+});
+
+// GET /admin/export/businesses
+router.get("/export/businesses", async (req, res) => {
+  const businesses = await db
+    .select({
+      id: businessesTable.id,
+      name: businessesTable.name,
+      slug: businessesTable.slug,
+      description: businessesTable.description,
+      category: categoriesTable.name,
+      address: businessesTable.address,
+      phone: businessesTable.phone,
+      whatsapp: businessesTable.whatsapp,
+      website: businessesTable.website,
+      instagram: businessesTable.instagramUrl,
+      facebook: businessesTable.facebookUrl,
+      tiktok: businessesTable.tiktokUrl,
+      youtube: businessesTable.youtubeUrl,
+      openingHours: businessesTable.openingHours,
+      status: businessesTable.status,
+      verified: businessesTable.verified,
+      featured: businessesTable.featured,
+      plan: businessesTable.plan,
+      latitude: businessesTable.latitude,
+      longitude: businessesTable.longitude,
+      createdAt: businessesTable.createdAt,
+    })
+    .from(businessesTable)
+    .leftJoin(categoriesTable, eq(businessesTable.categoryId, categoriesTable.id))
+    .orderBy(businessesTable.id);
+
+  const csv = toCsv(
+    ["ID", "Name", "Slug", "Description", "Category", "Address", "Phone", "WhatsApp",
+     "Website", "Instagram", "Facebook", "TikTok", "YouTube", "Opening Hours",
+     "Status", "Verified", "Featured", "Plan", "Latitude", "Longitude", "Created At"],
+    businesses.map(b => [
+      b.id, b.name, b.slug ?? "", b.description ?? "", b.category ?? "",
+      b.address ?? "", b.phone ?? "", b.whatsapp ?? "",
+      b.website ?? "", b.instagram ?? "", b.facebook ?? "", b.tiktok ?? "", b.youtube ?? "",
+      b.openingHours ?? "", b.status, b.verified, b.featured, b.plan,
+      b.latitude ?? "", b.longitude ?? "", b.createdAt.toISOString(),
+    ])
+  );
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="streetly-businesses-${Date.now()}.csv"`);
+  return res.send(csv);
+});
+
 export default router;
