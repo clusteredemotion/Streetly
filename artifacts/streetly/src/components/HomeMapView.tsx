@@ -1387,8 +1387,8 @@ export function HomeMapView() {
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2 }}
         onClick={() => window.scrollBy({ top: window.innerHeight, behavior: "smooth" })}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-1 text-white/60 hover:text-white transition-colors"
-        style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-1 transition-colors"
+        style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))", color: "#1a56db" }}
       >
         <span className="text-[10px] font-semibold tracking-widest uppercase">Discover more</span>
         <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>

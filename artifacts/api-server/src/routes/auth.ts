@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import crypto from "crypto";
 
 const router = Router();
@@ -34,6 +34,25 @@ function getClientIp(req: any): string {
   return req.socket?.remoteAddress ?? req.ip ?? "unknown";
 }
 
+async function generateMsaId(userId: number, role: string): Promise<string> {
+  if (role === "admin") {
+    const [ex] = await db.select().from(usersTable).where(eq(usersTable.msaId, "MSA-1")).limit(1);
+    if (!ex || ex.id === userId) return "MSA-1";
+    for (let n = 11; n < 10000; n++) {
+      const [taken] = await db.select().from(usersTable).where(eq(usersTable.msaId, `MSA-${n}`)).limit(1);
+      if (!taken) return `MSA-${n}`;
+    }
+    return `MSA-${Date.now()}`;
+  }
+  if (role === "field_agent") {
+    const [res] = await db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "field_agent"));
+    return `MSA-AGENT-${String(Number(res.c)).padStart(4, "0")}`;
+  }
+  const [res] = await db.select({ c: count() }).from(usersTable)
+    .where(sql`role NOT IN ('admin', 'field_agent')`);
+  return `MSA-USER-${String(Number(res.c)).padStart(4, "0")}`;
+}
+
 // POST /auth/register
 router.post("/register", async (req, res) => {
   const { name, email, password, role } = req.body;
@@ -56,10 +75,13 @@ router.post("/register", async (req, res) => {
     registrationIp: ip,
   }).returning();
 
+  const msaId = await generateMsaId(user.id, user.role);
+  await db.update(usersTable).set({ msaId }).where(eq(usersTable.id, user.id));
+
   const token = generateToken(user.id);
   return res.status(201).json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId, createdAt: user.createdAt },
   });
 });
 
@@ -78,7 +100,7 @@ router.post("/login", async (req, res) => {
   const token = generateToken(user.id);
   return res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt },
   });
 });
 
@@ -95,7 +117,7 @@ router.get("/me", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
+  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt });
 });
 
 export default router;

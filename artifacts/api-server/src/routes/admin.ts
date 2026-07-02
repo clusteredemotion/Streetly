@@ -257,6 +257,7 @@ router.get("/agents/all", async (_req, res) => {
       userName: usersTable.name,
       userEmail: usersTable.email,
       userRole: usersTable.role,
+      msaId: usersTable.msaId,
     })
     .from(agentsTable)
     .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id))
@@ -338,6 +339,7 @@ router.get("/users/all", async (_req, res) => {
       role: usersTable.role, status: usersTable.status, createdAt: usersTable.createdAt,
       registrationIp: usersTable.registrationIp,
       passwordHash: usersTable.passwordHash,
+      msaId: usersTable.msaId,
     })
     .from(usersTable)
     .orderBy(usersTable.createdAt);
@@ -462,6 +464,50 @@ router.patch("/withdrawals/:id/approve", async (req, res) => {
 router.get("/categories", async (_req, res) => {
   const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.name);
   return res.json(cats);
+});
+
+// POST /admin/categories
+router.post("/categories", async (req, res) => {
+  const { name, icon } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: "Category name is required" });
+  const [cat] = await db.insert(categoriesTable).values({ name: name.trim(), icon: icon ?? "Store" }).returning();
+  return res.status(201).json(cat);
+});
+
+// PUT /admin/categories/:id
+router.put("/categories/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { name, icon } = req.body;
+  const updates: Record<string, any> = {};
+  if (name !== undefined) updates.name = name.trim();
+  if (icon !== undefined) updates.icon = icon;
+  const [cat] = await db.update(categoriesTable).set(updates).where(eq(categoriesTable.id, id)).returning();
+  if (!cat) return res.status(404).json({ error: "Category not found" });
+  return res.json(cat);
+});
+
+// DELETE /admin/categories/:id
+router.delete("/categories/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
+  return res.json({ ok: true });
+});
+
+// PUT /admin/users/:userId/msa-id — reassign MSA ID
+router.put("/users/:userId/msa-id", async (req, res) => {
+  const userId = parseInt(req.params.userId);
+  if (isNaN(userId)) return res.status(400).json({ error: "Invalid userId" });
+  const { msaId } = req.body;
+  if (!msaId?.trim()) return res.status(400).json({ error: "msaId is required" });
+  const existing = await db.select().from(usersTable).where(eq(usersTable.msaId, msaId.trim())).limit(1);
+  if (existing.length > 0 && existing[0].id !== userId) {
+    return res.status(400).json({ error: "This MSA ID is already assigned to another user" });
+  }
+  const [user] = await db.update(usersTable).set({ msaId: msaId.trim() }).where(eq(usersTable.id, userId)).returning();
+  if (!user) return res.status(404).json({ error: "User not found" });
+  return res.json({ ok: true, msaId: user.msaId });
 });
 
 // GET /admin/kyc — all agents with their KYC documents

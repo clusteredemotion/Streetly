@@ -11,6 +11,7 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("visitor"),
   status: text("status").notNull().default("active"),
+  msaId: text("msa_id").unique(),
   registrationIp: text("registration_ip"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -202,6 +202,18 @@ export default function OwnerDashboardPage() {
   const { data, isLoading, refetch } = useListBusinesses({ limit: 20 });
   const businesses = data?.businesses ?? [];
   const [editBiz, setEditBiz] = useState<any | null>(null);
+  const [msaId, setMsaId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("streetly_token");
+    if (!token) return;
+    fetch(`${BASE}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(d => d.msaId && setMsaId(d.msaId))
+      .catch(() => {});
+  }, []);
 
   const statusColor = (status: string) => {
     if (status === "approved") return "bg-green-100 text-green-700";
@@ -227,6 +239,11 @@ export default function OwnerDashboardPage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Business Dashboard</h1>
             <p className="text-blue-100 mt-1">Manage your business listings on Streetly</p>
+            {msaId && (
+              <span className="inline-block mt-2 px-3 py-1 rounded-full bg-white/15 border border-white/30 text-white text-xs font-mono font-bold tracking-wider">
+                {msaId}
+              </span>
+            )}
           </div>
           <Button className="bg-white text-primary hover:bg-white/90 gap-2" onClick={() => navigate("/businesses")}>
             <PlusCircle className="h-4 w-4" /> Add Business

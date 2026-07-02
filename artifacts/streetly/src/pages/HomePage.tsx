@@ -189,7 +189,7 @@ export default function HomePage() {
             </motion.div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {categories.slice(0, 8).map((cat, i) => (
+              {categories.map((cat, i) => (
                 <motion.button
                   key={cat.id}
                   initial={{ opacity: 0, scale: 0.9 }}

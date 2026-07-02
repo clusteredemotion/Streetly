@@ -700,6 +700,11 @@ function ProfileTab({ agent, agentId, onRefresh }: {
           <div>
             <div className="text-base font-semibold text-white">{(agent.fullName as string) || (agent.userName as string) || "Agent"}</div>
             <div className="text-sm text-white/50 mt-0.5">{(agent.userEmail as string) || ""}</div>
+            {agent.msaId && (
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-[#4a9eff]/10 border border-[#4a9eff]/25 text-[#4a9eff] text-[10px] font-mono font-bold tracking-wider">
+                {agent.msaId as string}
+              </span>
+            )}
             <StatusBadge status={(agent.status as string) || "pending"} />
             {editing && (
               <p className="text-xs text-white/40 mt-2">Click the camera icon to change your photo</p>
@@ -1010,6 +1015,11 @@ export default function AgentDashboardPage() {
                       <h1 className="text-2xl font-extrabold text-white">
                         {(agent.fullName as string) || (agent.userName as string) || "Agent"}
                       </h1>
+                      {agent.msaId && (
+                        <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-[#4a9eff]/15 border border-[#4a9eff]/30 text-[#4a9eff] text-xs font-mono font-bold tracking-wider">
+                          {agent.msaId as string}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <StatusBadge status={agent.status as string} />

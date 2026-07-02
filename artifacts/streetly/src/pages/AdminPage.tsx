@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminMessages from "@/components/admin/AdminMessages";
+import AdminCategories from "@/components/admin/AdminCategories";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -1242,6 +1243,33 @@ export default function AdminPage() {
   const [showPassport, setShowPassport] = useState<number | null>(null);
   const [kycImgView, setKycImgView] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ label: string; onConfirm: () => Promise<void> } | null>(null);
+  const [reassignId, setReassignId] = useState<{ userId: number; name: string; currentMsaId: string | null } | null>(null);
+  const [newMsaId, setNewMsaId] = useState("");
+  const [reassignError, setReassignError] = useState<string | null>(null);
+  const [reassignSaving, setReassignSaving] = useState(false);
+
+  const handleReassignMsaId = async () => {
+    if (!reassignId || !newMsaId.trim()) return;
+    setReassignSaving(true);
+    setReassignError(null);
+    try {
+      const res = await fetch(`${BASE}/api/admin/users/${reassignId.userId}/msa-id`, {
+        method: "PUT",
+        headers: authHeader(),
+        body: JSON.stringify({ msaId: newMsaId.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to reassign ID");
+      setReassignId(null);
+      setNewMsaId("");
+      refetchUsers();
+      refetchAgents();
+    } catch (e: any) {
+      setReassignError(e.message);
+    } finally {
+      setReassignSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (featuredOrderData) setFeaturedList(featuredOrderData);
@@ -1361,6 +1389,45 @@ export default function AdminPage() {
           onClose={() => setConfirmDelete(null)}
         />
       )}
+
+      {reassignId && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm rounded-2xl p-6 border border-white/10"
+            style={{ background: "#0d1f3c" }}>
+            <h3 className="text-base font-bold text-white mb-1">Reassign MSA ID</h3>
+            <p className="text-sm text-white/50 mb-4">
+              Assigning a new ID to <strong className="text-white">{reassignId.name}</strong>.
+              {reassignId.currentMsaId && (
+                <> Current ID: <span className="font-mono text-[#4a9eff]">{reassignId.currentMsaId}</span></>
+              )}
+            </p>
+            <div className="mb-3">
+              <label className="text-xs text-white/40 mb-1 block">New MSA ID</label>
+              <input
+                value={newMsaId}
+                onChange={(e) => setNewMsaId(e.target.value)}
+                placeholder="e.g. MSA-USER-0042 or MSA-AGENT-0010"
+                className="w-full rounded-lg bg-white/5 border border-white/10 text-white text-sm px-3 py-2 focus:outline-none focus:border-[#4a9eff]/50 placeholder:text-white/30 font-mono"
+              />
+              <p className="text-[10px] text-white/30 mt-1">Format: MSA-1, MSA-AGENT-XXXX, or MSA-USER-XXXX</p>
+            </div>
+            {reassignError && <p className="text-xs text-red-400 mb-3">{reassignError}</p>}
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleReassignMsaId} disabled={reassignSaving || !newMsaId.trim()}
+                className="flex-1 bg-[#4a9eff] hover:bg-[#3a8eef] text-white gap-1">
+                {reassignSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Key className="h-3.5 w-3.5" />}
+                {reassignSaving ? "Saving…" : "Assign ID"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setReassignId(null); setNewMsaId(""); setReassignError(null); }}
+                className="border-white/20 text-white/60 hover:bg-white/10">
+                Cancel
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
       {kycImgView && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-[99999] flex items-center justify-center p-6"
@@ -1424,6 +1491,9 @@ export default function AdminPage() {
             <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={setActiveSection} />
             <NavItem section="kyc" active={activeSection} label="KYC Documents" icon={<FileText className="h-4 w-4" />} onSelect={setActiveSection} />
 
+            <NavGroup label="Catalog" />
+            <NavItem section="categories" active={activeSection} label="Categories" icon={<List className="h-4 w-4" />} onSelect={setActiveSection} />
+
             <NavGroup label="Finance" />
             <NavItem section="commissions" active={activeSection} label="Commissions" icon={<CreditCard className="h-4 w-4" />} badge={withdrawals?.length} onSelect={setActiveSection} />
 
@@ -1465,6 +1535,9 @@ export default function AdminPage() {
 
           {/* ── Messages ── */}
           {activeSection === "messages" && <AdminMessages />}
+
+          {/* ── Categories ── */}
+          {activeSection === "categories" && <AdminCategories />}
 
           {/* ── Add Business ── */}
           {activeSection === "add-business" && (
@@ -1600,6 +1673,11 @@ export default function AdminPage() {
                           <h3 className="font-semibold text-foreground">{agent.fullName ?? agent.userName ?? `Agent #${agent.id}`}</h3>
                           <StatusBadge status={agent.status} />
                         </div>
+                        {agent.msaId && (
+                          <span className="inline-block mb-1 px-2 py-0.5 rounded-full bg-[#4a9eff]/10 border border-[#4a9eff]/25 text-[#4a9eff] text-[10px] font-mono font-bold tracking-wider">
+                            {agent.msaId}
+                          </span>
+                        )}
                         <p className="text-xs text-muted-foreground">{agent.userEmail}</p>
                         <p className="text-xs text-muted-foreground">
                           Bank: {agent.bankName ?? "—"} · Earned: ₦{agent.totalEarnings?.toLocaleString() ?? 0} · Balance: ₦{agent.availableBalance?.toLocaleString() ?? 0}
@@ -1611,6 +1689,11 @@ export default function AdminPage() {
                       <Button size="sm" variant="outline" onClick={() => setEditAgent(agent as any)}
                         className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
                         <Edit2 className="h-3.5 w-3.5" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => { setReassignId({ userId: agent.userId, name: agent.fullName ?? agent.userName ?? `Agent #${agent.id}`, currentMsaId: agent.msaId ?? null }); setNewMsaId(agent.msaId ?? ""); setReassignError(null); }}
+                        className="gap-1 text-purple-400 border-purple-400/30 hover:bg-purple-400/10">
+                        <Key className="h-3.5 w-3.5" /> MSA ID
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleImpersonate(agent.userId, agent.fullName ?? agent.userName ?? `Agent #${agent.id}`)}
                         className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">
@@ -1655,6 +1738,11 @@ export default function AdminPage() {
                         <h3 className="font-semibold text-foreground">{user.name}</h3>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/60">{user.role}</span>
                       </div>
+                      {(user as any).msaId && (
+                        <span className="inline-block mb-1 px-2 py-0.5 rounded-full bg-[#4a9eff]/10 border border-[#4a9eff]/25 text-[#4a9eff] text-[10px] font-mono font-bold tracking-wider">
+                          {(user as any).msaId}
+                        </span>
+                      )}
                       <p className="text-xs text-muted-foreground">{user.email}</p>
                       <p className="text-xs text-muted-foreground">
                         Registered: {new Date(user.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}
@@ -1672,6 +1760,11 @@ export default function AdminPage() {
                       <Button size="sm" variant="outline" onClick={() => setEditUser(user)}
                         className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
                         <Edit2 className="h-3.5 w-3.5" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => { setReassignId({ userId: user.id, name: user.name, currentMsaId: (user as any).msaId ?? null }); setNewMsaId((user as any).msaId ?? ""); setReassignError(null); }}
+                        className="gap-1 text-purple-400 border-purple-400/30 hover:bg-purple-400/10">
+                        <Key className="h-3.5 w-3.5" /> MSA ID
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setResetPwUser(user)}
                         className="gap-1 text-amber-400 border-amber-400/30 hover:bg-amber-400/10">

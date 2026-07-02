@@ -26,6 +26,7 @@ async function enrichAgent(agent: typeof agentsTable.$inferSelect) {
     ...agent,
     userName: user?.name ?? "Unknown",
     userEmail: user?.email ?? "",
+    msaId: user?.msaId ?? null,
     totalListings: Number(listingsRow.count),
     approvedListings: Number(approvedRow.count),
   };
