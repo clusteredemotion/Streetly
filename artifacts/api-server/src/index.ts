@@ -1,8 +1,9 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { businessesTable } from "@workspace/db";
-import { isNull, eq } from "drizzle-orm";
+import { businessesTable, usersTable } from "@workspace/db";
+import { isNull, eq, sql } from "drizzle-orm";
+import crypto from "crypto";
 
 const rawPort = process.env["PORT"];
 
@@ -55,8 +56,24 @@ async function backfillSlugs() {
   }
 }
 
+async function ensureAdminUser() {
+  try {
+    const email = "admin@mystreetly.app";
+    const hash = crypto.createHash("sha256").update("Melavies1537@" + "streetly_salt").digest("hex");
+    await db.execute(
+      sql`INSERT INTO users (name, email, password_hash, role, created_at)
+          VALUES ('Admin', ${email}, ${hash}, 'admin', NOW())
+          ON CONFLICT (email) DO UPDATE SET password_hash = ${hash}, role = 'admin'`
+    );
+    logger.info("Admin user ensured");
+  } catch (err) {
+    logger.error({ err }, "ensureAdminUser: failed (non-fatal)");
+  }
+}
+
 async function start() {
   await backfillSlugs();
+  await ensureAdminUser();
 
   app.listen(port, (err) => {
     if (err) {
