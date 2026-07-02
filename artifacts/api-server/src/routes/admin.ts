@@ -6,7 +6,7 @@ import {
   businessClaimsTable, businessPhotosTable, categoriesTable,
   citiesTable, areasTable, streetsTable,
 } from "@workspace/db";
-import { eq, count, sql, ilike, and, desc } from "drizzle-orm";
+import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -85,6 +85,32 @@ router.get("/businesses/all", async (_req, res) => {
   return res.json(rows);
 });
 
+// GET /admin/businesses/:id/photos
+router.get("/businesses/:id/photos", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const photos = await db.select().from(businessPhotosTable).where(eq(businessPhotosTable.businessId, id));
+  return res.json(photos);
+});
+
+// POST /admin/businesses/:id/photos — add photo
+router.post("/businesses/:id/photos", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { url, caption } = req.body;
+  if (!url) return res.status(400).json({ error: "url required" });
+  const [photo] = await db.insert(businessPhotosTable).values({ businessId: id, url, caption: caption ?? null }).returning();
+  return res.status(201).json(photo);
+});
+
+// DELETE /admin/businesses/:id/photos/:photoId
+router.delete("/businesses/:id/photos/:photoId", async (req, res) => {
+  const photoId = parseInt(req.params.photoId);
+  if (isNaN(photoId)) return res.status(400).json({ error: "Invalid photoId" });
+  await db.delete(businessPhotosTable).where(eq(businessPhotosTable.id, photoId));
+  return res.json({ ok: true });
+});
+
 // GET /admin/businesses/featured — featured+approved businesses ordered by sort_order
 router.get("/businesses/featured", async (_req, res) => {
   const rows = await db
@@ -143,6 +169,28 @@ router.put("/businesses/:id", async (req, res) => {
 
   if (!biz) return res.status(404).json({ error: "Business not found" });
   return res.json(biz);
+});
+
+// PATCH /admin/businesses/:id/suspend — toggle suspension
+router.patch("/businesses/:id/suspend", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { suspend } = req.body;
+  const [biz] = await db.update(businessesTable)
+    .set({ status: suspend ? "suspended" : "approved" })
+    .where(eq(businessesTable.id, id))
+    .returning();
+  if (!biz) return res.status(404).json({ error: "Not found" });
+  return res.json(biz);
+});
+
+// DELETE /admin/businesses/:id
+router.delete("/businesses/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  await db.delete(businessPhotosTable).where(eq(businessPhotosTable.businessId, id));
+  await db.delete(businessesTable).where(eq(businessesTable.id, id));
+  return res.json({ ok: true });
 });
 
 // GET /admin/businesses/pending
@@ -233,6 +281,30 @@ router.patch("/agents/:id/approve", async (req, res) => {
   return res.json(agent);
 });
 
+// PATCH /admin/agents/:id/suspend — toggle suspension
+router.patch("/agents/:id/suspend", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { suspend } = req.body;
+  const [agent] = await db.update(agentsTable)
+    .set({ status: suspend ? "suspended" : "approved" })
+    .where(eq(agentsTable.id, id))
+    .returning();
+  if (!agent) return res.status(404).json({ error: "Not found" });
+  return res.json(agent);
+});
+
+// DELETE /admin/agents/:id
+router.delete("/agents/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, id)).limit(1);
+  if (!agent) return res.status(404).json({ error: "Not found" });
+  await db.delete(agentsTable).where(eq(agentsTable.id, id));
+  await db.update(usersTable).set({ role: "visitor" }).where(eq(usersTable.id, agent.userId));
+  return res.json({ ok: true });
+});
+
 // PUT /admin/agents/:id — edit agent
 router.put("/agents/:id", async (req, res) => {
   const id = parseInt(req.params.id);
@@ -263,7 +335,7 @@ router.get("/users/all", async (_req, res) => {
   const users = await db
     .select({
       id: usersTable.id, name: usersTable.name, email: usersTable.email,
-      role: usersTable.role, createdAt: usersTable.createdAt,
+      role: usersTable.role, status: usersTable.status, createdAt: usersTable.createdAt,
       registrationIp: usersTable.registrationIp,
       passwordHash: usersTable.passwordHash,
     })
@@ -288,7 +360,28 @@ router.put("/users/:id", async (req, res) => {
     .returning();
 
   if (!user) return res.status(404).json({ error: "User not found" });
-  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
+  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, status: user.status, createdAt: user.createdAt });
+});
+
+// PATCH /admin/users/:id/suspend — toggle user suspension
+router.patch("/users/:id/suspend", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { suspend } = req.body;
+  const [user] = await db.update(usersTable)
+    .set({ status: suspend ? "suspended" : "active" })
+    .where(eq(usersTable.id, id))
+    .returning();
+  if (!user) return res.status(404).json({ error: "Not found" });
+  return res.json({ id: user.id, name: user.name, status: user.status });
+});
+
+// DELETE /admin/users/:id
+router.delete("/users/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  await db.delete(usersTable).where(eq(usersTable.id, id));
+  return res.json({ ok: true });
 });
 
 // POST /admin/users/:id/reset-password — admin sets a new password for a user
@@ -369,6 +462,31 @@ router.patch("/withdrawals/:id/approve", async (req, res) => {
 router.get("/categories", async (_req, res) => {
   const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.name);
   return res.json(cats);
+});
+
+// GET /admin/kyc — all agents with their KYC documents
+router.get("/kyc", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: agentsTable.id,
+      userId: agentsTable.userId,
+      status: agentsTable.status,
+      fullName: agentsTable.fullName,
+      idType: agentsTable.idType,
+      idNumber: agentsTable.idNumber,
+      passportPhotoUrl: agentsTable.passportPhotoUrl,
+      ninSlipUrl: agentsTable.ninSlipUrl,
+      createdAt: agentsTable.createdAt,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+    })
+    .from(agentsTable)
+    .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id))
+    .where(and(
+      isNotNull(agentsTable.passportPhotoUrl),
+    ))
+    .orderBy(desc(agentsTable.createdAt));
+  return res.json(rows);
 });
 
 // POST /admin/businesses — admin creates a fully-specified business

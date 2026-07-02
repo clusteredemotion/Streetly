@@ -91,6 +91,32 @@ router.get("/featured", async (_req, res) => {
   return res.json(enriched);
 });
 
+// GET /businesses/:id/photos
+router.get("/:id/photos", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const photos = await db.select().from(businessPhotosTable).where(eq(businessPhotosTable.businessId, id));
+  return res.json(photos);
+});
+
+// POST /businesses/:id/photos — add photo (owner)
+router.post("/:id/photos", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { url, caption } = req.body;
+  if (!url) return res.status(400).json({ error: "url required" });
+  const [photo] = await db.insert(businessPhotosTable).values({ businessId: id, url, caption: caption ?? null }).returning();
+  return res.status(201).json(photo);
+});
+
+// DELETE /businesses/:id/photos/:photoId
+router.delete("/:id/photos/:photoId", async (req, res) => {
+  const photoId = parseInt(req.params.photoId);
+  if (isNaN(photoId)) return res.status(400).json({ error: "Invalid photoId" });
+  await db.delete(businessPhotosTable).where(eq(businessPhotosTable.id, photoId));
+  return res.json({ ok: true });
+});
+
 // GET /businesses/:idOrSlug — accepts numeric id OR slug string
 router.get("/:idOrSlug", async (req, res) => {
   const { idOrSlug } = req.params;

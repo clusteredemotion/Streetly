@@ -21,7 +21,7 @@ import {
   Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
-  FileText, ZoomIn, Camera, List, Key,
+  FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -218,6 +218,142 @@ function useUpdateUser() {
   });
 }
 
+function useSuspendUser() {
+  return useMutation({
+    mutationFn: async ({ id, suspend }: { id: number; suspend: boolean }) => {
+      const res = await fetch(`${BASE}/api/admin/users/${id}/suspend`, {
+        method: "PATCH", headers: authHeader(), body: JSON.stringify({ suspend }),
+      });
+      return res.json();
+    },
+  });
+}
+
+function useDeleteUser() {
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`${BASE}/api/admin/users/${id}`, { method: "DELETE", headers: authHeader() });
+    },
+  });
+}
+
+function useSuspendAgent() {
+  return useMutation({
+    mutationFn: async ({ id, suspend }: { id: number; suspend: boolean }) => {
+      const res = await fetch(`${BASE}/api/admin/agents/${id}/suspend`, {
+        method: "PATCH", headers: authHeader(), body: JSON.stringify({ suspend }),
+      });
+      return res.json();
+    },
+  });
+}
+
+function useDeleteAgent() {
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`${BASE}/api/admin/agents/${id}`, { method: "DELETE", headers: authHeader() });
+    },
+  });
+}
+
+function useSuspendBusiness() {
+  return useMutation({
+    mutationFn: async ({ id, suspend }: { id: number; suspend: boolean }) => {
+      const res = await fetch(`${BASE}/api/admin/businesses/${id}/suspend`, {
+        method: "PATCH", headers: authHeader(), body: JSON.stringify({ suspend }),
+      });
+      return res.json();
+    },
+  });
+}
+
+function useDeleteBusiness() {
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`${BASE}/api/admin/businesses/${id}`, { method: "DELETE", headers: authHeader() });
+    },
+  });
+}
+
+function useAllKYC() {
+  return useQuery({
+    queryKey: ["admin", "kyc"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/kyc`, { headers: authHeader() });
+      return res.json() as Promise<Array<{
+        id: number; userId: number; status: string; fullName: string | null;
+        idType: string | null; idNumber: string | null;
+        passportPhotoUrl: string | null; ninSlipUrl: string | null;
+        createdAt: string; userName: string | null; userEmail: string | null;
+      }>>;
+    },
+  });
+}
+
+function useAdminBusinessPhotos(bizId: number | null) {
+  return useQuery({
+    queryKey: ["admin", "business-photos", bizId],
+    enabled: bizId !== null,
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/businesses/${bizId}/photos`, { headers: authHeader() });
+      return res.json() as Promise<Array<{ id: number; url: string; caption: string | null }>>;
+    },
+  });
+}
+
+function useAddAdminPhoto() {
+  return useMutation({
+    mutationFn: async ({ bizId, url }: { bizId: number; url: string }) => {
+      const res = await fetch(`${BASE}/api/admin/businesses/${bizId}/photos`, {
+        method: "POST", headers: authHeader(), body: JSON.stringify({ url }),
+      });
+      return res.json();
+    },
+  });
+}
+
+function useDeleteAdminPhoto() {
+  return useMutation({
+    mutationFn: async ({ bizId, photoId }: { bizId: number; photoId: number }) => {
+      await fetch(`${BASE}/api/admin/businesses/${bizId}/photos/${photoId}`, {
+        method: "DELETE", headers: authHeader(),
+      });
+    },
+  });
+}
+
+/* ── Confirm Delete Modal ── */
+function ConfirmDeleteModal({ label, onConfirm, onClose, loading }: {
+  label: string; onConfirm: () => void; onClose: () => void; loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+        style={{ background: "#0d1b2e", border: "1px solid rgba(239,68,68,0.3)" }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center flex-shrink-0">
+            <Trash2 className="h-5 w-5 text-red-400" />
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-sm">Confirm Delete</h3>
+            <p className="text-xs text-white/50 mt-0.5">This cannot be undone</p>
+          </div>
+        </div>
+        <p className="text-sm text-white/70 mb-5">Delete <span className="font-semibold text-white">{label}</span>? All related data will be permanently removed.</p>
+        <div className="flex gap-3">
+          <Button size="sm" variant="ghost" onClick={onClose} className="flex-1 text-white/50 hover:text-white">Cancel</Button>
+          <Button size="sm" onClick={onConfirm} disabled={loading}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-1.5">
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Delete
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Status badge ── */
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -239,6 +375,7 @@ function StatusBadge({ status }: { status: string }) {
 function EditBusinessModal({ biz, onClose, onSaved }: {
   biz: AdminBusiness; onClose: () => void; onSaved: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"info" | "photos">("info");
   const [form, setForm] = useState({
     name: biz.name,
     description: biz.description ?? "",
@@ -258,11 +395,28 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
     featured: biz.featured,
   });
   const update = useAdminUpdateBusiness();
+  const { data: photos, refetch: refetchPhotos } = useAdminBusinessPhotos(biz.id);
+  const addPhoto = useAddAdminPhoto();
+  const deletePhoto = useDeleteAdminPhoto();
+  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const qc = useQueryClient();
 
   const save = async () => {
     await update.mutateAsync({ id: biz.id, data: form });
     onSaved();
     onClose();
+  };
+
+  const handleAddPhoto = async () => {
+    if (!newPhotoUrl.trim()) return;
+    await addPhoto.mutateAsync({ bizId: biz.id, url: newPhotoUrl.trim() });
+    setNewPhotoUrl("");
+    refetchPhotos();
+  };
+
+  const handleDeletePhoto = async (photoId: number) => {
+    await deletePhoto.mutateAsync({ bizId: biz.id, photoId });
+    refetchPhotos();
   };
 
   const field = (label: string, key: keyof typeof form, type = "text") => (
@@ -281,73 +435,117 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)" }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+        className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+        style={{ background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)", maxHeight: "90vh" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Edit2 className="h-4 w-4 text-[#4a9eff]" />
             <h2 className="font-bold text-white text-sm">Edit Business — {biz.name}</h2>
           </div>
           <button onClick={onClose} className="p-1 text-white/40 hover:text-white"><X className="h-4 w-4" /></button>
         </div>
-        <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
-          {field("Business Name", "name")}
-          <div>
-            <label className="block text-xs font-medium text-white/50 mb-1">Description</label>
-            <textarea
-              rows={3}
-              value={form.description}
-              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40 resize-none"
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
-            />
-          </div>
-          {field("Phone", "phone")}
-          {field("WhatsApp", "whatsapp")}
-          {field("Website", "website")}
-          {field("Instagram (username)", "instagramUrl")}
-          {field("Facebook (page name)", "facebookUrl")}
-          {field("TikTok (username)", "tiktokUrl")}
-          {field("YouTube (channel)", "youtubeUrl")}
-          {field("Address", "address")}
-          {field("Opening Hours", "openingHours")}
-          <div className="grid grid-cols-2 gap-3">
-            {field("Latitude", "latitude", "number")}
-            {field("Longitude", "longitude", "number")}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-white/50 mb-1">Status</label>
-            <div className="relative">
-              <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
-                className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}>
-                {["pending", "approved", "rejected"].map(s => (
-                  <option key={s} value={s} style={{ background: "#0d1b2e" }}>{s}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40 pointer-events-none" />
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.verified} onChange={(e) => setForm(f => ({ ...f, verified: e.target.checked }))}
-                className="w-4 h-4 rounded accent-[#4a9eff]" />
-              <span className="text-sm text-white/70">Verified</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.featured} onChange={(e) => setForm(f => ({ ...f, featured: e.target.checked }))}
-                className="w-4 h-4 rounded accent-[#4a9eff]" />
-              <span className="text-sm text-white/70">Featured</span>
-            </label>
-          </div>
+        {/* Tab switcher */}
+        <div className="flex border-b border-white/10 flex-shrink-0">
+          {(["info", "photos"] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-2.5 text-xs font-semibold capitalize transition-colors ${activeTab === tab ? "text-[#4a9eff] border-b-2 border-[#4a9eff]" : "text-white/40 hover:text-white/70"}`}>
+              {tab === "info" ? "Business Info" : `Photos (${photos?.length ?? 0})`}
+            </button>
+          ))}
         </div>
-        <div className="px-5 py-3 border-t border-white/10 flex gap-2 justify-end">
+        <div className="overflow-y-auto flex-1 p-5">
+          {activeTab === "info" ? (
+            <div className="space-y-3">
+              {field("Business Name", "name")}
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Description</label>
+                <textarea rows={3} value={form.description}
+                  onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40 resize-none"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              </div>
+              {field("Phone", "phone")}
+              {field("WhatsApp", "whatsapp")}
+              {field("Website", "website")}
+              {field("Instagram (username)", "instagramUrl")}
+              {field("Facebook (page name)", "facebookUrl")}
+              {field("TikTok (username)", "tiktokUrl")}
+              {field("YouTube (channel)", "youtubeUrl")}
+              {field("Address", "address")}
+              {field("Opening Hours", "openingHours")}
+              <div className="grid grid-cols-2 gap-3">
+                {field("Latitude", "latitude", "number")}
+                {field("Longitude", "longitude", "number")}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1">Status</label>
+                <div className="relative">
+                  <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
+                    className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                    {["pending", "approved", "rejected", "suspended"].map(s => (
+                      <option key={s} value={s} style={{ background: "#0d1b2e" }}>{s}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40 pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.verified} onChange={(e) => setForm(f => ({ ...f, verified: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-[#4a9eff]" />
+                  <span className="text-sm text-white/70">Verified</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.featured} onChange={(e) => setForm(f => ({ ...f, featured: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-[#4a9eff]" />
+                  <span className="text-sm text-white/70">Featured</span>
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {!photos?.length ? (
+                <div className="text-center py-8 text-white/30 text-sm">No photos yet</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {photos.map(photo => (
+                    <div key={photo.id} className="relative group rounded-xl overflow-hidden aspect-video bg-white/5">
+                      <img src={photo.url} alt={photo.caption ?? ""} className="w-full h-full object-cover" />
+                      <button onClick={() => handleDeletePhoto(photo.id)}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-red-600/90 text-white">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="rounded-xl p-4 space-y-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <label className="block text-xs font-medium text-white/50 mb-1">Add Photo by URL</label>
+                <div className="flex gap-2">
+                  <input value={newPhotoUrl} onChange={(e) => setNewPhotoUrl(e.target.value)}
+                    placeholder="https://example.com/photo.jpg"
+                    className="flex-1 px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddPhoto()} />
+                  <Button size="sm" onClick={handleAddPhoto} disabled={addPhoto.isPending || !newPhotoUrl.trim()}
+                    className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white px-3">
+                    {addPhoto.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3 border-t border-white/10 flex gap-2 justify-end flex-shrink-0">
           <Button size="sm" variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">Cancel</Button>
-          <Button size="sm" onClick={save} disabled={update.isPending}
-            className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white gap-1.5">
-            {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save Changes
-          </Button>
+          {activeTab === "info" && (
+            <Button size="sm" onClick={save} disabled={update.isPending}
+              className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white gap-1.5">
+              {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save Changes
+            </Button>
+          )}
         </div>
       </motion.div>
     </div>
@@ -984,6 +1182,14 @@ export default function AdminPage() {
   const approveAgent = useApproveAgent();
   const approveClaim = useApproveClaim();
   const approveWithdrawal = useApproveWithdrawal();
+  const suspendUser = useSuspendUser();
+  const deleteUser = useDeleteUser();
+  const suspendAgent = useSuspendAgent();
+  const deleteAgent = useDeleteAgent();
+  const suspendBusiness = useSuspendBusiness();
+  const deleteBusiness = useDeleteBusiness();
+
+  const { data: allKYC } = useAllKYC();
 
   const [adminNotes, setAdminNotes] = useState<Record<number, string>>({});
   const [editAgent, setEditAgent] = useState<typeof allAgents extends Array<infer T> ? T | null : null>(null);
@@ -998,6 +1204,8 @@ export default function AdminPage() {
   const saveFeaturedOrder = useSaveFeaturedOrder();
   const [impersonateData, setImpersonateData] = useState<{ name: string; token: string } | null>(null);
   const [showPassport, setShowPassport] = useState<number | null>(null);
+  const [kycImgView, setKycImgView] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ label: string; onConfirm: () => Promise<void> } | null>(null);
 
   useEffect(() => {
     if (featuredOrderData) setFeaturedList(featuredOrderData);
@@ -1109,6 +1317,26 @@ export default function AdminPage() {
         )}
       </AnimatePresence>
 
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          label={confirmDelete.label}
+          loading={deleteUser.isPending || deleteAgent.isPending || deleteBusiness.isPending}
+          onConfirm={async () => { await confirmDelete.onConfirm(); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
+      {kycImgView && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-6"
+          style={{ background: "rgba(0,0,0,0.92)" }}
+          onClick={() => setKycImgView(null)}>
+          <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white">
+            <X className="h-5 w-5" />
+          </button>
+          <img src={kycImgView} alt="KYC Document" className="max-w-full max-h-full rounded-2xl object-contain shadow-2xl" />
+        </motion.div>
+      )}
+
       {impersonateData && (
         <ImpersonateBanner
           name={impersonateData.name}
@@ -1201,6 +1429,9 @@ export default function AdminPage() {
                 {(pendingClaims?.length ?? 0) > 0 && (
                   <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{pendingClaims?.length}</Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="kyc" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
+                <FileText className="h-3.5 w-3.5" /> KYC Documents
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1350,6 +1581,16 @@ export default function AdminPage() {
                         className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">
                         <LogIn className="h-3.5 w-3.5" /> Login As
                       </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={async () => { await suspendAgent.mutateAsync({ id: agent.id, suspend: agent.status !== "suspended" }); refetchAgents(); }}
+                        className={`gap-1 ${agent.status === "suspended" ? "text-green-400 border-green-400/30 hover:bg-green-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                        <Ban className="h-3.5 w-3.5" /> {agent.status === "suspended" ? "Unsuspend" : "Suspend"}
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => setConfirmDelete({ label: agent.fullName ?? `Agent #${agent.id}`, onConfirm: async () => { await deleteAgent.mutateAsync(agent.id); refetchAgents(); } })}
+                        className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </Button>
                     </div>
                   </AdminCard>
                 ))}
@@ -1401,6 +1642,16 @@ export default function AdminPage() {
                       <Button size="sm" variant="outline" onClick={() => handleImpersonate(user.id, user.name)}
                         className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">
                         <LogIn className="h-3.5 w-3.5" /> Login As
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={async () => { await suspendUser.mutateAsync({ id: user.id, suspend: (user as any).status !== "suspended" }); refetchUsers(); }}
+                        className={`gap-1 ${(user as any).status === "suspended" ? "text-green-400 border-green-400/30 hover:bg-green-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                        <Ban className="h-3.5 w-3.5" /> {(user as any).status === "suspended" ? "Unsuspend" : "Suspend"}
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => setConfirmDelete({ label: user.name, onConfirm: async () => { await deleteUser.mutateAsync(user.id); refetchUsers(); } })}
+                        className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
                       </Button>
                     </div>
                   </AdminCard>
@@ -1591,10 +1842,22 @@ export default function AdminPage() {
                           </button>
                         )}
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => setEditBusiness(biz)}
-                        className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10 flex-shrink-0">
-                        <Edit2 className="h-3.5 w-3.5" /> Edit
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => setEditBusiness(biz)}
+                          className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                          <Edit2 className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          onClick={async () => { await suspendBusiness.mutateAsync({ id: biz.id, suspend: biz.status !== "suspended" }); refetchAllBusinesses(); }}
+                          className={`gap-1 ${biz.status === "suspended" ? "text-green-400 border-green-400/30 hover:bg-green-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                          <Ban className="h-3.5 w-3.5" /> {biz.status === "suspended" ? "Unsuspend" : "Suspend"}
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          onClick={() => setConfirmDelete({ label: biz.name, onConfirm: async () => { await deleteBusiness.mutateAsync(biz.id); refetchAllBusinesses(); } })}
+                          className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </Button>
+                      </div>
                     </AdminCard>
                   ))}
                 </div>
@@ -1649,6 +1912,65 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ── KYC Documents ── */}
+          <TabsContent value="kyc">
+            {!allKYC?.length ? (
+              <EmptyState icon={<FileText className="h-10 w-10 text-white/20" />} title="No KYC documents yet" sub="Agent KYC submissions will appear here" />
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-white/30 mb-3">{allKYC.length} agent{allKYC.length !== 1 ? "s" : ""} with KYC documents</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {allKYC.map((agent) => (
+                    <div key={agent.id} className="rounded-2xl overflow-hidden"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div className="px-4 py-3 border-b border-white/8">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-foreground">{agent.fullName ?? agent.userName ?? `Agent #${agent.id}`}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${agent.status === "approved" ? "bg-green-500/15 text-green-400" : agent.status === "suspended" ? "bg-red-500/15 text-red-400" : "bg-amber-500/15 text-amber-400"}`}>
+                            {agent.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/40 mt-0.5">{agent.userEmail}</p>
+                        {(agent.idType || agent.idNumber) && (
+                          <p className="text-xs text-white/50 mt-0.5">{agent.idType}: <span className="font-mono">{agent.idNumber}</span></p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 p-3">
+                        {agent.passportPhotoUrl ? (
+                          <button onClick={() => setKycImgView(agent.passportPhotoUrl!)} className="relative group rounded-xl overflow-hidden aspect-square bg-white/5">
+                            <img src={agent.passportPhotoUrl} alt="Passport" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center">
+                              <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <span className="absolute bottom-1.5 left-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-black/60 text-white">Passport</span>
+                          </button>
+                        ) : (
+                          <div className="aspect-square rounded-xl bg-white/5 flex items-center justify-center">
+                            <Camera className="h-6 w-6 text-white/20" />
+                          </div>
+                        )}
+                        {agent.ninSlipUrl ? (
+                          <button onClick={() => setKycImgView(agent.ninSlipUrl!)} className="relative group rounded-xl overflow-hidden aspect-square bg-white/5">
+                            <img src={agent.ninSlipUrl} alt="NIN Slip" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center">
+                              <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <span className="absolute bottom-1.5 left-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-black/60 text-white">NIN Slip</span>
+                          </button>
+                        ) : (
+                          <div className="aspect-square rounded-xl bg-white/5 flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-white/20" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-white/30 px-4 pb-3">Submitted: {new Date(agent.createdAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </TabsContent>
