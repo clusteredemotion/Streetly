@@ -186,6 +186,8 @@ export function HomeMapView() {
   const [liveTracking, setLiveTracking] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Business[]>([]);
+  const [streetSuggestions, setStreetSuggestions] = useState<Array<{ place_id: number; display_name: string; lat: string; lon: string; type: string; class: string }>>([]);
+  const streetSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [showMovement, setShowMovement] = useState(false);
   const [activityIndex, setActivityIndex] = useState(0);
@@ -407,12 +409,30 @@ export function HomeMapView() {
             (b.streetName ?? "").toLowerCase().includes(search.toLowerCase()) ||
             (b.areaName ?? "").toLowerCase().includes(search.toLowerCase())
           )
-        ).slice(0, 6)
+        ).slice(0, 5)
       );
     } else {
       setSuggestions([]);
+      setStreetSuggestions([]);
     }
   }, [search, category, businesses]);
+
+  /* ── Nominatim street/place search — debounced 400ms ── */
+  useEffect(() => {
+    if (streetSearchTimer.current) clearTimeout(streetSearchTimer.current);
+    if (search.trim().length < 3) { setStreetSuggestions([]); return; }
+    streetSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search)}&limit=5&addressdetails=0`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data = await res.json();
+        setStreetSuggestions(data);
+      } catch { setStreetSuggestions([]); }
+    }, 400);
+    return () => { if (streetSearchTimer.current) clearTimeout(streetSearchTimer.current); };
+  }, [search]);
 
   /* ── Switch tile layer + satellite street labels ── */
   useEffect(() => {
@@ -1170,7 +1190,7 @@ export function HomeMapView() {
 
           {/* Search Suggestions */}
           <AnimatePresence>
-            {searchFocused && suggestions.length > 0 && (
+            {searchFocused && (streetSuggestions.length > 0 || suggestions.length > 0) && (
               <motion.div
                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1178,23 +1198,60 @@ export function HomeMapView() {
                 className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden shadow-2xl z-50"
                 style={{ background: "rgba(255,255,255,0.97)", backdropFilter: "blur(24px)", border: "1px solid rgba(0,0,0,0.06)" }}
               >
-                {suggestions.map((biz) => (
-                  <button
-                    key={biz.id}
-                    onClick={() => handleSuggestionClick(biz)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
-                  >
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR}20` }}>
-                      <MapPin className="h-4 w-4" style={{ color: CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR }} />
+                {/* Street / Place results from Nominatim */}
+                {streetSuggestions.length > 0 && (
+                  <>
+                    <div className="px-4 pt-3 pb-1">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Streets &amp; Places</p>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{biz.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{[biz.streetName, biz.areaName, biz.cityName].filter(Boolean).join(", ")}</p>
+                    {streetSuggestions.map((place) => (
+                      <button
+                        key={place.place_id}
+                        onClick={() => {
+                          flyToLocation(parseFloat(place.lat), parseFloat(place.lon), 16);
+                          setSearch(place.display_name.split(",")[0]);
+                          setStreetSuggestions([]);
+                          setSearchFocused(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                      >
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50">
+                          <Navigation2 className="h-4 w-4 text-emerald-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{place.display_name.split(",")[0]}</p>
+                          <p className="text-xs text-gray-400 truncate">{place.display_name.split(",").slice(1, 3).join(",").trim()}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
+                      </button>
+                    ))}
+                  </>
+                )}
+                {/* Business results from DB */}
+                {suggestions.length > 0 && (
+                  <>
+                    <div className="px-4 pt-3 pb-1">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Businesses</p>
                     </div>
-                    {biz.verified && <ShieldCheck className="h-4 w-4 text-blue-500 flex-shrink-0" />}
-                  </button>
-                ))}
+                    {suggestions.map((biz) => (
+                      <button
+                        key={biz.id}
+                        onClick={() => handleSuggestionClick(biz)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                      >
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: `${CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR}20` }}>
+                          <MapPin className="h-4 w-4" style={{ color: CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR }} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{biz.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{[biz.streetName, biz.areaName, biz.cityName].filter(Boolean).join(", ")}</p>
+                        </div>
+                        {biz.verified && <ShieldCheck className="h-4 w-4 text-blue-500 flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
