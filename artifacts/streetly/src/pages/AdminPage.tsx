@@ -21,7 +21,7 @@ import {
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
-  MessageSquare, Star, BarChart2, ChevronRight, Download,
+  MessageSquare, Star, BarChart2, ChevronRight, Download, Settings,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -29,6 +29,7 @@ import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminMessages from "@/components/admin/AdminMessages";
 import AdminCategories from "@/components/admin/AdminCategories";
 import AdminExport from "@/components/admin/AdminExport";
+import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -1536,6 +1537,9 @@ export default function AdminPage() {
 
             <NavGroup label="Data" />
             <NavItem section="export" active={activeSection} label="Export Data" icon={<Download className="h-4 w-4" />} onSelect={setActiveSection} />
+
+            <NavGroup label="Configuration" />
+            <NavItem section="email-settings" active={activeSection} label="Email &amp; Account" icon={<Settings className="h-4 w-4" />} onSelect={setActiveSection} />
           </nav>
         </aside>
 
@@ -1570,6 +1574,7 @@ export default function AdminPage() {
           {/* ── Messages ── */}
           {activeSection === "messages" && <AdminMessages />}
           {activeSection === "export" && <AdminExport />}
+          {activeSection === "email-settings" && <AdminEmailSettings />}
 
           {/* ── Categories ── */}
           {activeSection === "categories" && <AdminCategories />}

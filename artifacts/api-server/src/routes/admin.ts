@@ -744,6 +744,61 @@ router.patch("/claims/:id/approve", async (req, res) => {
   return res.json(claim);
 });
 
+/* ─────────────────────── SETTINGS ROUTES ─────────────────────── */
+
+// GET /admin/settings
+router.get("/settings", async (_req, res) => {
+  const rows = await db.execute(sql`SELECT key, value FROM settings ORDER BY key`);
+  const settings: Record<string, string> = {};
+  for (const row of rows.rows as { key: string; value: string | null }[]) {
+    settings[row.key] = row.value ?? "";
+  }
+  return res.json(settings);
+});
+
+// PUT /admin/settings
+router.put("/settings", async (req, res) => {
+  const updates: Record<string, string> = req.body;
+  if (!updates || typeof updates !== "object") {
+    return res.status(400).json({ error: "Invalid payload" });
+  }
+  for (const [key, value] of Object.entries(updates)) {
+    await db.execute(
+      sql`INSERT INTO settings (key, value, updated_at) VALUES (${key}, ${value}, NOW())
+          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`
+    );
+  }
+  return res.json({ ok: true });
+});
+
+// PUT /admin/settings/admin-credentials — update admin login email/password
+router.put("/settings/admin-credentials", async (req, res) => {
+  const { email, password } = req.body;
+  const updates: Record<string, string> = {};
+  if (email) {
+    const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (existing.length > 0 && existing[0].role !== "admin") {
+      return res.status(400).json({ error: "Email already in use by another account." });
+    }
+    await db.update(usersTable).set({ email }).where(eq(usersTable.role, "admin" as any));
+    updates.admin_login_email = email;
+  }
+  if (password) {
+    const crypto = await import("crypto");
+    const hash = crypto.createHash("sha256").update(password + "streetly_salt").digest("hex");
+    await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.role, "admin" as any));
+  }
+  if (Object.keys(updates).length > 0) {
+    for (const [key, value] of Object.entries(updates)) {
+      await db.execute(
+        sql`INSERT INTO settings (key, value, updated_at) VALUES (${key}, ${value}, NOW())
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`
+      );
+    }
+  }
+  return res.json({ ok: true });
+});
+
 /* ─────────────────────── CSV EXPORT ROUTES ─────────────────────── */
 
 function toCsv(headers: string[], rows: (string | number | boolean | null | undefined)[][]): string {

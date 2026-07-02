@@ -106,7 +106,7 @@ export default function AdminLoginGate({ onUnlock }: Props) {
                   type="email"
                   value={email}
                   onChange={e => { setEmail(e.target.value); setError(""); }}
-                  placeholder="admin@mystreetly.app"
+                  placeholder="user@mail.com"
                   autoComplete="username"
                   required
                   className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-white outline-none transition-all"
