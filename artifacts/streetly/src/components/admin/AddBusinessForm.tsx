@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Country, State, City as CSCCity } from "country-state-city";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -679,17 +680,14 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Country</FieldLabel>
-              <SelectField
+              <SearchableSelect
                 value={form.countryName}
-                onChange={(v) => {
-                  setForm((prev) => ({ ...prev, countryName: v, stateName: "", cityName: "", areaName: "" }));
-                }}
-              >
-                <option value="">Select country</option>
-                {allCountriesList.map((c) => (
-                  <option key={c.isoCode} value={c.name}>{c.name}</option>
-                ))}
-              </SelectField>
+                onChange={(v) => setForm((prev) => ({ ...prev, countryName: v, stateName: "", cityName: "", areaName: "" }))}
+                options={allCountriesList.map((c) => ({ value: c.name, label: c.name }))}
+                placeholder="Select country"
+                searchPlaceholder="Search country…"
+                variant="solid"
+              />
             </div>
             <div>
               <FieldLabel>State / Region</FieldLabel>

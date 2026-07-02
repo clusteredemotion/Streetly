@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Country, State, City as CSCCity } from "country-state-city";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
@@ -435,12 +436,14 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
           <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel>Country</FieldLabel>
-              <GlassSelect value={form.countryName} onChange={(v) => setForm((p) => ({ ...p, countryName: v, stateName: "", cityName: "", areaName: "" }))}>
-                <option value="" style={{ background: "#0a1628" }}>Select country</option>
-                {allCountriesList.map((c) => (
-                  <option key={c.isoCode} value={c.name} style={{ background: "#0a1628" }}>{c.name}</option>
-                ))}
-              </GlassSelect>
+              <SearchableSelect
+                value={form.countryName}
+                onChange={(v) => setForm((p) => ({ ...p, countryName: v, stateName: "", cityName: "", areaName: "" }))}
+                options={allCountriesList.map((c) => ({ value: c.name, label: c.name }))}
+                placeholder="Select country"
+                searchPlaceholder="Search country…"
+                variant="glass"
+              />
             </div>
             <div>
               <FieldLabel>State / Region</FieldLabel>
