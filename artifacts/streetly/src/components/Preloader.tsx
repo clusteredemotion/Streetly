@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import logo from "@assets/WhatsApp_Image_2026-07-02_at_4.40.54_PM_1783021954458.jpeg";
+import { MapPin, Store, Building2 } from "lucide-react";
+
+const easeOutBack = [0.34, 1.56, 0.64, 1] as const;
 
 export function Preloader() {
   const [visible, setVisible] = useState(true);
@@ -31,7 +33,7 @@ export function Preloader() {
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
           style={{ background: "linear-gradient(160deg, #ffffff 0%, #f3fbf6 45%, #fffdf3 100%)" }}
         >
-          {/* animated road line moving across the background */}
+          {/* animated road line sweeping across the bottom */}
           <motion.div
             className="absolute bottom-0 left-0 right-0 h-1"
             style={{ background: "linear-gradient(90deg, #16a34a, #facc15)" }}
@@ -43,39 +45,90 @@ export function Preloader() {
           {/* soft pulsing glow behind the logo */}
           <motion.div
             className="absolute rounded-full"
-            style={{ width: 260, height: 260, background: "radial-gradient(circle, rgba(22,163,74,0.18) 0%, rgba(250,204,21,0.08) 60%, transparent 80%)" }}
-            animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+            style={{ width: 280, height: 280, background: "radial-gradient(circle, rgba(22,163,74,0.16) 0%, rgba(250,204,21,0.08) 60%, transparent 80%)" }}
+            animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.9, 0.5] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
 
-          {/* logo bounce + fade in */}
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.85 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
-            className="relative flex flex-col items-center"
-          >
-            <motion.img
-              src={logo}
-              alt="Streetly"
-              className="w-40 h-40 sm:w-48 sm:h-48 object-contain drop-shadow-xl"
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-            />
-          </motion.div>
+          <div className="relative flex flex-col items-center">
+            {/* ── Pin assembly: outline drops in, buildings fly up into it ── */}
+            <div className="relative w-28 h-28 flex items-center justify-center mb-3">
+              <motion.div
+                initial={{ y: -140, opacity: 0, rotate: -20 }}
+                animate={{ y: 0, opacity: 1, rotate: 0 }}
+                transition={{ duration: 0.7, ease: easeOutBack }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <MapPin className="w-28 h-28" style={{ color: "#15803d" }} strokeWidth={1.4} />
+              </motion.div>
 
-          {/* tagline */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-            className="mt-6 text-sm sm:text-base font-semibold tracking-wide text-emerald-800/80"
-          >
-            Discovering every business, every street
-          </motion.p>
+              <motion.div
+                initial={{ y: 50, opacity: 0, scale: 0.5 }}
+                animate={{ y: -10, opacity: 1, scale: 1 }}
+                transition={{ delay: 0.45, duration: 0.5, ease: easeOutBack }}
+                className="absolute flex items-end gap-0.5"
+              >
+                <Building2 className="w-4 h-4" style={{ color: "#facc15" }} strokeWidth={2.2} />
+                <Store className="w-6 h-6" style={{ color: "#15803d" }} strokeWidth={2.2} />
+              </motion.div>
+            </div>
+
+            {/* ── Text pieces flow in from opposite sides and meet ── */}
+            <div className="flex items-baseline">
+              <motion.span
+                initial={{ x: -80, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.75, duration: 0.55, ease: easeOutBack }}
+                className="text-4xl sm:text-5xl font-extrabold"
+                style={{ color: "#15803d" }}
+              >
+                Street
+              </motion.span>
+              <motion.span
+                initial={{ x: 80, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.85, duration: 0.55, ease: easeOutBack }}
+                className="text-4xl sm:text-5xl font-extrabold relative"
+                style={{ color: "#facc15" }}
+              >
+                ly
+                <motion.span
+                  initial={{ scale: 0, opacity: 0, y: -8 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  transition={{ delay: 1.2, duration: 0.4, ease: easeOutBack }}
+                  className="absolute -top-2.5 -right-1.5"
+                >
+                  <MapPin className="w-3.5 h-3.5" style={{ color: "#facc15" }} fill="#facc15" />
+                </motion.span>
+              </motion.span>
+            </div>
+
+            {/* underline forming as pieces settle */}
+            <motion.div
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={{ delay: 1.35, duration: 0.5 }}
+              className="h-px w-40 my-2"
+              style={{ background: "linear-gradient(90deg, transparent, #15803d, #facc15, transparent)" }}
+            />
+
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.5, duration: 0.5 }}
+              className="text-sm sm:text-base font-semibold tracking-wide text-emerald-800/80 text-center"
+            >
+              Discovering every business, every street
+            </motion.p>
+          </div>
 
           {/* animated dots */}
-          <div className="mt-5 flex gap-1.5">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.65, duration: 0.3 }}
+            className="mt-5 flex gap-1.5"
+          >
             {[0, 1, 2].map((i) => (
               <motion.span
                 key={i}
@@ -85,7 +138,7 @@ export function Preloader() {
                 transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
               />
             ))}
-          </div>
+          </motion.div>
 
           {/* progress bar */}
           <div className="mt-8 w-48 h-1.5 rounded-full bg-black/10 overflow-hidden">
