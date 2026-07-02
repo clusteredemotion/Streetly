@@ -691,17 +691,14 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
             </div>
             <div>
               <FieldLabel>State / Region</FieldLabel>
-              <SelectField
+              <SearchableSelect
                 value={form.stateName}
-                onChange={(v) => {
-                  setForm((prev) => ({ ...prev, stateName: v, cityName: "", areaName: "" }));
-                }}
-              >
-                <option value="">Select state</option>
-                {locationStates.map((s) => (
-                  <option key={s.isoCode} value={s.name}>{s.name}</option>
-                ))}
-              </SelectField>
+                onChange={(v) => setForm((prev) => ({ ...prev, stateName: v, cityName: "", areaName: "" }))}
+                options={locationStates.map((s) => ({ value: s.name, label: s.name }))}
+                placeholder="Select state"
+                searchPlaceholder="Search state…"
+                variant="solid"
+              />
             </div>
           </div>
 
@@ -723,7 +720,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
                 <InputField
                   value={form.cityName}
                   onChange={(v) => set("cityName", v)}
-                  placeholder="e.g. Lagos"
+                  placeholder="e.g. New York"
                 />
               )}
             </div>
@@ -744,7 +741,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
                 <InputField
                   value={form.areaName === "__other__" ? "" : form.areaName}
                   onChange={(v) => set("areaName", v)}
-                  placeholder="e.g. Victoria Island"
+                  placeholder="e.g. Downtown"
                 />
               )}
             </div>
@@ -753,7 +750,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
               <InputField
                 value={form.streetName}
                 onChange={(v) => set("streetName", v)}
-                placeholder="e.g. Bode Thomas Street"
+                placeholder="e.g. Main Street"
               />
             </div>
           </div>

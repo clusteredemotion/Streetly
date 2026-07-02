@@ -447,12 +447,14 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
             </div>
             <div>
               <FieldLabel>State / Region</FieldLabel>
-              <GlassSelect value={form.stateName} onChange={(v) => setForm((p) => ({ ...p, stateName: v, cityName: "", areaName: "" }))}>
-                <option value="" style={{ background: "#0a1628" }}>Select state</option>
-                {locationStates.map((s) => (
-                  <option key={s.isoCode} value={s.name} style={{ background: "#0a1628" }}>{s.name}</option>
-                ))}
-              </GlassSelect>
+              <SearchableSelect
+                value={form.stateName}
+                onChange={(v) => setForm((p) => ({ ...p, stateName: v, cityName: "", areaName: "" }))}
+                options={locationStates.map((s) => ({ value: s.name, label: s.name }))}
+                placeholder="Select state"
+                searchPlaceholder="Search state…"
+                variant="glass"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -467,7 +469,7 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
                   <option value="__other__" style={{ background: "#0a1628" }}>Other…</option>
                 </GlassSelect>
               ) : (
-                <GlassInput value={form.cityName} onChange={(v) => set("cityName", v)} placeholder="e.g. Lagos" />
+                <GlassInput value={form.cityName} onChange={(v) => set("cityName", v)} placeholder="e.g. New York" />
               )}
             </div>
             {form.cityName === "__other__" && (
@@ -487,13 +489,13 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
                   <option value="__other__" style={{ background: "#0a1628" }}>Other…</option>
                 </GlassSelect>
               ) : (
-                <GlassInput value={form.areaName === "__other__" ? "" : form.areaName} onChange={(v) => set("areaName", v)} placeholder="e.g. Victoria Island" />
+                <GlassInput value={form.areaName === "__other__" ? "" : form.areaName} onChange={(v) => set("areaName", v)} placeholder="e.g. Downtown" />
               )}
             </div>
           </div>
           <div>
             <FieldLabel required>Street Name</FieldLabel>
-            <GlassInput value={form.streetName} onChange={(v) => set("streetName", v)} placeholder="e.g. Bode Thomas Street" />
+            <GlassInput value={form.streetName} onChange={(v) => set("streetName", v)} placeholder="e.g. Main Street" />
           </div>
         </div>
       </SectionCard>
