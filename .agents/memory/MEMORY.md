@@ -1,0 +1,1 @@
+- [Admin dashboard architecture](admin-dashboard.md) — sidebar layout replaces horizontal tabs; uses activeSection state; Analytics + Messages are new sections

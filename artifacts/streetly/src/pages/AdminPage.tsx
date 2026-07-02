@@ -4,7 +4,6 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useGetAdminStats,
   useGetPendingBusinesses,
@@ -22,9 +21,12 @@ import {
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
+  MessageSquare, Star, BarChart2, ChevronRight,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
+import AdminAnalytics from "@/components/admin/AdminAnalytics";
+import AdminMessages from "@/components/admin/AdminMessages";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -1163,10 +1165,44 @@ function ImpersonateBanner({ name, token, onClear }: { name: string; token: stri
   );
 }
 
+/* ── Sidebar nav helpers ── */
+type Section = string;
+function NavGroup({ label }: { label: string }) {
+  return (
+    <p className="mt-5 mb-1.5 px-2 text-[9px] font-bold uppercase tracking-widest text-white/25">{label}</p>
+  );
+}
+function NavItem({ section, active, label, icon, badge, onSelect }: {
+  section: Section; active: Section; label: string; icon: React.ReactNode;
+  badge?: number; onSelect: (s: Section) => void;
+}) {
+  const isActive = active === section;
+  return (
+    <button onClick={() => onSelect(section)}
+      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-150 mb-0.5 ${isActive ? "text-white" : "text-white/45 hover:text-white/75 hover:bg-white/5"}`}
+      style={isActive ? { background: "rgba(74,158,255,0.18)", color: "#7dbfff" } : {}}>
+      <span className={isActive ? "text-[#4a9eff]" : "text-white/30"}>{icon}</span>
+      <span className="flex-1 text-left text-[13px]">{label}</span>
+      {!!badge && badge > 0 && (
+        <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center bg-orange-500 text-white">{badge}</span>
+      )}
+    </button>
+  );
+}
+function SectionHeader({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-lg font-bold text-white">{title}</h2>
+      {sub && <p className="text-sm text-white/40 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════ */
 export default function AdminPage() {
+  const [activeSection, setActiveSection] = useState<Section>("analytics");
   const qc = useQueryClient();
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: pendingBiz } = useGetPendingBusinesses();
@@ -1345,110 +1381,103 @@ export default function AdminPage() {
         />
       )}
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#060c1e] to-[#0a1a38] text-white py-10 border-b border-white/5">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-white/40 mt-1 text-sm">Streetly platform management</p>
-          {totalPending > 0 && (
-            <div className="mt-3 inline-flex items-center gap-2 bg-orange-500/15 border border-orange-500/25 text-orange-300 text-sm px-3 py-1.5 rounded-full">
-              <AlertCircle className="h-4 w-4" />
-              {totalPending} item{totalPending !== 1 ? "s" : ""} awaiting review
+      {/* Sidebar + Content layout */}
+      <div className="flex" style={{ minHeight: "calc(100vh - 64px)", background: "#070c1a" }}>
+
+        {/* ── Sidebar ── */}
+        <aside className="w-56 flex-shrink-0 flex flex-col sticky top-16 h-[calc(100vh-64px)] overflow-y-auto"
+          style={{ background: "#060c1a", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+          {/* Branding / pending alert */}
+          <div className="px-4 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(74,158,255,0.2)" }}>
+                <ShieldCheck className="h-4 w-4 text-[#4a9eff]" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-white tracking-wide">STREETLY</p>
+                <p className="text-[10px] text-white/30 -mt-0.5">Admin Panel</p>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+            {totalPending > 0 && (
+              <div className="mt-3 flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1.5 rounded-lg text-orange-300"
+                style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)" }}>
+                <AlertCircle className="h-3 w-3" />
+                {totalPending} awaiting review
+              </div>
+            )}
+          </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Stats */}
-        {statsLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-          </div>
-        ) : stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            {[
-              { label: "Businesses", value: stats.totalBusinesses, icon: Building2, color: "text-blue-400 bg-blue-900/30" },
-              { label: "Agents", value: stats.totalAgents, icon: Users, color: "text-green-400 bg-green-900/30" },
-              { label: "Users", value: stats.totalUsers, icon: Users, color: "text-purple-400 bg-purple-900/30" },
-              { label: "Pending Biz", value: stats.pendingBusinesses, icon: AlertCircle, color: "text-orange-400 bg-orange-900/30" },
-              { label: "Revenue", value: formatCurrency(stats.revenue), icon: TrendingUp, color: "text-emerald-400 bg-emerald-900/30" },
-            ].map((s, i) => (
-              <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
-                className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <div className={`w-8 h-8 rounded-lg ${s.color} flex items-center justify-center mb-2`}>
-                  <s.icon className="h-4 w-4" />
-                </div>
-                <div className="text-xl font-bold text-white">{s.value}</div>
-                <div className="text-xs text-white/40 mt-0.5">{s.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+          {/* Navigation */}
+          <nav className="flex-1 py-3 px-2.5">
+            <NavItem section="analytics" active={activeSection} label="Analytics" icon={<BarChart2 className="h-4 w-4" />} onSelect={setActiveSection} />
 
-        {/* Tabs */}
-        <Tabs defaultValue="add-business">
-          <div className="overflow-x-auto pb-1">
-            <TabsList className="mb-6 flex-nowrap h-auto gap-1 min-w-max bg-white/5 border border-white/10">
-              <TabsTrigger value="add-business" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                <Plus className="h-3.5 w-3.5" /> Add Business
-              </TabsTrigger>
-              <TabsTrigger value="businesses" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                Pending Businesses
-                {(stats?.pendingBusinesses ?? 0) > 0 && (
-                  <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{stats?.pendingBusinesses}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="pending-agents" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                Pending Agents
-                {(stats?.pendingAgents ?? 0) > 0 && (
-                  <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{stats?.pendingAgents}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="all-agents" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                <Users className="h-3.5 w-3.5" /> All Agents
-              </TabsTrigger>
-              <TabsTrigger value="all-users" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                <Users className="h-3.5 w-3.5" /> All Users
-              </TabsTrigger>
-              <TabsTrigger value="commissions" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                <CreditCard className="h-3.5 w-3.5" /> Commissions
-                {(withdrawals?.length ?? 0) > 0 && (
-                  <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{withdrawals?.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="featured-order" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                ⭐ Featured Order
-              </TabsTrigger>
-              <TabsTrigger value="all-businesses" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                <Building2 className="h-3.5 w-3.5" /> All Businesses
-              </TabsTrigger>
-              <TabsTrigger value="claims" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                Claims
-                {(pendingClaims?.length ?? 0) > 0 && (
-                  <Badge className="bg-orange-500 text-white hover:bg-orange-500 h-5 min-w-5 px-1.5 text-xs">{pendingClaims?.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="kyc" className="gap-2 whitespace-nowrap data-[state=active]:bg-[#4a9eff] data-[state=active]:text-white">
-                <FileText className="h-3.5 w-3.5" /> KYC Documents
-              </TabsTrigger>
-            </TabsList>
+            <NavGroup label="Businesses" />
+            <NavItem section="add-business" active={activeSection} label="Add Business" icon={<Plus className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="businesses" active={activeSection} label="Pending Review" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingBusinesses} onSelect={setActiveSection} />
+            <NavItem section="all-businesses" active={activeSection} label="All Businesses" icon={<Building2 className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="featured-order" active={activeSection} label="Featured Order" icon={<Star className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="claims" active={activeSection} label="Ownership Claims" icon={<ShieldCheck className="h-4 w-4" />} badge={pendingClaims?.length} onSelect={setActiveSection} />
+
+            <NavGroup label="People" />
+            <NavItem section="all-users" active={activeSection} label="All Users" icon={<Users className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="all-agents" active={activeSection} label="All Agents" icon={<User className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={setActiveSection} />
+            <NavItem section="kyc" active={activeSection} label="KYC Documents" icon={<FileText className="h-4 w-4" />} onSelect={setActiveSection} />
+
+            <NavGroup label="Finance" />
+            <NavItem section="commissions" active={activeSection} label="Commissions" icon={<CreditCard className="h-4 w-4" />} badge={withdrawals?.length} onSelect={setActiveSection} />
+
+            <NavGroup label="Communications" />
+            <NavItem section="messages" active={activeSection} label="Messages" icon={<MessageSquare className="h-4 w-4" />} onSelect={setActiveSection} />
+          </nav>
+        </aside>
+
+        {/* ── Main content ── */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          {/* Top bar */}
+          <div className="sticky top-16 z-30 flex items-center gap-3 px-6 py-3.5"
+            style={{ background: "rgba(7,12,26,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <ChevronRight className="h-3.5 w-3.5 text-white/20" />
+            <span className="text-sm font-semibold text-white capitalize">{activeSection.replace(/-/g, " ")}</span>
+            {statsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30 ml-auto" />}
+            {stats && !statsLoading && (
+              <div className="ml-auto flex items-center gap-4">
+                {[
+                  { v: stats.totalBusinesses, l: "Businesses", c: "text-[#4a9eff]" },
+                  { v: stats.totalAgents, l: "Agents", c: "text-green-400" },
+                  { v: stats.totalUsers, l: "Users", c: "text-purple-400" },
+                  { v: formatCurrency(stats.revenue), l: "Revenue", c: "text-emerald-400" },
+                ].map(s => (
+                  <div key={s.l} className="hidden lg:flex flex-col items-end">
+                    <span className={`text-xs font-bold ${s.c}`}>{s.v}</span>
+                    <span className="text-[10px] text-white/25">{s.l}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Section content */}
+          <div className="p-6">
+
+          {/* ── Analytics ── */}
+          {activeSection === "analytics" && <AdminAnalytics />}
+
+          {/* ── Messages ── */}
+          {activeSection === "messages" && <AdminMessages />}
 
           {/* ── Add Business ── */}
-          <TabsContent value="add-business">
-            <div className="max-w-2xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-lg font-bold text-foreground">Add New Business</h2>
-                <p className="text-sm text-muted-foreground mt-1">Register a business directly to the Streetly directory.</p>
-              </div>
+          {activeSection === "add-business" && (
+            <div className="max-w-2xl">
+              <SectionHeader title="Add New Business" sub="Register a business directly to the Streetly directory." />
               <AddBusinessForm />
             </div>
-          </TabsContent>
+          )}
 
           {/* ── Pending Businesses ── */}
-          <TabsContent value="businesses">
+          {activeSection === "businesses" && (
+            <>
+            <SectionHeader title="Pending Businesses" sub="Review and approve or reject listings submitted by agents." />
             {!pendingBiz?.length ? (
               <EmptyState icon={<CheckCircle className="h-10 w-10 text-green-500" />} title="No pending businesses" sub="All businesses have been reviewed" />
             ) : (
@@ -1481,10 +1510,13 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── Pending Agents ── */}
-          <TabsContent value="pending-agents">
+          {activeSection === "pending-agents" && (
+            <>
+            <SectionHeader title="Pending Agents" sub="Review agent applications and approve or reject them." />
             {!pendingAgents?.length ? (
               <EmptyState icon={<CheckCircle className="h-10 w-10 text-green-500" />} title="No pending agents" sub="All applications have been reviewed" />
             ) : (
@@ -1525,10 +1557,13 @@ export default function AdminPage() {
                 })}
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── All Agents ── */}
-          <TabsContent value="all-agents">
+          {activeSection === "all-agents" && (
+            <>
+            <SectionHeader title="All Agents" sub="Manage all registered field agents on Streetly." />
             {!allAgents?.length ? (
               <EmptyState icon={<Users className="h-10 w-10 text-white/20" />} title="No agents yet" sub="Agents will appear here once they apply" />
             ) : (
@@ -1596,10 +1631,13 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── All Users ── */}
-          <TabsContent value="all-users">
+          {activeSection === "all-users" && (
+            <>
+            <SectionHeader title="All Users" sub="Manage all registered users. Field agents are listed under All Agents." />
             {!allUsers?.length ? (
               <EmptyState icon={<Users className="h-10 w-10 text-white/20" />} title="No users yet" sub="" />
             ) : (
@@ -1658,10 +1696,13 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── Commissions ── */}
-          <TabsContent value="commissions">
+          {activeSection === "commissions" && (
+            <>
+            <SectionHeader title="Commissions" sub="Review and approve pending agent commission payouts." />
             {!withdrawals?.length ? (
               <EmptyState
                 icon={<CreditCard className="h-10 w-10 text-green-500" />}
@@ -1698,10 +1739,11 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── Featured Order ── */}
-          <TabsContent value="featured-order">
+          {activeSection === "featured-order" && (
             <div className="max-w-xl">
               <div className="mb-5">
                 <h2 className="text-base font-bold text-foreground">Featured Business Order</h2>
@@ -1784,10 +1826,12 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-          </TabsContent>
+          )}
 
           {/* ── All Businesses ── */}
-          <TabsContent value="all-businesses">
+          {activeSection === "all-businesses" && (
+            <>
+            <SectionHeader title="All Businesses" sub="View, edit, suspend or delete any business on the platform." />
             <div className="mb-4">
               <input
                 type="text"
@@ -1863,10 +1907,13 @@ export default function AdminPage() {
                 </div>
               );
             })()}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── Ownership Claims ── */}
-          <TabsContent value="claims">
+          {activeSection === "claims" && (
+            <>
+            <SectionHeader title="Ownership Claims" sub="Verify and transfer business ownership to legitimate claimants." />
             {!pendingClaims?.length ? (
               <EmptyState icon={<ShieldCheck className="h-10 w-10 text-green-500" />} title="No pending claims" sub="All ownership claims have been resolved" />
             ) : (
@@ -1914,10 +1961,13 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
           {/* ── KYC Documents ── */}
-          <TabsContent value="kyc">
+          {activeSection === "kyc" && (
+            <>
+            <SectionHeader title="KYC Documents" sub="Review agent identity documents for compliance." />
             {!allKYC?.length ? (
               <EmptyState icon={<FileText className="h-10 w-10 text-white/20" />} title="No KYC documents yet" sub="Agent KYC submissions will appear here" />
             ) : (
@@ -1973,9 +2023,12 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            </>
+          )}
+
+          </div>{/* /section content */}
+        </main>
+      </div>{/* /sidebar+content flex */}
     </Layout>
   );
 }

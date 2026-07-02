@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import {
   businessesTable, agentsTable, usersTable, withdrawalsTable,
   businessClaimsTable, businessPhotosTable, categoriesTable,
-  citiesTable, areasTable, streetsTable,
+  citiesTable, areasTable, streetsTable, messagesTable,
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 
@@ -487,6 +487,116 @@ router.get("/kyc", async (_req, res) => {
     ))
     .orderBy(desc(agentsTable.createdAt));
   return res.json(rows);
+});
+
+// GET /admin/analytics
+router.get("/analytics", async (_req, res) => {
+  try {
+    const growthRaw = await db.execute(sql`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('month', NOW() - INTERVAL '11 months'),
+          date_trunc('month', NOW()),
+          '1 month'::interval
+        ) AS m
+      )
+      SELECT TO_CHAR(m.m, 'Mon ''YY') AS month, COALESCE(COUNT(b.id), 0)::int AS count
+      FROM months m
+      LEFT JOIN businesses b ON date_trunc('month', b.created_at) = m.m
+      GROUP BY m.m ORDER BY m.m
+    `);
+    let cumulative = 0;
+    const businessGrowth = (growthRaw.rows as any[]).map(r => {
+      cumulative += Number(r.count);
+      return { month: r.month, count: Number(r.count), cumulative };
+    });
+
+    const catRaw = await db.execute(sql`
+      SELECT c.name, COUNT(b.id)::int AS count
+      FROM businesses b JOIN categories c ON b.category_id = c.id
+      GROUP BY c.name ORDER BY count DESC LIMIT 10
+    `);
+
+    const statusRaw = await db.execute(sql`
+      SELECT status, COUNT(*)::int AS count FROM businesses GROUP BY status ORDER BY count DESC
+    `);
+
+    const cityRaw = await db.execute(sql`
+      SELECT ci.name AS city, COUNT(b.id)::int AS count
+      FROM businesses b
+      JOIN streets s ON b.street_id = s.id
+      JOIN areas a ON s.area_id = a.id
+      JOIN cities ci ON a.city_id = ci.id
+      GROUP BY ci.name ORDER BY count DESC LIMIT 8
+    `);
+
+    const agentGrowthRaw = await db.execute(sql`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('month', NOW() - INTERVAL '11 months'),
+          date_trunc('month', NOW()),
+          '1 month'::interval
+        ) AS m
+      )
+      SELECT TO_CHAR(m.m, 'Mon ''YY') AS month, COALESCE(COUNT(a.id), 0)::int AS count
+      FROM months m
+      LEFT JOIN agents a ON date_trunc('month', a.created_at) = m.m
+      GROUP BY m.m ORDER BY m.m
+    `);
+
+    const [bizCount] = await db.select({ count: count() }).from(businessesTable);
+    const [userCount] = await db.select({ count: count() }).from(usersTable);
+    const [agentCount] = await db.select({ count: count() }).from(agentsTable);
+
+    return res.json({
+      businessGrowth,
+      categoryBreakdown: (catRaw.rows as any[]).map(r => ({ name: r.name, count: Number(r.count) })),
+      statusBreakdown: (statusRaw.rows as any[]).map(r => ({ status: r.status, count: Number(r.count) })),
+      cityBreakdown: (cityRaw.rows as any[]).map(r => ({ city: r.city, count: Number(r.count) })),
+      agentGrowth: (agentGrowthRaw.rows as any[]).map(r => ({ month: r.month, count: Number(r.count) })),
+      totalBusinesses: Number(bizCount.count),
+      totalUsers: Number(userCount.count),
+      totalAgents: Number(agentCount.count),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/messages
+router.get("/messages", async (_req, res) => {
+  const msgs = await db
+    .select({
+      id: messagesTable.id,
+      recipientType: messagesTable.recipientType,
+      recipientId: messagesTable.recipientId,
+      subject: messagesTable.subject,
+      body: messagesTable.body,
+      sentAt: messagesTable.sentAt,
+      recipientName: usersTable.name,
+      recipientEmail: usersTable.email,
+    })
+    .from(messagesTable)
+    .leftJoin(usersTable, eq(messagesTable.recipientId, usersTable.id))
+    .orderBy(desc(messagesTable.sentAt));
+  return res.json(msgs);
+});
+
+// POST /admin/messages
+router.post("/messages", async (req, res) => {
+  const { recipientType, recipientId, subject, body } = req.body;
+  if (!subject || !body) return res.status(400).json({ error: "subject and body required" });
+  const token = (req.headers.authorization ?? "").replace("Bearer ", "");
+  let senderId: number | null = null;
+  try { senderId = JSON.parse(Buffer.from(token, "base64").toString()).userId; } catch {}
+  const [msg] = await db.insert(messagesTable).values({
+    senderId,
+    recipientType: recipientType ?? "all",
+    recipientId: recipientId ? Number(recipientId) : null,
+    subject,
+    body,
+  }).returning();
+  return res.status(201).json(msg);
 });
 
 // POST /admin/businesses — admin creates a fully-specified business
