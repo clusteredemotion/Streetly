@@ -1476,7 +1476,7 @@ export default function AdminPage() {
 
           {/* Navigation */}
           <nav className="flex-1 py-3 px-2.5">
-            <NavItem section="analytics" active={activeSection} label="Analytics" icon={<BarChart2 className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="analytics" active={activeSection} label="Dashboard" icon={<BarChart2 className="h-4 w-4" />} onSelect={setActiveSection} />
 
             <NavGroup label="Businesses" />
             <NavItem section="add-business" active={activeSection} label="Add Business" icon={<Plus className="h-4 w-4" />} onSelect={setActiveSection} />
@@ -1507,8 +1507,6 @@ export default function AdminPage() {
           {/* Top bar */}
           <div className="sticky top-16 z-30 flex items-center gap-3 px-6 py-3.5"
             style={{ background: "rgba(7,12,26,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <ChevronRight className="h-3.5 w-3.5 text-white/20" />
-            <span className="text-sm font-semibold text-white capitalize">{activeSection.replace(/-/g, " ")}</span>
             {statsLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30 ml-auto" />}
             {stats && !statsLoading && (
               <div className="ml-auto flex items-center gap-4">

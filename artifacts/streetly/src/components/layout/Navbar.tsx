@@ -15,6 +15,14 @@ export function Navbar() {
   const token = localStorage.getItem("streetly_token");
   const { data: user } = useGetMe({ query: { enabled: !!token } });
 
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "Good morning";
+    if (h >= 12 && h < 17) return "Good afternoon";
+    return "Good evening";
+  })();
+  const firstName = user?.name?.split(" ")[0] ?? "";
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -95,6 +103,12 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             {user ? (
               <>
+                <span className={cn(
+                  "text-sm font-medium hidden lg:block",
+                  onMap ? "text-[#0547B6]/80" : "text-white/70"
+                )}>
+                  {greeting}, <span className="font-semibold">{firstName}</span> 👋
+                </span>
                 <Link href={
                   user.role === "field_agent" ? "/agent-dashboard"
                   : user.role === "business_owner" ? "/owner-dashboard"
@@ -217,6 +231,9 @@ export function Navbar() {
 
                 {user ? (
                   <div className="flex flex-col gap-2">
+                    <p className="text-sm text-white/60 px-1 font-medium">
+                      {greeting}, <span className="text-white font-semibold">{firstName}</span> 👋
+                    </p>
                     <Link href={user.role === "field_agent" ? "/agent-dashboard" : user.role === "business_owner" ? "/owner-dashboard" : "/admin"}>
                       <Button variant="outline" className="w-full rounded-xl text-white border-white/20 hover:bg-white/10" onClick={() => setIsOpen(false)}>
                         Dashboard
