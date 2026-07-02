@@ -11,6 +11,7 @@ export const businessPlanEnum = pgEnum("business_plan", ["free", "premium"]);
 export const businessesTable = pgTable("businesses", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  slug: text("slug").unique(),
   description: text("description"),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),
   streetId: integer("street_id").notNull().references(() => streetsTable.id),

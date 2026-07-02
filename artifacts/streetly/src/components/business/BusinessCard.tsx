@@ -5,6 +5,7 @@ import { MapPin, Star, ShieldCheck, Clock } from "lucide-react";
 interface BusinessCardProps {
   business: {
     id: number;
+    slug?: string | null;
     name: string;
     categoryName?: string | null;
     streetName?: string | null;
@@ -27,7 +28,7 @@ export function BusinessCard({ business }: BusinessCardProps) {
   const location = [business.streetName, business.areaName, business.cityName].filter(Boolean).join(", ");
 
   return (
-    <Link href={`/businesses/${business.id}`}>
+    <Link href={`/${business.slug ?? business.id}`}>
       <div className="group relative rounded-2xl overflow-hidden bg-card hover:shadow-2xl transition-all duration-300 cursor-pointer h-full flex flex-col border border-border/60 hover:border-primary/20 card-hover">
         {/* Image */}
         <div className="relative h-52 bg-muted overflow-hidden flex-shrink-0">

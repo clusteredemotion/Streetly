@@ -1750,7 +1750,7 @@ export function HomeMapView() {
 
               <div className="flex gap-2 mt-4">
                 <button
-                  onClick={() => navigate(`/businesses/${selected.id}`)}
+                  onClick={() => navigate(`/${(selected as any).slug ?? selected.id}`)}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white btn-glow"
                   style={{ background: "linear-gradient(135deg,#0547B6,#2563eb)" }}
                 >

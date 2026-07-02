@@ -36,7 +36,6 @@ function Router() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/businesses" component={BusinessesPage} />
-      <Route path="/businesses/:id" component={BusinessProfilePage} />
       <Route path="/explore" component={ExplorePage} />
       <Route path="/agents" component={AgentsPage} />
       <Route path="/agents/apply" component={AgentApplyPage} />
@@ -45,6 +44,7 @@ function Router() {
       <Route path="/admin" component={AdminPage} />
       <Route path="/auth/login" component={LoginPage} />
       <Route path="/auth/register" component={RegisterPage} />
+      <Route path="/:slug" component={BusinessProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );

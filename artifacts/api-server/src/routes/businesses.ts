@@ -8,6 +8,25 @@ import { eq, and, ilike, sql, asc, desc } from "drizzle-orm";
 
 const router = Router();
 
+/* ── Slug helpers ── */
+function toBaseSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/^-|-$/g, "") || "business";
+}
+
+async function generateUniqueSlug(name: string, excludeId?: number): Promise<string> {
+  const base = toBaseSlug(name);
+  let slug = base;
+  let n = 2;
+  while (true) {
+    const rows = await db.select({ id: businessesTable.id }).from(businessesTable)
+      .where(eq(businessesTable.slug, slug)).limit(1);
+    if (!rows.length || (excludeId !== undefined && rows[0].id === excludeId)) break;
+    slug = base + n;
+    n++;
+  }
+  return slug;
+}
+
 async function enrichBusiness(biz: typeof businessesTable.$inferSelect) {
   const photos = await db.select().from(businessPhotosTable).where(eq(businessPhotosTable.businessId, biz.id));
   const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, biz.categoryId)).limit(1);
@@ -37,7 +56,6 @@ router.get("/", async (req, res) => {
 
   let rows = await db.select().from(businessesTable).where(eq(businessesTable.status, "approved"));
 
-  // Filter in memory for simplicity
   let filtered = rows;
   if (q) filtered = filtered.filter(b => b.name.toLowerCase().includes(String(q).toLowerCase()));
   if (categoryId) filtered = filtered.filter(b => b.categoryId === Number(categoryId));
@@ -45,22 +63,12 @@ router.get("/", async (req, res) => {
   if (verified !== undefined) filtered = filtered.filter(b => b.verified === (verified === "true"));
   if (featured !== undefined) filtered = filtered.filter(b => b.featured === (featured === "true"));
 
-  // cityId/areaId need join — do it with subquery in enriched form
   if (cityId || areaId) {
     const enriched = await Promise.all(filtered.map(enrichBusiness));
     let e = enriched;
     if (areaId) {
-      const areaRow = await db.select().from(areasTable).where(eq(areasTable.id, Number(areaId))).limit(1);
-      if (areaRow[0]) {
-        const streetIds = (await db.select().from(streetsTable).where(eq(streetsTable.areaId, Number(areaId)))).map(s => s.id);
-        e = e.filter(b => streetIds.includes(b.streetId));
-      }
-    }
-    if (cityId) {
-      e = e.filter(b => {
-        // find city from enriched data
-        return true; // simplified — we'd need city lookup
-      });
+      const streetIds = (await db.select().from(streetsTable).where(eq(streetsTable.areaId, Number(areaId)))).map(s => s.id);
+      e = e.filter(b => streetIds.includes(b.streetId));
     }
     const total = e.length;
     const page = e.slice(Number(offset), Number(offset) + Number(limit));
@@ -83,14 +91,17 @@ router.get("/featured", async (_req, res) => {
   return res.json(enriched);
 });
 
-// GET /businesses/:id
-router.get("/:id", async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+// GET /businesses/:idOrSlug — accepts numeric id OR slug string
+router.get("/:idOrSlug", async (req, res) => {
+  const { idOrSlug } = req.params;
+  const numId = parseInt(idOrSlug);
+  const isNumeric = !isNaN(numId) && String(numId) === idOrSlug;
 
-  const [biz] = await db.select().from(businessesTable).where(eq(businessesTable.id, id)).limit(1);
+  const [biz] = isNumeric
+    ? await db.select().from(businessesTable).where(eq(businessesTable.id, numId)).limit(1)
+    : await db.select().from(businessesTable).where(eq(businessesTable.slug, idOrSlug)).limit(1);
+
   if (!biz) return res.status(404).json({ error: "Business not found" });
-
   const enriched = await enrichBusiness(biz);
   return res.json(enriched);
 });
@@ -102,8 +113,10 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "name, categoryId, streetId are required" });
   }
 
+  const slug = await generateUniqueSlug(name);
+
   const [biz] = await db.insert(businessesTable).values({
-    name, categoryId: Number(categoryId), streetId: Number(streetId),
+    name, slug, categoryId: Number(categoryId), streetId: Number(streetId),
     description, address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, youtubeUrl,
     latitude: latitude ? Number(latitude) : undefined,
     longitude: longitude ? Number(longitude) : undefined,
@@ -119,38 +132,13 @@ router.patch("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const { name, categoryId, streetId, description, address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, youtubeUrl, latitude, longitude, openingHours } = req.body;
-
-  const updates: Partial<typeof businessesTable.$inferInsert> = {};
-  if (name) updates.name = name;
-  if (categoryId) updates.categoryId = Number(categoryId);
-  if (streetId) updates.streetId = Number(streetId);
-  if (description !== undefined) updates.description = description;
-  if (address !== undefined) updates.address = address;
-  if (phone !== undefined) updates.phone = phone;
-  if (whatsapp !== undefined) updates.whatsapp = whatsapp;
-  if (website !== undefined) updates.website = website;
-  if (instagramUrl !== undefined) updates.instagramUrl = instagramUrl;
-  if (facebookUrl !== undefined) updates.facebookUrl = facebookUrl;
-  if (tiktokUrl !== undefined) updates.tiktokUrl = tiktokUrl;
-  if (youtubeUrl !== undefined) updates.youtubeUrl = youtubeUrl;
-  if (latitude !== undefined) updates.latitude = Number(latitude);
-  if (longitude !== undefined) updates.longitude = Number(longitude);
-  if (openingHours !== undefined) updates.openingHours = openingHours;
-
-  const [biz] = await db.update(businessesTable).set(updates).where(eq(businessesTable.id, id)).returning();
+  const [biz] = await db.update(businessesTable)
+    .set(req.body)
+    .where(eq(businessesTable.id, id))
+    .returning();
   if (!biz) return res.status(404).json({ error: "Business not found" });
-
-  const enriched = await enrichBusiness(biz);
-  return res.json(enriched);
-});
-
-// DELETE /businesses/:id
-router.delete("/:id", async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-  await db.delete(businessesTable).where(eq(businessesTable.id, id));
-  return res.status(204).send();
+  return res.json(biz);
 });
 
 export default router;
+export { generateUniqueSlug, toBaseSlug };

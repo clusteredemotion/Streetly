@@ -87,7 +87,7 @@ export default function OwnerDashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className="flex items-center gap-4 p-4 bg-card border rounded-xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer"
-                onClick={() => navigate(`/businesses/${biz.id}`)}
+                onClick={() => navigate(`/${(biz as any).slug ?? biz.id}`)}
               >
                 {biz.photos?.[0] ? (
                   <img src={biz.photos[0].url} alt={biz.name} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />

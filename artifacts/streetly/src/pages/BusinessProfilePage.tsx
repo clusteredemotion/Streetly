@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetBusiness, useListReviews, useCreateReview, getListReviewsQueryKey } from "@workspace/api-client-react";
+import { useListReviews, useCreateReview, getListReviewsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   MapPin, Star, ShieldCheck, Phone, MessageCircle, Globe,
@@ -166,12 +166,23 @@ function DirectionsMap({ lat, lon, name, onClose }: { lat: number; lon: number; 
 }
 
 export default function BusinessProfilePage() {
-  const { id } = useParams();
+  const { slug } = useParams() as { slug: string };
   const [, navigate] = useLocation();
   const qc = useQueryClient();
-  const bizId = Number(id);
 
-  const { data: business, isLoading } = useGetBusiness(bizId, { query: { enabled: !!bizId } });
+  const [business, setBusiness] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const bizId: number = business?.id ?? 0;
+
+  useEffect(() => {
+    if (!slug) return;
+    setIsLoading(true);
+    fetch(`${BASE}/api/businesses/${encodeURIComponent(slug)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { setBusiness(data); setIsLoading(false); })
+      .catch(() => setIsLoading(false));
+  }, [slug]);
+
   const { data: reviews } = useListReviews(bizId, { query: { enabled: !!bizId } });
   const createReview = useCreateReview();
 

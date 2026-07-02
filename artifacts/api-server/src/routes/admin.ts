@@ -41,6 +41,7 @@ router.get("/businesses/all", async (_req, res) => {
     .select({
       id: businessesTable.id,
       name: businessesTable.name,
+      slug: businessesTable.slug,
       description: businessesTable.description,
       phone: businessesTable.phone,
       whatsapp: businessesTable.whatsapp,
