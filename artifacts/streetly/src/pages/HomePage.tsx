@@ -17,6 +17,8 @@ import {
 import { BusinessCard } from "@/components/business/BusinessCard";
 import { HomeMapView } from "@/components/HomeMapView";
 import { AGENT_COMMISSION_PER_LISTING, AGENT_HIGH_QUALITY_BONUS } from "@/lib/constants";
+import appStoreBadge from "@/assets/app-store-badge.svg";
+import googlePlayBadge from "@/assets/google-play-badge.png";
 
 /* ── Animated counter ── */
 function AnimatedNumber({ value }: { value: number }) {
@@ -393,6 +395,44 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── 7: DOWNLOAD OUR APP ── */}
+      <section className="relative py-20 overflow-hidden" style={{ background: "#020818" }}>
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: "linear-gradient(#4a9eff 1px,transparent 1px),linear-gradient(90deg,#4a9eff 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
+        <div className="container mx-auto px-4 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center"
+          >
+            <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-3">Mobile App</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-4">
+              Download Our App
+            </h2>
+            <p className="text-white/50 text-lg max-w-xl mx-auto mb-10">
+              Take Streetly with you. Discover businesses on the go, right from your pocket.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href="#"
+                aria-label="Download on the App Store"
+                className="inline-block hover:opacity-80 transition-opacity"
+              >
+                <img src={appStoreBadge} alt="Download on the App Store" className="h-14" />
+              </a>
+              <a
+                href="#"
+                aria-label="Get it on Google Play"
+                className="inline-block hover:opacity-80 transition-opacity"
+              >
+                <img src={googlePlayBadge} alt="Get it on Google Play" className="h-20" />
+              </a>
+            </div>
+          </motion.div>
         </div>
       </section>
     </Layout>
