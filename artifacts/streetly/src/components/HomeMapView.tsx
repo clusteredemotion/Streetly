@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Country, State, City as CSCCity } from "country-state-city";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
@@ -192,6 +193,7 @@ export function HomeMapView() {
   const [pickerCountry, setPickerCountry] = useState("");
   const [pickerState, setPickerState] = useState("");
   const [pickerCity, setPickerCity] = useState("");
+  const [pickerCountrySearch, setPickerCountrySearch] = useState("");
   const [rotationDeg, setRotationDeg] = useState(0);
 
   /* ── Drive Mode state ── */
@@ -213,9 +215,19 @@ export function HomeMapView() {
     queryFn: () => fetch(`${BASE}/api/cities`).then(r => r.json()),
     staleTime: 5 * 60 * 1000,
   });
-  const locationCountries = [...new Set(allCitiesData.map(c => c.country).filter(Boolean))].sort();
-  const locationStates = [...new Set(allCitiesData.filter(c => !pickerCountry || c.country === pickerCountry).map(c => c.state).filter(Boolean))].sort();
-  const locationCities = allCitiesData.filter(c => (!pickerCountry || c.country === pickerCountry) && (!pickerState || c.state === pickerState));
+  const allCountriesList = Country.getAllCountries();
+  const locationCountries = pickerCountrySearch.trim()
+    ? allCountriesList.filter(c => c.name.toLowerCase().includes(pickerCountrySearch.toLowerCase()))
+    : allCountriesList;
+  const selectedCountryObj = allCountriesList.find(c => c.name === pickerCountry);
+  const locationStates = selectedCountryObj ? State.getStatesOfCountry(selectedCountryObj.isoCode) : [];
+  const dbCitiesForState = allCitiesData.filter(c => (!pickerCountry || c.country === pickerCountry) && (!pickerState || c.state === pickerState));
+  const selectedStateObj = locationStates.find(s => s.name === pickerState);
+  const locationCities: Array<{ id: number; name: string }> = dbCitiesForState.length > 0
+    ? dbCitiesForState
+    : (selectedCountryObj && selectedStateObj
+        ? CSCCity.getCitiesOfState(selectedCountryObj.isoCode, selectedStateObj.isoCode).map(c => ({ id: 0, name: c.name }))
+        : []);
 
   /* ── Live activity ticker ── */
   useEffect(() => {
@@ -1066,38 +1078,63 @@ export function HomeMapView() {
                 className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden shadow-2xl z-50"
                 style={{ background: "rgba(8,15,38,0.97)", backdropFilter: "blur(28px)", border: "1px solid rgba(255,255,255,0.12)" }}
               >
-                <div className="p-3 border-b border-white/10">
+                <div className="p-3 border-b border-white/10 space-y-2">
                   <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Browse by Location</p>
+                  {!pickerCountry && (
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={pickerCountrySearch}
+                        onChange={e => setPickerCountrySearch(e.target.value)}
+                        placeholder="Search country…"
+                        className="w-full rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-white/30 outline-none focus:ring-1 focus:ring-primary/40 transition-all"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}
+                      />
+                    </div>
+                  )}
                 </div>
                 {/* Countries */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-40 overflow-y-auto hide-scrollbar">
-                  {locationCountries.map(ctr => (
-                    <button
-                      key={ctr}
-                      onClick={() => { setPickerCountry(ctr); setPickerState(""); setPickerCity(""); geocodeAndFly(ctr, 5); }}
-                      className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerCountry === ctr ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
-                    >
-                      {ctr}
-                    </button>
-                  ))}
-                </div>
-                {/* States for selected country */}
-                {pickerCountry && locationStates.length > 0 && (
+                {!pickerCountry && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-44 overflow-y-auto hide-scrollbar">
+                    {locationCountries.length === 0 ? (
+                      <p className="col-span-3 text-xs text-white/30 text-center py-3">No results</p>
+                    ) : locationCountries.map(ctr => (
+                      <button
+                        key={ctr.isoCode}
+                        onClick={() => { setPickerCountry(ctr.name); setPickerCountrySearch(""); setPickerState(""); setPickerCity(""); geocodeAndFly(ctr.name, 5); }}
+                        className="text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors text-white/80 hover:bg-white/10"
+                      >
+                        {ctr.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Selected country + states */}
+                {pickerCountry && (
                   <>
-                    <div className="p-3 border-t border-white/10">
-                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">States in {pickerCountry}</p>
+                    <div className="px-3 pt-2 pb-1 flex items-center gap-2">
+                      <button
+                        onClick={() => { setPickerCountry(""); setPickerState(""); setPickerCity(""); setPickerCountrySearch(""); flyToLocation(20, 0, 2); }}
+                        className="text-xs text-primary/80 hover:text-primary flex items-center gap-1"
+                      >
+                        ← All countries
+                      </button>
+                      <span className="text-xs font-bold text-white/80">{pickerCountry}</span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-40 overflow-y-auto hide-scrollbar">
-                      {locationStates.map(st => (
-                        <button
-                          key={st}
-                          onClick={() => { setPickerState(st); setPickerCity(""); geocodeAndFly(`${st}, ${pickerCountry}`, 9); }}
-                          className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerState === st ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
-                        >
-                          {st}
-                        </button>
-                      ))}
-                    </div>
+                    {locationStates.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-44 overflow-y-auto hide-scrollbar">
+                        {locationStates.map(st => (
+                          <button
+                            key={st.isoCode}
+                            onClick={() => { setPickerState(st.name); setPickerCity(""); geocodeAndFly(`${st.name}, ${pickerCountry}`, 9); }}
+                            className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerState === st.name ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
+                          >
+                            {st.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
                 {/* Cities for selected state */}
@@ -1109,7 +1146,7 @@ export function HomeMapView() {
                     <div className="flex flex-wrap gap-1.5 p-3 max-h-40 overflow-y-auto hide-scrollbar">
                       {locationCities.map(city => (
                         <button
-                          key={city.id}
+                          key={city.name}
                           onClick={() => { setPickerCity(city.name); geocodeAndFly(`${city.name}, ${pickerState}, ${pickerCountry}`, 12); setShowLocationPicker(false); }}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${pickerCity === city.name ? "bg-primary text-white" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
                         >
@@ -1121,7 +1158,7 @@ export function HomeMapView() {
                 )}
                 <div className="p-2 border-t border-white/5 flex justify-between items-center">
                   {(pickerCountry || pickerState || pickerCity) && (
-                    <button onClick={() => { setPickerCountry(""); setPickerState(""); setPickerCity(""); flyToLocation(20, 0, 2); }}
+                    <button onClick={() => { setPickerCountry(""); setPickerState(""); setPickerCity(""); setPickerCountrySearch(""); flyToLocation(20, 0, 2); }}
                       className="text-xs text-white/40 hover:text-white/70 px-3 py-1">Clear</button>
                   )}
                   <button onClick={() => setShowLocationPicker(false)}
