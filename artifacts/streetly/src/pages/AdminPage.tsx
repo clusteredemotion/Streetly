@@ -21,7 +21,7 @@ import {
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
-  MessageSquare, Star, BarChart2, ChevronRight, Download, Settings,
+  MessageSquare, Star, BarChart2, ChevronRight, Download, Settings, Menu,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -1202,6 +1202,16 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
+const SECTION_LABELS: Record<string, string> = {
+  analytics: "Dashboard", "add-business": "Add Business",
+  businesses: "Pending Review", "all-businesses": "All Businesses",
+  "featured-order": "Featured Order", claims: "Ownership Claims",
+  "all-users": "All Users", "all-agents": "All Agents",
+  "pending-agents": "Pending Agents", kyc: "KYC Documents",
+  categories: "Categories", commissions: "Commissions",
+  messages: "Messages", export: "Export Data", "email-settings": "Email & Account",
+};
+
 /* ══════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════ */
@@ -1234,6 +1244,8 @@ export default function AdminPage() {
     return "Good evening";
   })();
   const adminFirstName = adminUser?.name?.split(" ")[0] ?? "Admin";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const handleNavSelect = (section: Section) => { setActiveSection(section); setSidebarOpen(false); };
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: pendingBiz } = useGetPendingBusinesses();
@@ -1486,11 +1498,43 @@ export default function AdminPage() {
       {/* Sidebar + Content layout */}
       <div className="flex" style={{ minHeight: "calc(100vh - 64px)", background: "#070c1a" }}>
 
+        {/* ── Mobile sidebar backdrop ── */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
         {/* ── Sidebar ── */}
-        <aside className="w-56 flex-shrink-0 flex flex-col sticky top-16 h-[calc(100vh-64px)] overflow-y-auto"
+        <aside
+          className={`flex flex-col overflow-y-auto fixed inset-y-0 left-0 z-[9999] w-72 md:sticky md:top-16 md:h-[calc(100vh-64px)] md:w-56 md:flex-shrink-0 transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
           style={{ background: "#060c1a", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
-          {/* Branding / pending alert */}
-          <div className="px-4 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+
+          {/* Mobile: header with close button */}
+          <div className="md:hidden flex items-center justify-between px-4 pt-5 pb-3 border-b flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(74,158,255,0.2)" }}>
+                <ShieldCheck className="h-4 w-4 text-[#4a9eff]" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-white tracking-wide">STREETLY</p>
+                <p className="text-[10px] text-white/30 -mt-0.5">Admin Panel</p>
+              </div>
+            </div>
+            <button onClick={() => setSidebarOpen(false)}
+              className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Desktop: branding / pending alert */}
+          <div className="hidden md:block px-4 py-5 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="flex items-center gap-2.5 mb-1">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(74,158,255,0.2)" }}>
                 <ShieldCheck className="h-4 w-4 text-[#4a9eff]" />
@@ -1509,44 +1553,68 @@ export default function AdminPage() {
             )}
           </div>
 
+          {/* Mobile: pending alert */}
+          {totalPending > 0 && (
+            <div className="md:hidden mx-4 mt-3 flex-shrink-0 flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1.5 rounded-lg text-orange-300"
+              style={{ background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)" }}>
+              <AlertCircle className="h-3 w-3" />
+              {totalPending} awaiting review
+            </div>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 py-3 px-2.5">
-            <NavItem section="analytics" active={activeSection} label="Dashboard" icon={<BarChart2 className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="analytics" active={activeSection} label="Dashboard" icon={<BarChart2 className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Businesses" />
-            <NavItem section="add-business" active={activeSection} label="Add Business" icon={<Plus className="h-4 w-4" />} onSelect={setActiveSection} />
-            <NavItem section="businesses" active={activeSection} label="Pending Review" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingBusinesses} onSelect={setActiveSection} />
-            <NavItem section="all-businesses" active={activeSection} label="All Businesses" icon={<Building2 className="h-4 w-4" />} onSelect={setActiveSection} />
-            <NavItem section="featured-order" active={activeSection} label="Featured Order" icon={<Star className="h-4 w-4" />} onSelect={setActiveSection} />
-            <NavItem section="claims" active={activeSection} label="Ownership Claims" icon={<ShieldCheck className="h-4 w-4" />} badge={pendingClaims?.length} onSelect={setActiveSection} />
+            <NavItem section="add-business" active={activeSection} label="Add Business" icon={<Plus className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="businesses" active={activeSection} label="Pending Review" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingBusinesses} onSelect={handleNavSelect} />
+            <NavItem section="all-businesses" active={activeSection} label="All Businesses" icon={<Building2 className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="featured-order" active={activeSection} label="Featured Order" icon={<Star className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="claims" active={activeSection} label="Ownership Claims" icon={<ShieldCheck className="h-4 w-4" />} badge={pendingClaims?.length} onSelect={handleNavSelect} />
 
             <NavGroup label="People" />
-            <NavItem section="all-users" active={activeSection} label="All Users" icon={<Users className="h-4 w-4" />} onSelect={setActiveSection} />
-            <NavItem section="all-agents" active={activeSection} label="All Agents" icon={<User className="h-4 w-4" />} onSelect={setActiveSection} />
-            <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={setActiveSection} />
-            <NavItem section="kyc" active={activeSection} label="KYC Documents" icon={<FileText className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="all-users" active={activeSection} label="All Users" icon={<Users className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="all-agents" active={activeSection} label="All Agents" icon={<User className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={handleNavSelect} />
+            <NavItem section="kyc" active={activeSection} label="KYC Documents" icon={<FileText className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Catalog" />
-            <NavItem section="categories" active={activeSection} label="Categories" icon={<List className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="categories" active={activeSection} label="Categories" icon={<List className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Finance" />
-            <NavItem section="commissions" active={activeSection} label="Commissions" icon={<CreditCard className="h-4 w-4" />} badge={withdrawals?.length} onSelect={setActiveSection} />
+            <NavItem section="commissions" active={activeSection} label="Commissions" icon={<CreditCard className="h-4 w-4" />} badge={withdrawals?.length} onSelect={handleNavSelect} />
 
             <NavGroup label="Communications" />
-            <NavItem section="messages" active={activeSection} label="Messages" icon={<MessageSquare className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="messages" active={activeSection} label="Messages" icon={<MessageSquare className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Data" />
-            <NavItem section="export" active={activeSection} label="Export Data" icon={<Download className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="export" active={activeSection} label="Export Data" icon={<Download className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Configuration" />
-            <NavItem section="email-settings" active={activeSection} label="Email &amp; Account" icon={<Settings className="h-4 w-4" />} onSelect={setActiveSection} />
+            <NavItem section="email-settings" active={activeSection} label="Email &amp; Account" icon={<Settings className="h-4 w-4" />} onSelect={handleNavSelect} />
           </nav>
         </aside>
 
         {/* ── Main content ── */}
-        <main className="flex-1 min-w-0 overflow-y-auto">
+        <main className="flex-1 min-w-0 overflow-y-auto min-w-0">
+          {/* Mobile top bar */}
+          <div className="md:hidden sticky top-0 z-40 flex items-center gap-3 px-4 h-14 border-b flex-shrink-0"
+            style={{ background: "#060c1a", borderColor: "rgba(255,255,255,0.07)" }}>
+            <button onClick={() => setSidebarOpen(true)}
+              className="p-2 rounded-xl hover:bg-white/10 text-white/50 hover:text-white transition-colors -ml-1 flex-shrink-0">
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="text-sm font-semibold text-white flex-1 truncate">{SECTION_LABELS[activeSection] ?? activeSection}</span>
+            {totalPending > 0 && (
+              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full text-orange-300 flex-shrink-0"
+                style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)" }}>
+                <AlertCircle className="h-3 w-3" />{totalPending}
+              </span>
+            )}
+          </div>
           {/* Section content */}
-          <div className="p-6">
+          <div className="p-4 md:p-6">
 
           {/* ── Analytics ── */}
           {activeSection === "analytics" && (
