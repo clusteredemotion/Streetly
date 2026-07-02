@@ -29,6 +29,7 @@ import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminMessages from "@/components/admin/AdminMessages";
 import AdminCategories from "@/components/admin/AdminCategories";
 import AdminExport from "@/components/admin/AdminExport";
+import AdminLoginGate from "@/components/admin/AdminLoginGate";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -1206,8 +1207,15 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>("analytics");
   const qc = useQueryClient();
-  const token = localStorage.getItem("streetly_token");
-  const { data: adminUser } = useQuery<{ id: number; name: string; email: string; role: string; msaId?: string }>({
+  const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("streetly_token"));
+
+  const handleUnlock = (token: string) => {
+    setAdminToken(token);
+    qc.invalidateQueries({ queryKey: ["admin-me"] });
+  };
+
+  const token = adminToken;
+  const { data: adminUser, isLoading: adminUserLoading } = useQuery<{ id: number; name: string; email: string; role: string; msaId?: string }>({
     queryKey: ["admin-me"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/auth/me`, { headers: authHeader() });
@@ -1343,6 +1351,11 @@ export default function AdminPage() {
   };
 
   const totalPending = (stats?.pendingBusinesses ?? 0) + (stats?.pendingAgents ?? 0) + (pendingClaims?.length ?? 0) + (withdrawals?.length ?? 0);
+
+  const isAdminAuth = !!token && (adminUserLoading || adminUser?.role === "admin");
+  if (!isAdminAuth && !adminUserLoading) {
+    return <AdminLoginGate onUnlock={handleUnlock} />;
+  }
 
   return (
     <Layout>
