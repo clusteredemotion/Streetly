@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { NIGERIA_STATES } from "@/data/nigeria-locations";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -285,7 +284,7 @@ function PhotoPanel({ photos, onChange }: {
 
 interface BizForm {
   name: string; description: string; categoryId: string;
-  stateName: string; cityName: string; areaName: string; streetName: string;
+  countryName: string; stateName: string; cityName: string; areaName: string; streetName: string;
   address: string; phone: string; whatsapp: string; website: string;
   instagramUrl: string; facebookUrl: string; tiktokUrl: string; youtubeUrl: string;
   openingHours: string; latitude: string; longitude: string;
@@ -293,7 +292,7 @@ interface BizForm {
 }
 const DEFAULT_BIZ: BizForm = {
   name: "", description: "", categoryId: "",
-  stateName: "", cityName: "", areaName: "", streetName: "",
+  countryName: "", stateName: "", cityName: "", areaName: "", streetName: "",
   address: "", phone: "", whatsapp: "", website: "",
   instagramUrl: "", facebookUrl: "", tiktokUrl: "", youtubeUrl: "",
   openingHours: "", latitude: "", longitude: "", photos: [],
@@ -314,8 +313,19 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
     }).then((r) => r.json()).then(setCategories).catch(() => {});
   }, []);
 
-  const selectedState = NIGERIA_STATES.find((s) => s.name === form.stateName);
-  const selectedCity = selectedState?.cities.find((c) => c.name === form.cityName);
+  const [allCitiesData, setAllCitiesData] = useState<Array<{ id: number; name: string; state: string; country: string }>>([]);
+  const [apiAreas, setApiAreas] = useState<Array<{ id: number; name: string }>>([]);
+  useEffect(() => {
+    fetch(`${BASE}/api/cities`).then(r => r.json()).then(setAllCitiesData).catch(() => {});
+  }, []);
+  const locationCountries = [...new Set(allCitiesData.map(c => c.country).filter(Boolean))].sort();
+  const locationStates = [...new Set(allCitiesData.filter(c => !form.countryName || c.country === form.countryName).map(c => c.state).filter(Boolean))].sort();
+  const locationCities = allCitiesData.filter(c => (!form.countryName || c.country === form.countryName) && (!form.stateName || c.state === form.stateName));
+  const selectedApiCity = locationCities.find(c => c.name === form.cityName);
+  useEffect(() => {
+    if (!selectedApiCity) { setApiAreas([]); return; }
+    fetch(`${BASE}/api/cities/${selectedApiCity.id}/areas`).then(r => r.json()).then(setApiAreas).catch(() => setApiAreas([]));
+  }, [selectedApiCity?.id]);
 
   const handleGps = (lat: string, lon: string, address: string) => {
     setForm((p) => ({ ...p, latitude: lat, longitude: lon, address: address || p.address }));
@@ -416,21 +426,32 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <FieldLabel>State</FieldLabel>
-              <GlassSelect value={form.stateName} onChange={(v) => setForm((p) => ({ ...p, stateName: v, cityName: "", areaName: "" }))}>
-                <option value="" style={{ background: "#0a1628" }}>Select state</option>
-                {NIGERIA_STATES.map((s) => (
-                  <option key={s.code} value={s.name} style={{ background: "#0a1628" }}>{s.name}</option>
+              <FieldLabel>Country</FieldLabel>
+              <GlassSelect value={form.countryName} onChange={(v) => setForm((p) => ({ ...p, countryName: v, stateName: "", cityName: "", areaName: "" }))}>
+                <option value="" style={{ background: "#0a1628" }}>Select country</option>
+                {locationCountries.map((c) => (
+                  <option key={c} value={c} style={{ background: "#0a1628" }}>{c}</option>
                 ))}
               </GlassSelect>
             </div>
             <div>
+              <FieldLabel>State / Region</FieldLabel>
+              <GlassSelect value={form.stateName} onChange={(v) => setForm((p) => ({ ...p, stateName: v, cityName: "", areaName: "" }))}>
+                <option value="" style={{ background: "#0a1628" }}>Select state</option>
+                {locationStates.map((s) => (
+                  <option key={s} value={s} style={{ background: "#0a1628" }}>{s}</option>
+                ))}
+              </GlassSelect>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <FieldLabel required>City</FieldLabel>
-              {selectedState ? (
+              {locationCities.length > 0 ? (
                 <GlassSelect value={form.cityName} onChange={(v) => setForm((p) => ({ ...p, cityName: v, areaName: "" }))}>
                   <option value="" style={{ background: "#0a1628" }}>Select city</option>
-                  {selectedState.cities.map((c) => (
-                    <option key={c.name} value={c.name} style={{ background: "#0a1628" }}>{c.name}</option>
+                  {locationCities.map((c) => (
+                    <option key={c.id} value={c.name} style={{ background: "#0a1628" }}>{c.name}</option>
                   ))}
                   <option value="__other__" style={{ background: "#0a1628" }}>Other…</option>
                 </GlassSelect>
@@ -438,21 +459,19 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
                 <GlassInput value={form.cityName} onChange={(v) => set("cityName", v)} placeholder="e.g. Lagos" />
               )}
             </div>
-          </div>
-          {form.cityName === "__other__" && (
-            <div>
-              <FieldLabel required>City Name</FieldLabel>
-              <GlassInput value="" onChange={(v) => set("cityName", v)} placeholder="Enter city" />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
+            {form.cityName === "__other__" && (
+              <div>
+                <FieldLabel required>City Name</FieldLabel>
+                <GlassInput value="" onChange={(v) => set("cityName", v)} placeholder="Enter city" />
+              </div>
+            )}
             <div>
               <FieldLabel required>Area / Neighbourhood</FieldLabel>
-              {selectedCity?.areas ? (
+              {apiAreas.length > 0 ? (
                 <GlassSelect value={form.areaName} onChange={(v) => set("areaName", v)}>
                   <option value="" style={{ background: "#0a1628" }}>Select area</option>
-                  {selectedCity.areas.map((a) => (
-                    <option key={a} value={a} style={{ background: "#0a1628" }}>{a}</option>
+                  {apiAreas.map((a) => (
+                    <option key={a.id} value={a.name} style={{ background: "#0a1628" }}>{a.name}</option>
                   ))}
                   <option value="__other__" style={{ background: "#0a1628" }}>Other…</option>
                 </GlassSelect>
@@ -460,10 +479,10 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
                 <GlassInput value={form.areaName === "__other__" ? "" : form.areaName} onChange={(v) => set("areaName", v)} placeholder="e.g. Victoria Island" />
               )}
             </div>
-            <div>
-              <FieldLabel required>Street Name</FieldLabel>
-              <GlassInput value={form.streetName} onChange={(v) => set("streetName", v)} placeholder="e.g. Bode Thomas Street" />
-            </div>
+          </div>
+          <div>
+            <FieldLabel required>Street Name</FieldLabel>
+            <GlassInput value={form.streetName} onChange={(v) => set("streetName", v)} placeholder="e.g. Bode Thomas Street" />
           </div>
         </div>
       </SectionCard>

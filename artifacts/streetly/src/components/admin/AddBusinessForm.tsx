@@ -8,7 +8,6 @@ import {
   CheckCircle, Upload, AlertCircle, Star, ShieldCheck, Eye,
   ChevronDown, Loader2, Navigation, Image as ImageIcon,
 } from "lucide-react";
-import { NIGERIA_STATES } from "@/data/nigeria-locations";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -427,6 +426,7 @@ interface FormState {
   description: string;
   categoryId: string;
   registrationNumber: string;
+  countryName: string;
   stateName: string;
   cityName: string;
   areaName: string;
@@ -453,6 +453,7 @@ const DEFAULT_FORM: FormState = {
   description: "",
   categoryId: "",
   registrationNumber: "",
+  countryName: "",
   stateName: "",
   cityName: "",
   areaName: "",
@@ -499,9 +500,22 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
     },
   });
 
-  // Derived location data
-  const selectedState = NIGERIA_STATES.find((s) => s.name === form.stateName);
-  const selectedCity = selectedState?.cities.find((c) => c.name === form.cityName);
+  // Fetch cities from API for global location cascade
+  const { data: allCitiesData = [] } = useQuery<Array<{ id: number; name: string; state: string; country: string }>>({
+    queryKey: ["cities-addform"],
+    queryFn: () => fetch(`${BASE}/api/cities`).then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const locationCountries = [...new Set(allCitiesData.map(c => c.country).filter(Boolean))].sort();
+  const locationStates = [...new Set(allCitiesData.filter(c => !form.countryName || c.country === form.countryName).map(c => c.state).filter(Boolean))].sort();
+  const locationCities = allCitiesData.filter(c => (!form.countryName || c.country === form.countryName) && (!form.stateName || c.state === form.stateName));
+  const selectedApiCity = locationCities.find(c => c.name === form.cityName);
+  const { data: apiAreas = [] } = useQuery<Array<{ id: number; name: string }>>({
+    queryKey: ["areas-addform", selectedApiCity?.id],
+    queryFn: () => fetch(`${BASE}/api/cities/${selectedApiCity!.id}/areas`).then(r => r.json()),
+    enabled: !!selectedApiCity,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const mutation = useMutation({
     mutationFn: async (data: FormState) => {
@@ -656,7 +670,21 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <FieldLabel>State</FieldLabel>
+              <FieldLabel>Country</FieldLabel>
+              <SelectField
+                value={form.countryName}
+                onChange={(v) => {
+                  setForm((prev) => ({ ...prev, countryName: v, stateName: "", cityName: "", areaName: "" }));
+                }}
+              >
+                <option value="">Select country</option>
+                {locationCountries.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </SelectField>
+            </div>
+            <div>
+              <FieldLabel>State / Region</FieldLabel>
               <SelectField
                 value={form.stateName}
                 onChange={(v) => {
@@ -664,25 +692,24 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
                 }}
               >
                 <option value="">Select state</option>
-                {NIGERIA_STATES.map((s) => (
-                  <option key={s.code} value={s.name}>
-                    {s.name}
-                  </option>
+                {locationStates.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </SelectField>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel required>City</FieldLabel>
-              {selectedState ? (
+              {locationCities.length > 0 ? (
                 <SelectField
                   value={form.cityName}
                   onChange={(v) => setForm((prev) => ({ ...prev, cityName: v, areaName: "" }))}
                 >
                   <option value="">Select city</option>
-                  {selectedState.cities.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
+                  {locationCities.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
                   <option value="__other__">Other (type below)</option>
                 </SelectField>
@@ -694,33 +721,16 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
                 />
               )}
             </div>
-          </div>
-
-          {/* If "Other" selected for city */}
-          {form.cityName === "__other__" && (
-            <div>
-              <FieldLabel required>Custom City Name</FieldLabel>
-              <InputField
-                value=""
-                onChange={(v) => set("cityName", v)}
-                placeholder="Enter city name"
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel required>Area / Neighbourhood</FieldLabel>
-              {selectedCity?.areas ? (
+              {apiAreas.length > 0 ? (
                 <SelectField
                   value={form.areaName}
                   onChange={(v) => set("areaName", v)}
                 >
                   <option value="">Select area</option>
-                  {selectedCity.areas.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
+                  {apiAreas.map((a) => (
+                    <option key={a.id} value={a.name}>{a.name}</option>
                   ))}
                   <option value="__other__">Other (type below)</option>
                 </SelectField>

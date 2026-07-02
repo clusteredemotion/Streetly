@@ -15,6 +15,8 @@ export default function BusinessesPage() {
 
   const [q, setQ] = useState(params.get("q") ?? "");
   const [categoryId, setCategoryId] = useState(params.get("categoryId") ?? "");
+  const [country, setCountry] = useState("");
+  const [state, setState] = useState("");
   const [cityId, setCityId] = useState(params.get("cityId") ?? "");
   const [featured, setFeatured] = useState(params.get("featured") ?? "");
   const [offset, setOffset] = useState(0);
@@ -31,14 +33,18 @@ export default function BusinessesPage() {
 
   const { data, isLoading } = useListBusinesses(queryParams);
   const { data: categories } = useListCategories();
-  const { data: cities } = useListCities();
+  const { data: allCities } = useListCities();
+
+  const countries = [...new Set((allCities ?? []).map(c => c.country).filter(Boolean))].sort();
+  const states = [...new Set((allCities ?? []).filter(c => !country || c.country === country).map(c => c.state).filter(Boolean))].sort();
+  const cities = (allCities ?? []).filter(c => (!country || c.country === country) && (!state || c.state === state));
 
   const total = data?.total ?? 0;
   const businesses = data?.businesses ?? [];
-  const hasFilters = q || categoryId || cityId || featured;
+  const hasFilters = q || categoryId || country || state || cityId || featured;
 
   const clearFilters = () => {
-    setQ(""); setCategoryId(""); setCityId(""); setFeatured(""); setOffset(0);
+    setQ(""); setCategoryId(""); setCountry(""); setState(""); setCityId(""); setFeatured(""); setOffset(0);
   };
 
   return (
@@ -93,6 +99,38 @@ export default function BusinessesPage() {
                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
               </div>
 
+              {/* Country filter */}
+              <div className="relative">
+                <select
+                  value={country}
+                  onChange={(e) => { setCountry(e.target.value === "all" ? "" : e.target.value); setState(""); setCityId(""); setOffset(0); }}
+                  className="appearance-none pl-4 pr-9 py-3.5 rounded-xl text-sm text-white outline-none cursor-pointer md:min-w-[140px]"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}
+                >
+                  <option value="all" style={{ background: "#0a1628" }}>All Countries</option>
+                  {countries.map(c => (
+                    <option key={c} value={c} style={{ background: "#0a1628" }}>{c}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+              </div>
+
+              {/* State filter */}
+              <div className="relative">
+                <select
+                  value={state}
+                  onChange={(e) => { setState(e.target.value === "all" ? "" : e.target.value); setCityId(""); setOffset(0); }}
+                  className="appearance-none pl-4 pr-9 py-3.5 rounded-xl text-sm text-white outline-none cursor-pointer md:min-w-[140px]"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}
+                >
+                  <option value="all" style={{ background: "#0a1628" }}>All States</option>
+                  {states.map(s => (
+                    <option key={s} value={s} style={{ background: "#0a1628" }}>{s}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+              </div>
+
               {/* City filter */}
               <div className="relative">
                 <select
@@ -102,8 +140,8 @@ export default function BusinessesPage() {
                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", backdropFilter: "blur(20px)" }}
                 >
                   <option value="all" style={{ background: "#0a1628" }}>All Cities</option>
-                  {cities?.map(c => (
-                    <option key={c.id} value={c.id} style={{ background: "#0a1628" }}>{c.name}</option>
+                  {cities.map(c => (
+                    <option key={c.id} value={c.id} style={{ background: "#0a1628" }}>{c.name}{!state ? `, ${c.state}` : ""}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
@@ -132,7 +170,9 @@ export default function BusinessesPage() {
                 >
                   {q && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">"{q}"</Badge>}
                   {categoryId && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{categories?.find(c => String(c.id) === categoryId)?.name}</Badge>}
-                  {cityId && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{cities?.find(c => String(c.id) === cityId)?.name}</Badge>}
+                  {country && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{country}</Badge>}
+                  {state && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{state}</Badge>}
+                  {cityId && <Badge className="bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20 text-xs">{cities.find(c => String(c.id) === cityId)?.name}</Badge>}
                   {featured === "true" && <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/20 text-xs">Featured Only</Badge>}
                   <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors">
                     <X className="h-3 w-3" /> Clear all

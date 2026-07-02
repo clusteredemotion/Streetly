@@ -129,7 +129,7 @@ export default function HomePage() {
             >
               <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-3">Platform Stats</p>
               <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-                Nigeria's Most Complete{" "}
+                The World's Most Complete{" "}
                 <TypingText words={["Business Map", "Street Directory", "Discovery Platform"]} />
               </h2>
             </motion.div>
@@ -177,7 +177,7 @@ export default function HomePage() {
               <div>
                 <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Categories</p>
                 <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Browse by Industry</h2>
-                <p className="text-white/50 mt-2">Explore businesses across every sector in Nigeria</p>
+                <p className="text-white/50 mt-2">Explore businesses across every sector, worldwide</p>
               </div>
               <Button
                 variant="ghost"
@@ -268,7 +268,7 @@ export default function HomePage() {
             <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Property Intelligence</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Find Vacant Commercial Spaces</h2>
             <p className="text-white/50 mt-3 max-w-xl mx-auto">
-              Discover vacant shops, offices, and commercial buildings across Nigeria's key business districts.
+              Discover vacant shops, offices, and commercial buildings across the world's key business districts.
             </p>
           </motion.div>
 

@@ -42,17 +42,23 @@ function GlassSelect({
 }
 
 export default function ExplorePage() {
+  const [country, setCountry] = useState("");
+  const [state, setState] = useState("");
   const [cityId, setCityId] = useState<number | null>(null);
   const [areaId, setAreaId] = useState<number | null>(null);
   const [streetId, setStreetId] = useState<number | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  const { data: cities } = useListCities();
+  const { data: allCities } = useListCities();
   const { data: areas } = useListAreas(cityId!, { query: { enabled: !!cityId } });
   const { data: streets } = useListStreets(areaId!, { query: { enabled: !!areaId } });
   const { data: businesses, isLoading: bizLoading } = useGetStreetBusinesses(streetId!, { query: { enabled: !!streetId } });
 
-  const selectedCity = cities?.find(c => c.id === cityId);
+  const countries = [...new Set((allCities ?? []).map(c => c.country).filter(Boolean))].sort();
+  const states = [...new Set((allCities ?? []).filter(c => !country || c.country === country).map(c => c.state).filter(Boolean))].sort();
+  const cities = (allCities ?? []).filter(c => (!country || c.country === country) && (!state || c.state === state));
+
+  const selectedCity = cities.find(c => c.id === cityId);
   const selectedArea = areas?.find(a => a.id === areaId);
   const selectedStreet = streets?.find(s => s.id === streetId);
 
@@ -73,7 +79,7 @@ export default function ExplorePage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Street Explorer</p>
             <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
-              Navigate Nigeria's Business Landscape
+              Discover Every Business, Worldwide
             </h1>
             <p className="text-white/50 text-lg">One street at a time.</p>
           </motion.div>
@@ -97,6 +103,33 @@ export default function ExplorePage() {
               </div>
               Select a Location
             </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">Country</label>
+                <GlassSelect
+                  value={country}
+                  onChange={(v) => { setCountry(v); setState(""); setCityId(null); setAreaId(null); setStreetId(null); }}
+                  placeholder="All Countries"
+                >
+                  {countries.map(c => (
+                    <option key={c} value={c} style={{ background: "#0a1628" }}>{c}</option>
+                  ))}
+                </GlassSelect>
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">State / Region</label>
+                <GlassSelect
+                  value={state}
+                  onChange={(v) => { setState(v); setCityId(null); setAreaId(null); setStreetId(null); }}
+                  disabled={countries.length > 1 && !country}
+                  placeholder={country ? "Select a state…" : "Select a country first"}
+                >
+                  {states.map(s => (
+                    <option key={s} value={s} style={{ background: "#0a1628" }}>{s}</option>
+                  ))}
+                </GlassSelect>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">City</label>
@@ -105,9 +138,9 @@ export default function ExplorePage() {
                   onChange={(v) => { setCityId(Number(v)); setAreaId(null); setStreetId(null); }}
                   placeholder="Select a city…"
                 >
-                  {cities?.map(city => (
+                  {cities.map(city => (
                     <option key={city.id} value={String(city.id)} style={{ background: "#0a1628" }}>
-                      {city.name}, {city.state}
+                      {city.name}{!state ? `, ${city.state}` : ""}
                     </option>
                   ))}
                 </GlassSelect>
@@ -141,14 +174,26 @@ export default function ExplorePage() {
             </div>
 
             {/* Breadcrumb */}
-            {cityId && (
+            {(country || state || cityId) && (
               <motion.div
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-5 flex items-center gap-2 text-sm"
+                className="mt-5 flex items-center gap-2 text-sm flex-wrap"
               >
                 <MapPin className="h-3.5 w-3.5 text-[#4a9eff]" />
-                <span className="text-[#4a9eff] font-medium">{selectedCity?.name}</span>
+                {country && <span className="text-[#4a9eff] font-medium">{country}</span>}
+                {state && (
+                  <>
+                    {country && <ChevronRight className="h-3.5 w-3.5 text-white/30" />}
+                    <span className="text-[#4a9eff] font-medium">{state}</span>
+                  </>
+                )}
+                {cityId && (
+                  <>
+                    <ChevronRight className="h-3.5 w-3.5 text-white/30" />
+                    <span className="text-[#4a9eff] font-medium">{selectedCity?.name}</span>
+                  </>
+                )}
                 {areaId && (
                   <>
                     <ChevronRight className="h-3.5 w-3.5 text-white/30" />

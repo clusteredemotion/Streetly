@@ -8,7 +8,6 @@ import {
   MapPinOff, Activity, RotateCcw, RotateCw, Compass,
   Car, Square, Navigation2, Flag, LocateFixed,
 } from "lucide-react";
-import { NIGERIA_STATES } from "@/data/nigeria-locations";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -190,6 +189,7 @@ export function HomeMapView() {
   const [showMovement, setShowMovement] = useState(false);
   const [activityIndex, setActivityIndex] = useState(0);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [pickerCountry, setPickerCountry] = useState("");
   const [pickerState, setPickerState] = useState("");
   const [pickerCity, setPickerCity] = useState("");
   const [rotationDeg, setRotationDeg] = useState(0);
@@ -208,8 +208,14 @@ export function HomeMapView() {
   const [driveLoading, setDriveLoading]               = useState(false);
   const [driveOrigin, setDriveOrigin]                 = useState<[number, number] | null>(null);
 
-  const selectedState = NIGERIA_STATES.find(s => s.name === pickerState);
-  const selectedCityData = selectedState?.cities.find(c => c.name === pickerCity);
+  const { data: allCitiesData = [] } = useQuery<Array<{ id: number; name: string; state: string; country: string }>>({
+    queryKey: ["cities-map"],
+    queryFn: () => fetch(`${BASE}/api/cities`).then(r => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const locationCountries = [...new Set(allCitiesData.map(c => c.country).filter(Boolean))].sort();
+  const locationStates = [...new Set(allCitiesData.filter(c => !pickerCountry || c.country === pickerCountry).map(c => c.state).filter(Boolean))].sort();
+  const locationCities = allCitiesData.filter(c => (!pickerCountry || c.country === pickerCountry) && (!pickerState || c.state === pickerState));
 
   /* ── Live activity ticker ── */
   useEffect(() => {
@@ -547,10 +553,22 @@ export function HomeMapView() {
     map.setZoom(map.getZoom() - Math.log2(3), { animate: false });
   }, [businesses, mapReady, counterRotateAll]);
 
-  /* ── Navigate map to a Nigeria location ── */
-  const flyToNigeriaLocation = useCallback((lat: number, lon: number, zoom = 14) => {
+  /* ── Navigate map to any location ── */
+  const flyToLocation = useCallback((lat: number, lon: number, zoom = 14) => {
     mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.5 });
   }, []);
+
+  /* ── Geocode via Nominatim and fly there ── */
+  const geocodeAndFly = useCallback(async (query: string, zoom: number) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+        { headers: { "Accept-Language": "en" } }
+      );
+      const data: any[] = await res.json();
+      if (data[0]) flyToLocation(parseFloat(data[0].lat), parseFloat(data[0].lon), zoom);
+    } catch {}
+  }, [flyToLocation]);
 
   /* ── Live GPS tracking ── */
   const handleLocateMe = useCallback(() => {
@@ -666,14 +684,14 @@ export function HomeMapView() {
     return `Continue ${road}`.trim();
   }
 
-  /* Nominatim destination autocomplete — debounced 400ms, Nigeria only */
+  /* Nominatim destination autocomplete — debounced 400ms */
   useEffect(() => {
     if (nominatimTimer.current) clearTimeout(nominatimTimer.current);
     if (!driveDest.trim() || driveDest.length < 3) { setDriveSuggestions([]); return; }
     nominatimTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(driveDest)}&countrycodes=ng&limit=5`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(driveDest)}&limit=5`,
           { headers: { "Accept-Language": "en" } }
         );
         const data: any[] = await res.json();
@@ -687,7 +705,7 @@ export function HomeMapView() {
     return () => { if (nominatimTimer.current) clearTimeout(nominatimTimer.current); };
   }, [driveDest]);
 
-  /* Nominatim origin autocomplete — debounced 400ms, Nigeria only */
+  /* Nominatim origin autocomplete — debounced 400ms */
   useEffect(() => {
     if (nominatimOriginTimer.current) clearTimeout(nominatimOriginTimer.current);
     if (!driveOriginText.trim() || driveOriginText.length < 3 || driveOrigin) {
@@ -697,7 +715,7 @@ export function HomeMapView() {
     nominatimOriginTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(driveOriginText)}&countrycodes=ng&limit=5`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(driveOriginText)}&limit=5`,
           { headers: { "Accept-Language": "en" } }
         );
         const data: any[] = await res.json();
@@ -1023,7 +1041,7 @@ export function HomeMapView() {
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
               >
                 <MapPin className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{pickerCity || pickerState || "Nigeria"}</span>
+                <span className="hidden sm:inline">{pickerCity || pickerState || pickerCountry || "Worldwide"}</span>
               </button>
               <button className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
                 <Mic className="h-4 w-4" />
@@ -1049,38 +1067,50 @@ export function HomeMapView() {
                 style={{ background: "rgba(8,15,38,0.97)", backdropFilter: "blur(28px)", border: "1px solid rgba(255,255,255,0.12)" }}
               >
                 <div className="p-3 border-b border-white/10">
-                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Browse by State</p>
+                  <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Browse by Location</p>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-52 overflow-y-auto hide-scrollbar">
-                  {NIGERIA_STATES.map(state => (
+                {/* Countries */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-40 overflow-y-auto hide-scrollbar">
+                  {locationCountries.map(ctr => (
                     <button
-                      key={state.code}
-                      onClick={() => {
-                        setPickerState(state.name);
-                        setPickerCity("");
-                        flyToNigeriaLocation(state.lat, state.lon, 11);
-                        if (!pickerCity) setShowLocationPicker(false);
-                      }}
-                      className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerState === state.name ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
+                      key={ctr}
+                      onClick={() => { setPickerCountry(ctr); setPickerState(""); setPickerCity(""); geocodeAndFly(ctr, 5); }}
+                      className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerCountry === ctr ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
                     >
-                      {state.name}
+                      {ctr}
                     </button>
                   ))}
                 </div>
-                {selectedState && (
+                {/* States for selected country */}
+                {pickerCountry && locationStates.length > 0 && (
                   <>
                     <div className="p-3 border-t border-white/10">
-                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Cities in {selectedState.name}</p>
+                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">States in {pickerCountry}</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2 max-h-40 overflow-y-auto hide-scrollbar">
+                      {locationStates.map(st => (
+                        <button
+                          key={st}
+                          onClick={() => { setPickerState(st); setPickerCity(""); geocodeAndFly(`${st}, ${pickerCountry}`, 9); }}
+                          className={`text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors ${pickerState === st ? "bg-primary text-white" : "text-white/80 hover:bg-white/10"}`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {/* Cities for selected state */}
+                {pickerState && locationCities.length > 0 && (
+                  <>
+                    <div className="p-3 border-t border-white/10">
+                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Cities in {pickerState}</p>
                     </div>
                     <div className="flex flex-wrap gap-1.5 p-3 max-h-40 overflow-y-auto hide-scrollbar">
-                      {selectedState.cities.map(city => (
+                      {locationCities.map(city => (
                         <button
-                          key={city.name}
-                          onClick={() => {
-                            setPickerCity(city.name);
-                            flyToNigeriaLocation(city.lat, city.lon, 14);
-                            setShowLocationPicker(false);
-                          }}
+                          key={city.id}
+                          onClick={() => { setPickerCity(city.name); geocodeAndFly(`${city.name}, ${pickerState}, ${pickerCountry}`, 12); setShowLocationPicker(false); }}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${pickerCity === city.name ? "bg-primary text-white" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
                         >
                           {city.name}
@@ -1089,27 +1119,9 @@ export function HomeMapView() {
                     </div>
                   </>
                 )}
-                {selectedCityData && (
-                  <>
-                    <div className="p-3 border-t border-white/10">
-                      <p className="text-xs font-bold text-white/60 uppercase tracking-widest px-1">Areas in {selectedCityData.name}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 p-3 pb-4">
-                      {selectedCityData.areas.map(area => (
-                        <button
-                          key={area}
-                          onClick={() => { setSearch(area); setShowLocationPicker(false); }}
-                          className="px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
-                        >
-                          {area}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
                 <div className="p-2 border-t border-white/5 flex justify-between items-center">
-                  {(pickerState || pickerCity) && (
-                    <button onClick={() => { setPickerState(""); setPickerCity(""); flyToNigeriaLocation(9.082, 8.6753, 6); }}
+                  {(pickerCountry || pickerState || pickerCity) && (
+                    <button onClick={() => { setPickerCountry(""); setPickerState(""); setPickerCity(""); flyToLocation(20, 0, 2); }}
                       className="text-xs text-white/40 hover:text-white/70 px-3 py-1">Clear</button>
                   )}
                   <button onClick={() => setShowLocationPicker(false)}
