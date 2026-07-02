@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Country, State, City as CSCCity } from "country-state-city";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
@@ -313,15 +314,22 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
     }).then((r) => r.json()).then(setCategories).catch(() => {});
   }, []);
 
-  const [allCitiesData, setAllCitiesData] = useState<Array<{ id: number; name: string; state: string; country: string }>>([]);
+  const [dbCitiesData, setDbCitiesData] = useState<Array<{ id: number; name: string; state: string; country: string }>>([]);
   const [apiAreas, setApiAreas] = useState<Array<{ id: number; name: string }>>([]);
   useEffect(() => {
-    fetch(`${BASE}/api/cities`).then(r => r.json()).then(setAllCitiesData).catch(() => {});
+    fetch(`${BASE}/api/cities`).then(r => r.json()).then(setDbCitiesData).catch(() => {});
   }, []);
-  const locationCountries = [...new Set(allCitiesData.map(c => c.country).filter(Boolean))].sort();
-  const locationStates = [...new Set(allCitiesData.filter(c => !form.countryName || c.country === form.countryName).map(c => c.state).filter(Boolean))].sort();
-  const locationCities = allCitiesData.filter(c => (!form.countryName || c.country === form.countryName) && (!form.stateName || c.state === form.stateName));
-  const selectedApiCity = locationCities.find(c => c.name === form.cityName);
+  const allCountriesList = Country.getAllCountries();
+  const selectedCountryObj = allCountriesList.find(c => c.name === form.countryName);
+  const locationStates = selectedCountryObj ? State.getStatesOfCountry(selectedCountryObj.isoCode) : [];
+  const selectedStateObj = locationStates.find(s => s.name === form.stateName);
+  const dbCitiesForState = dbCitiesData.filter(c => (!form.countryName || c.country === form.countryName) && (!form.stateName || c.state === form.stateName));
+  const locationCities: Array<{ id: number; name: string }> = dbCitiesForState.length > 0
+    ? dbCitiesForState
+    : (selectedCountryObj && selectedStateObj
+        ? CSCCity.getCitiesOfState(selectedCountryObj.isoCode, selectedStateObj.isoCode).map(c => ({ id: 0, name: c.name }))
+        : []);
+  const selectedApiCity = dbCitiesData.find(c => c.name === form.cityName && (!form.countryName || c.country === form.countryName));
   useEffect(() => {
     if (!selectedApiCity) { setApiAreas([]); return; }
     fetch(`${BASE}/api/cities/${selectedApiCity.id}/areas`).then(r => r.json()).then(setApiAreas).catch(() => setApiAreas([]));
@@ -429,8 +437,8 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
               <FieldLabel>Country</FieldLabel>
               <GlassSelect value={form.countryName} onChange={(v) => setForm((p) => ({ ...p, countryName: v, stateName: "", cityName: "", areaName: "" }))}>
                 <option value="" style={{ background: "#0a1628" }}>Select country</option>
-                {locationCountries.map((c) => (
-                  <option key={c} value={c} style={{ background: "#0a1628" }}>{c}</option>
+                {allCountriesList.map((c) => (
+                  <option key={c.isoCode} value={c.name} style={{ background: "#0a1628" }}>{c.name}</option>
                 ))}
               </GlassSelect>
             </div>
@@ -439,7 +447,7 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
               <GlassSelect value={form.stateName} onChange={(v) => setForm((p) => ({ ...p, stateName: v, cityName: "", areaName: "" }))}>
                 <option value="" style={{ background: "#0a1628" }}>Select state</option>
                 {locationStates.map((s) => (
-                  <option key={s} value={s} style={{ background: "#0a1628" }}>{s}</option>
+                  <option key={s.isoCode} value={s.name} style={{ background: "#0a1628" }}>{s.name}</option>
                 ))}
               </GlassSelect>
             </div>
@@ -451,7 +459,7 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
                 <GlassSelect value={form.cityName} onChange={(v) => setForm((p) => ({ ...p, cityName: v, areaName: "" }))}>
                   <option value="" style={{ background: "#0a1628" }}>Select city</option>
                   {locationCities.map((c) => (
-                    <option key={c.id} value={c.name} style={{ background: "#0a1628" }}>{c.name}</option>
+                    <option key={c.name} value={c.name} style={{ background: "#0a1628" }}>{c.name}</option>
                   ))}
                   <option value="__other__" style={{ background: "#0a1628" }}>Other…</option>
                 </GlassSelect>

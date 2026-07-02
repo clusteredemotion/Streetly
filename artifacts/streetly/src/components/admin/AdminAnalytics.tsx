@@ -90,7 +90,7 @@ export default function AdminAnalytics() {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-white mb-1">Platform Analytics</h2>
-        <p className="text-sm text-white/40">Business growth, demographics, and platform statistics for Streetly Nigeria</p>
+        <p className="text-sm text-white/40">Business growth, demographics, and platform statistics for Streetly</p>
       </div>
 
       {/* Stat cards */}

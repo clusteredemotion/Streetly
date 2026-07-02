@@ -49,7 +49,7 @@ export default function RegisterPage() {
               Streetly
             </div>
             <h1 className="text-xl font-bold text-foreground">Create your account</h1>
-            <p className="text-muted-foreground text-sm mt-1">Join Nigeria's business discovery platform</p>
+            <p className="text-muted-foreground text-sm mt-1">Join the world's street-by-street business discovery platform</p>
           </div>
 
           <div className="bg-card border rounded-2xl p-6 shadow-sm">

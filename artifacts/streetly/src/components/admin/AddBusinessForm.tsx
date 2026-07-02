@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Country, State, City as CSCCity } from "country-state-city";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -500,16 +501,23 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
     },
   });
 
-  // Fetch cities from API for global location cascade
-  const { data: allCitiesData = [] } = useQuery<Array<{ id: number; name: string; state: string; country: string }>>({
-    queryKey: ["cities-addform"],
+  // Fetch DB cities for area lookups (areas only exist for DB cities)
+  const { data: dbCitiesData = [] } = useQuery<Array<{ id: number; name: string; state: string; country: string }>>({
+    queryKey: ["db-cities-addform"],
     queryFn: () => fetch(`${BASE}/api/cities`).then(r => r.json()),
     staleTime: 5 * 60 * 1000,
   });
-  const locationCountries = [...new Set(allCitiesData.map(c => c.country).filter(Boolean))].sort();
-  const locationStates = [...new Set(allCitiesData.filter(c => !form.countryName || c.country === form.countryName).map(c => c.state).filter(Boolean))].sort();
-  const locationCities = allCitiesData.filter(c => (!form.countryName || c.country === form.countryName) && (!form.stateName || c.state === form.stateName));
-  const selectedApiCity = locationCities.find(c => c.name === form.cityName);
+  const allCountriesList = Country.getAllCountries();
+  const selectedCountryObj = allCountriesList.find(c => c.name === form.countryName);
+  const locationStates = selectedCountryObj ? State.getStatesOfCountry(selectedCountryObj.isoCode) : [];
+  const selectedStateObj = locationStates.find(s => s.name === form.stateName);
+  const dbCitiesForState = dbCitiesData.filter(c => (!form.countryName || c.country === form.countryName) && (!form.stateName || c.state === form.stateName));
+  const locationCities: Array<{ id: number; name: string }> = dbCitiesForState.length > 0
+    ? dbCitiesForState
+    : (selectedCountryObj && selectedStateObj
+        ? CSCCity.getCitiesOfState(selectedCountryObj.isoCode, selectedStateObj.isoCode).map(c => ({ id: 0, name: c.name }))
+        : []);
+  const selectedApiCity = dbCitiesData.find(c => c.name === form.cityName && (!form.countryName || c.country === form.countryName));
   const { data: apiAreas = [] } = useQuery<Array<{ id: number; name: string }>>({
     queryKey: ["areas-addform", selectedApiCity?.id],
     queryFn: () => fetch(`${BASE}/api/cities/${selectedApiCity!.id}/areas`).then(r => r.json()),
@@ -678,8 +686,8 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
                 }}
               >
                 <option value="">Select country</option>
-                {locationCountries.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                {allCountriesList.map((c) => (
+                  <option key={c.isoCode} value={c.name}>{c.name}</option>
                 ))}
               </SelectField>
             </div>
@@ -693,7 +701,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
               >
                 <option value="">Select state</option>
                 {locationStates.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s.isoCode} value={s.name}>{s.name}</option>
                 ))}
               </SelectField>
             </div>
@@ -709,7 +717,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
                 >
                   <option value="">Select city</option>
                   {locationCities.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
+                    <option key={c.name} value={c.name}>{c.name}</option>
                   ))}
                   <option value="__other__">Other (type below)</option>
                 </SelectField>

@@ -192,7 +192,7 @@ export default function AgentsPage() {
       <section className="py-16 container mx-auto px-4 text-center">
         <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">Ready to Start Earning?</h2>
         <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-          Join hundreds of street agents across Nigeria who are earning real income by mapping local businesses.
+          Join hundreds of street agents worldwide who are earning real income by mapping local businesses.
         </p>
         <Button
           size="lg"

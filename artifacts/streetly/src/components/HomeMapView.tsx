@@ -1751,7 +1751,7 @@ export function HomeMapView() {
 
               <div className="flex items-center gap-2 text-xs text-white/50 mb-1">
                 <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                <span className="truncate">{[selected.streetName, selected.areaName, selected.cityName].filter(Boolean).join(", ") || "Lagos, Nigeria"}</span>
+                <span className="truncate">{[selected.streetName, selected.areaName, selected.cityName].filter(Boolean).join(", ") || "Location"}</span>
               </div>
               {selected.openingHours && (
                 <div className="flex items-center gap-2 text-xs text-white/50 mb-4">

@@ -12,7 +12,7 @@ export function Footer() {
               <span>Streetly</span>
             </Link>
             <p className="text-muted text-sm max-w-xs">
-              Nigeria's vibrant street-by-street business discovery platform. Find local gems, support your community.
+              The world's street-by-street business discovery platform. Find local gems anywhere, support your community.
             </p>
             <div className="flex gap-4">
               <a href="#" className="text-muted hover:text-primary-foreground transition-colors"><Facebook className="h-5 w-5" /></a>
@@ -59,7 +59,7 @@ export function Footer() {
           </p>
           <div className="flex gap-4">
             <span className="text-muted text-sm flex items-center gap-1">
-              Made with <span className="text-destructive">♥</span> in Nigeria
+              Made with <span className="text-destructive">♥</span> for the world
             </span>
           </div>
         </div>

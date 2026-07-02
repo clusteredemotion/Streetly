@@ -280,7 +280,7 @@ export default function AdminEmailSettings() {
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Field label="From Name" hint="Displayed as the sender name in emails.">
-                  <Input value={smtp.smtp_from_name} onChange={v => setSmtp(s => ({ ...s, smtp_from_name: v }))} placeholder="Streetly Nigeria" />
+                  <Input value={smtp.smtp_from_name} onChange={v => setSmtp(s => ({ ...s, smtp_from_name: v }))} placeholder="Streetly" />
                 </Field>
               </div>
               <div className="col-span-2">
