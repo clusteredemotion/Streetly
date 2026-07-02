@@ -35,6 +35,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  msaId?: string;
   createdAt: string;
 }
 

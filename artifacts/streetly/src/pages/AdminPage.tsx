@@ -13,7 +13,6 @@ import {
   getGetPendingBusinessesQueryKey,
   getGetPendingAgentsQueryKey,
   getGetAdminStatsQueryKey,
-  useGetMe,
 } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/utils";
@@ -1207,7 +1206,16 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>("analytics");
   const qc = useQueryClient();
   const token = localStorage.getItem("streetly_token");
-  const { data: adminUser } = useGetMe({ query: { enabled: !!token } });
+  const { data: adminUser } = useQuery<{ id: number; name: string; email: string; role: string; msaId?: string }>({
+    queryKey: ["admin-me"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/auth/me`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Unauthorized");
+      return res.json();
+    },
+    enabled: !!token,
+    staleTime: 60_000,
+  });
 
   const adminGreeting = (() => {
     const h = new Date().getHours();
