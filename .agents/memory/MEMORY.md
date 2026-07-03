@@ -1,1 +1,2 @@
 - [Admin dashboard architecture](admin-dashboard.md) — sidebar layout replaces horizontal tabs; uses activeSection state; Analytics + Messages are new sections
+- [drizzle-kit push TTY failure](drizzle-push-tty.md) — push/push-force errors without a TTY for new tables; create the table via raw SQL instead

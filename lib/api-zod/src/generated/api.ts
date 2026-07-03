@@ -87,6 +87,17 @@ export const GetGeoInfoResponse = zod.object({
 
 
 /**
+ * @summary Submit a contact form message
+ */
+export const SubmitContactBody = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "subject": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary List all business categories
  */
 export const ListCategoriesResponseItem = zod.object({

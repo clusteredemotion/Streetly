@@ -1,9 +1,20 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, MapPin, MessageCircle, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Phone, Mail, MapPin, MessageCircle, Facebook, Twitter, Instagram, Linkedin, CheckCircle2, Loader2 } from "lucide-react";
+import { useSubmitContact } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ContactPage() {
+  const { toast } = useToast();
+  const submitContact = useSubmitContact();
+  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+
   const channels = [
     {
       icon: Phone,
@@ -14,8 +25,8 @@ export default function ContactPage() {
     {
       icon: Mail,
       title: "Email Us",
-      value: "support@streetly.ng",
-      href: "mailto:support@streetly.ng",
+      value: "support@mystreetly.app",
+      href: "mailto:support@mystreetly.app",
     },
     {
       icon: MessageCircle,
@@ -24,6 +35,35 @@ export default function ContactPage() {
       href: "https://wa.me/447577077622",
     },
   ];
+
+  const handleChange = (field: keyof typeof form) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitContact.mutate(
+      { data: form },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Message sent",
+            description: "Thanks for reaching out — our team will get back to you shortly.",
+          });
+          setForm({ name: "", email: "", subject: "", message: "" });
+        },
+        onError: () => {
+          toast({
+            title: "Something went wrong",
+            description: "We couldn't send your message. Please try again.",
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
 
   return (
     <Layout>
@@ -73,6 +113,96 @@ export default function ContactPage() {
               </motion.a>
             ))}
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-2xl mx-auto bg-card border rounded-2xl p-8 mb-16"
+          >
+            <h3 className="text-xl font-semibold text-foreground mb-1 text-center">Send Us a Message</h3>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              Fill out the form below and our team will respond as soon as possible.
+            </p>
+
+            {submitContact.isSuccess ? (
+              <div className="flex flex-col items-center text-center py-8">
+                <CheckCircle2 className="h-10 w-10 text-green-500 mb-3" />
+                <h4 className="font-semibold text-foreground mb-1">Message sent!</h4>
+                <p className="text-sm text-muted-foreground">
+                  Thanks for reaching out — we'll get back to you shortly.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-6"
+                  onClick={() => submitContact.reset()}
+                >
+                  Send another message
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      required
+                      value={form.name}
+                      onChange={handleChange("name")}
+                      placeholder="Your name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={form.email}
+                      onChange={handleChange("email")}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    required
+                    value={form.subject}
+                    onChange={handleChange("subject")}
+                    placeholder="What's this about?"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    required
+                    rows={5}
+                    value={form.message}
+                    onChange={handleChange("message")}
+                    placeholder="Tell us more..."
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#0547B6] hover:bg-[#0547B6]/90"
+                  disabled={submitContact.isPending}
+                >
+                  {submitContact.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Message"
+                  )}
+                </Button>
+              </form>
+            )}
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

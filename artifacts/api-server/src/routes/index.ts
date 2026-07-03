@@ -11,6 +11,7 @@ import adminRouter from "./admin";
 import streetExplorerRouter from "./streetexplorer";
 import claimsRouter from "./claims";
 import geoRouter from "./geo";
+import contactRouter from "./contact";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use("/businesses/:businessId/claim", claimsRouter);
 router.use("/agents", agentsRouter);
 router.use("/admin", adminRouter);
 router.use("/streets", streetExplorerRouter);
+router.use("/contact", contactRouter);
 
 export default router;

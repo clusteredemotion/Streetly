@@ -25,6 +25,8 @@ tags:
     description: Admin operations
   - name: stats
     description: Platform statistics
+  - name: contact
+    description: Contact form submissions
 
 paths:
   /healthz:
@@ -119,6 +121,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GeoInfo"
+
+  # Contact
+  /contact:
+    post:
+      operationId: submitContact
+      tags: [contact]
+      summary: Submit a contact form message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactInput"
+      responses:
+        "201":
+          description: Message submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContactSubmission"
 
   # Categories
   /categories:
@@ -626,6 +648,37 @@ components:
         email:
           type: string
         password:
+          type: string
+
+    # Contact
+    ContactInput:
+      type: object
+      required: [name, email, subject, message]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        subject:
+          type: string
+        message:
+          type: string
+
+    ContactSubmission:
+      type: object
+      required: [id, name, email, subject, message, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        subject:
+          type: string
+        message:
+          type: string
+        createdAt:
           type: string
 
     AuthResponse:

@@ -1005,7 +1005,7 @@ export default function AgentDashboardPage() {
               <p className="text-white/50 text-sm leading-relaxed mb-6">
                 Unfortunately your agent application was not approved at this time. Please contact support if you believe this is an error or would like to reapply.
               </p>
-              <a href="mailto:support@streetly.ng"
+              <a href="mailto:support@mystreetly.app"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
                 style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
                 Contact Support

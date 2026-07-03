@@ -30,6 +30,22 @@ export interface LoginInput {
   password: string;
 }
 
+export interface ContactInput {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}
+
+export interface ContactSubmission {
+  id: number;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface User {
   id: number;
   name: string;
