@@ -6,16 +6,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRegister } from "@workspace/api-client-react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
+import type { RegisterInputRole } from "@workspace/api-client-react";
 import { MapPin, User, Building2, MapPin as AgentIcon, Info } from "lucide-react";
 import { cn, formatCurrencyWithConversion } from "@/lib/utils";
 import { BUSINESS_REGISTRATION_FEE } from "@/lib/constants";
 import { useVisitorGeo } from "@/hooks/useVisitorGeo";
 
-const ROLES = [
-  { value: "visitor", label: "Customer / Visitor", desc: "Discover and contact local businesses", icon: User },
-  { value: "business_owner", label: "Business Owner", desc: "List and manage your business", icon: Building2 },
-  { value: "field_agent", label: "Field Agent", desc: "Register businesses and earn commissions", icon: AgentIcon },
+const ROLES: { value: RegisterInputRole; label: string; desc: string; icon: typeof User }[] = [
+  { value: "visitor" as RegisterInputRole, label: "Customer / Visitor", desc: "Discover and contact local businesses", icon: User },
+  { value: "business_owner" as RegisterInputRole, label: "Business Owner", desc: "List and manage your business", icon: Building2 },
+  { value: "field_agent" as RegisterInputRole, label: "Field Agent", desc: "Register businesses and earn commissions", icon: AgentIcon },
 ];
+
+function getInitialRole(): RegisterInputRole {
+  if (typeof window === "undefined") return "visitor" as RegisterInputRole;
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("role");
+  const match = ROLES.find((r) => r.value === requested);
+  return match ? match.value : ("visitor" as RegisterInputRole);
+}
 
 export default function RegisterPage() {
   const [, navigate] = useLocation();
@@ -24,7 +33,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("visitor");
+  const [role, setRole] = useState(getInitialRole);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
