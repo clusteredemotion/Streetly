@@ -8,6 +8,7 @@ import {
   supportTicketsTable,
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
+import { generateUniqueSlug } from "./businesses";
 
 const router = Router();
 
@@ -687,9 +688,10 @@ router.post("/businesses", async (req, res) => {
   }
 
   const fullDescription = [description || "", registrationNumber ? `Registration No: ${registrationNumber}` : ""].filter(Boolean).join("\n\n") || undefined;
+  const slug = await generateUniqueSlug(name);
 
   const bizInsert = await db.insert(businessesTable).values({
-    name, description: fullDescription,
+    name, slug, description: fullDescription,
     categoryId: Number(categoryId),
     streetId: street.id,
     address, phone, whatsapp, website,
