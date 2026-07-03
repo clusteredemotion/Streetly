@@ -57,7 +57,7 @@ export function Navbar() {
     <>
       <header
         className={cn(
-          "fixed top-0 z-50 w-full transition-all duration-300",
+          "fixed top-0 z-[1100] w-full transition-all duration-300",
           onMap ? "glass-nav-transparent" : "glass-nav"
         )}
       >
