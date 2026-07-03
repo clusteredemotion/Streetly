@@ -5,6 +5,7 @@ import {
   businessesTable, agentsTable, usersTable, withdrawalsTable,
   businessClaimsTable, businessPhotosTable, categoriesTable,
   citiesTable, areasTable, streetsTable, messagesTable,
+  supportTicketsTable,
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 
@@ -911,6 +912,30 @@ router.get("/export/businesses", async (req, res) => {
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", `attachment; filename="streetly-businesses-${Date.now()}.csv"`);
   return res.send(csv);
+});
+
+/* ─────────────────────── SUPPORT TICKETS ─────────────────────── */
+
+// GET /admin/support-tickets — all tickets with requester info
+router.get("/support-tickets", async (_req, res) => {
+  const tickets = await db
+    .select({
+      id: supportTicketsTable.id,
+      userId: supportTicketsTable.userId,
+      subject: supportTicketsTable.subject,
+      message: supportTicketsTable.message,
+      status: supportTicketsTable.status,
+      createdAt: supportTicketsTable.createdAt,
+      updatedAt: supportTicketsTable.updatedAt,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+      userRole: usersTable.role,
+    })
+    .from(supportTicketsTable)
+    .leftJoin(usersTable, eq(supportTicketsTable.userId, usersTable.id))
+    .orderBy(desc(supportTicketsTable.updatedAt));
+
+  return res.json(tickets);
 });
 
 export default router;

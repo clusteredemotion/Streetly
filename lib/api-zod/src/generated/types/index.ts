@@ -7,6 +7,7 @@
  */
 
 export * from './adminStats';
+export * from './adminSupportTicket';
 export * from './agent';
 export * from './agentApplicationInput';
 export * from './agentDashboard';
@@ -26,6 +27,8 @@ export * from './category';
 export * from './city';
 export * from './contactInput';
 export * from './contactSubmission';
+export * from './createSupportTicketInput';
+export * from './createSupportTicketReplyInput';
 export * from './geoInfo';
 export * from './healthStatus';
 export * from './listBusinessesParams';
@@ -36,6 +39,13 @@ export * from './registerInputRole';
 export * from './review';
 export * from './reviewInput';
 export * from './street';
+export * from './supportTicket';
+export * from './supportTicketDetail';
+export * from './supportTicketReply';
+export * from './supportTicketReplySenderRole';
+export * from './supportTicketStatus';
+export * from './updateSupportTicketStatusInput';
+export * from './updateSupportTicketStatusInputStatus';
 export * from './user';
 export * from './withdrawal';
 export * from './withdrawalInput';

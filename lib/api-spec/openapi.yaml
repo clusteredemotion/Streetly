@@ -27,6 +27,8 @@ tags:
     description: Platform statistics
   - name: contact
     description: Contact form submissions
+  - name: support
+    description: Support ticket system
 
 paths:
   /healthz:
@@ -141,6 +143,123 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContactSubmission"
+
+  # Support Tickets
+  /support-tickets:
+    get:
+      operationId: listMySupportTickets
+      tags: [support]
+      summary: List the logged-in user's support tickets
+      responses:
+        "200":
+          description: List of tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportTicket"
+    post:
+      operationId: createSupportTicket
+      tags: [support]
+      summary: Create a new support ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupportTicketInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+
+  /support-tickets/{id}:
+    get:
+      operationId: getSupportTicket
+      tags: [support]
+      summary: Get a support ticket with its replies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ticket with replies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicketDetail"
+
+  /support-tickets/{id}/replies:
+    post:
+      operationId: replySupportTicket
+      tags: [support]
+      summary: Reply to a support ticket
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupportTicketReplyInput"
+      responses:
+        "201":
+          description: Reply created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicketReply"
+
+  /support-tickets/{id}/status:
+    put:
+      operationId: updateSupportTicketStatus
+      tags: [support]
+      summary: Update a support ticket's status (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupportTicketStatusInput"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+
+  /admin/support-tickets:
+    get:
+      operationId: listAllSupportTickets
+      tags: [admin, support]
+      summary: List all support tickets (admin only)
+      responses:
+        "200":
+          description: List of all tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminSupportTicket"
 
   # Categories
   /categories:
@@ -680,6 +799,98 @@ components:
           type: string
         createdAt:
           type: string
+
+    # Support Tickets
+    SupportTicket:
+      type: object
+      required: [id, userId, subject, message, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        subject:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    AdminSupportTicket:
+      allOf:
+        - $ref: "#/components/schemas/SupportTicket"
+        - type: object
+          properties:
+            userName:
+              type: string
+              nullable: true
+            userEmail:
+              type: string
+              nullable: true
+            userRole:
+              type: string
+              nullable: true
+
+    SupportTicketReply:
+      type: object
+      required: [id, ticketId, senderId, senderRole, message, createdAt]
+      properties:
+        id:
+          type: integer
+        ticketId:
+          type: integer
+        senderId:
+          type: integer
+        senderRole:
+          type: string
+          enum: [user, admin]
+        message:
+          type: string
+        createdAt:
+          type: string
+        senderName:
+          type: string
+          nullable: true
+
+    SupportTicketDetail:
+      type: object
+      required: [ticket, replies]
+      properties:
+        ticket:
+          $ref: "#/components/schemas/SupportTicket"
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportTicketReply"
+
+    CreateSupportTicketInput:
+      type: object
+      required: [subject, message]
+      properties:
+        subject:
+          type: string
+        message:
+          type: string
+
+    CreateSupportTicketReplyInput:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    UpdateSupportTicketStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, in_progress, resolved, closed]
 
     AuthResponse:
       type: object

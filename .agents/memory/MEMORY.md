@@ -1,2 +1,4 @@
 - [Admin dashboard architecture](admin-dashboard.md) — sidebar layout replaces horizontal tabs; uses activeSection state; Analytics + Messages are new sections
 - [drizzle-kit push TTY failure](drizzle-push-tty.md) — push/push-force errors without a TTY for new tables; create the table via raw SQL instead
+- [Streetly auth pattern](streetly-auth-pattern.md) — no middleware; each protected route manually reads Bearer token and calls verifyToken; admin check is per-route via user.role === "admin"
+- [Streetly SMTP mailer](streetly-smtp-mailer.md) — sendMail() reads settings table at call time, never throws; logs a warning and returns false when unconfigured instead of crashing callers

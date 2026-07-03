@@ -7,3 +7,4 @@ export * from "./agents";
 export * from "./claims";
 export * from "./messages";
 export * from "./contact";
+export * from "./support";

@@ -46,6 +46,78 @@ export interface ContactSubmission {
   createdAt: string;
 }
 
+export type SupportTicketStatus = typeof SupportTicketStatus[keyof typeof SupportTicketStatus];
+
+
+export const SupportTicketStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface SupportTicket {
+  id: number;
+  userId: number;
+  subject: string;
+  message: string;
+  status: SupportTicketStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminSupportTicket = SupportTicket & ({
+  userName?: string | null;
+  userEmail?: string | null;
+  userRole?: string | null;
+});
+
+export type SupportTicketReplySenderRole = typeof SupportTicketReplySenderRole[keyof typeof SupportTicketReplySenderRole];
+
+
+export const SupportTicketReplySenderRole = {
+  user: 'user',
+  admin: 'admin',
+} as const;
+
+export interface SupportTicketReply {
+  id: number;
+  ticketId: number;
+  senderId: number;
+  senderRole: SupportTicketReplySenderRole;
+  message: string;
+  createdAt: string;
+  senderName?: string | null;
+}
+
+export interface SupportTicketDetail {
+  ticket: SupportTicket;
+  replies: SupportTicketReply[];
+}
+
+export interface CreateSupportTicketInput {
+  subject: string;
+  message: string;
+}
+
+export interface CreateSupportTicketReplyInput {
+  message: string;
+}
+
+export type UpdateSupportTicketStatusInputStatus = typeof UpdateSupportTicketStatusInputStatus[keyof typeof UpdateSupportTicketStatusInputStatus];
+
+
+export const UpdateSupportTicketStatusInputStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export interface UpdateSupportTicketStatusInput {
+  status: UpdateSupportTicketStatusInputStatus;
+}
+
 export interface User {
   id: number;
   name: string;

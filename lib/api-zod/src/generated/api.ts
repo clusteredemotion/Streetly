@@ -98,6 +98,112 @@ export const SubmitContactBody = zod.object({
 
 
 /**
+ * @summary List the logged-in user's support tickets
+ */
+export const ListMySupportTicketsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "subject": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListMySupportTicketsResponse = zod.array(ListMySupportTicketsResponseItem)
+
+
+/**
+ * @summary Create a new support ticket
+ */
+export const CreateSupportTicketBody = zod.object({
+  "subject": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get a support ticket with its replies
+ */
+export const GetSupportTicketParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSupportTicketResponse = zod.object({
+  "ticket": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "subject": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "replies": zod.array(zod.object({
+  "id": zod.number(),
+  "ticketId": zod.number(),
+  "senderId": zod.number(),
+  "senderRole": zod.enum(['user', 'admin']),
+  "message": zod.string(),
+  "createdAt": zod.string(),
+  "senderName": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Reply to a support ticket
+ */
+export const ReplySupportTicketParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReplySupportTicketBody = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Update a support ticket's status (admin only)
+ */
+export const UpdateSupportTicketStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateSupportTicketStatusBody = zod.object({
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed'])
+})
+
+export const UpdateSupportTicketStatusResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "subject": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List all support tickets (admin only)
+ */
+export const ListAllSupportTicketsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "subject": zod.string(),
+  "message": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved', 'closed']),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}).and(zod.object({
+  "userName": zod.string().nullish(),
+  "userEmail": zod.string().nullish(),
+  "userRole": zod.string().nullish()
+}))
+export const ListAllSupportTicketsResponse = zod.array(ListAllSupportTicketsResponseItem)
+
+
+/**
  * @summary List all business categories
  */
 export const ListCategoriesResponseItem = zod.object({

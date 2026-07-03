@@ -19,6 +19,7 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
+import SupportTicketsPage from "@/pages/SupportTicketsPage";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -49,6 +50,7 @@ function Router() {
       <Route path="/auth/register" component={RegisterPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/contact" component={ContactPage} />
+      <Route path="/support" component={SupportTicketsPage} />
       <Route path="/:slug" component={BusinessProfilePage} />
       <Route component={NotFound} />
     </Switch>

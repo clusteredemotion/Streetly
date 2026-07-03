@@ -12,6 +12,7 @@ import streetExplorerRouter from "./streetexplorer";
 import claimsRouter from "./claims";
 import geoRouter from "./geo";
 import contactRouter from "./contact";
+import supportTicketsRouter from "./support-tickets";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use("/agents", agentsRouter);
 router.use("/admin", adminRouter);
 router.use("/streets", streetExplorerRouter);
 router.use("/contact", contactRouter);
+router.use("/support-tickets", supportTicketsRouter);
 
 export default router;

@@ -44,6 +44,7 @@ export function Navbar() {
     { href: "/explore", label: "Street Explorer" },
     ...(!isAgent ? [{ href: "/agents", label: "Become an Agent" }] : []),
     ...(!user ? [{ href: "/auth/register?role=business_owner", label: "List Your Business" }] : []),
+    ...(user ? [{ href: "/support", label: "Support Tickets" }] : []),
   ];
 
   /* onMap = sitting at the top of the home page (map is fully visible behind us)
