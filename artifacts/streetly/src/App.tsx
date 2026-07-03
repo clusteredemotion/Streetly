@@ -17,6 +17,8 @@ import OwnerDashboardPage from "@/pages/OwnerDashboardPage";
 import AdminPage from "@/pages/AdminPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
+import AboutPage from "@/pages/AboutPage";
+import ContactPage from "@/pages/ContactPage";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -45,6 +47,8 @@ function Router() {
       <Route path="/admin" component={AdminPage} />
       <Route path="/auth/login" component={LoginPage} />
       <Route path="/auth/register" component={RegisterPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/contact" component={ContactPage} />
       <Route path="/:slug" component={BusinessProfilePage} />
       <Route component={NotFound} />
     </Switch>
