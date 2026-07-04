@@ -44,11 +44,12 @@ interface DeliveryOrder {
   createdAt: string;
 }
 
-function useDelivery(id: number) {
+function useDelivery(id: number, trackingToken: string | null) {
   return useQuery({
-    queryKey: ["deliveries", id],
+    queryKey: ["deliveries", id, trackingToken],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/deliveries/${id}`, { headers: authHeader() });
+      const qs = trackingToken ? `?token=${encodeURIComponent(trackingToken)}` : "";
+      const res = await fetch(`${BASE}/api/deliveries/${id}${qs}`, { headers: authHeader() });
       if (!res.ok) throw new Error("Delivery not found");
       return res.json() as Promise<DeliveryOrder>;
     },
@@ -132,7 +133,10 @@ export default function DeliveryTrackingPage() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const id = Number(params.id);
-  const { data: order, isLoading, error } = useDelivery(id);
+  const trackingToken = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("token")
+    : null;
+  const { data: order, isLoading, error } = useDelivery(id, trackingToken);
 
   if (isLoading) {
     return (

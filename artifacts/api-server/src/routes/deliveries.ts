@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { deliveryOrdersTable, businessesTable, ridersTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import crypto from "crypto";
 import { verifyToken } from "./auth.js";
 
 function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
@@ -9,6 +10,24 @@ function getUserIdFromReq(req: { headers: { authorization?: string } }): number 
   if (!h?.startsWith("Bearer ")) return null;
   const payload = verifyToken(h.slice(7));
   return payload?.userId ?? null;
+}
+
+// Guest orders (no logged-in customer) are tracked via an HMAC-signed token
+// handed back once at creation time, rather than requiring login. This keeps
+// order details from being viewable by anyone who merely guesses an id.
+const GUEST_TRACKING_SECRET = "streetly_guest_delivery_tracking_v1";
+
+function generateGuestTrackingToken(orderId: number): string {
+  return crypto.createHmac("sha256", GUEST_TRACKING_SECRET).update(String(orderId)).digest("hex");
+}
+
+function verifyGuestTrackingToken(orderId: number, token: unknown): boolean {
+  if (typeof token !== "string" || !token) return false;
+  const expected = generateGuestTrackingToken(orderId);
+  const expectedBuf = Buffer.from(expected, "hex");
+  const tokenBuf = Buffer.from(token, "hex");
+  if (expectedBuf.length !== tokenBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, tokenBuf);
 }
 
 const router = Router({ mergeParams: true });
@@ -61,7 +80,8 @@ router.post("/", async (req, res) => {
   }).returning();
 
   const enriched = await enrichDelivery(order);
-  return res.status(201).json(enriched);
+  const trackingToken = userId ? undefined : generateGuestTrackingToken(order.id);
+  return res.status(201).json({ ...enriched, trackingToken });
 });
 
 // GET /businesses/:businessId/deliveries — business owner (or admin) views their delivery orders
@@ -93,11 +113,20 @@ standaloneRouter.get("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
-  const userId = getUserIdFromReq(req);
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
   const [order] = await db.select().from(deliveryOrdersTable).where(eq(deliveryOrdersTable.id, id)).limit(1);
   if (!order) return res.status(404).json({ error: "Delivery order not found" });
+
+  // Guest (unauthenticated) orders are tracked via a per-order signed token
+  // returned once at creation time, instead of requiring the customer to log in.
+  if (order.customerUserId == null) {
+    if (verifyGuestTrackingToken(order.id, req.query.token)) {
+      const enriched = await enrichDelivery(order);
+      return res.json(enriched);
+    }
+  }
+
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   const isAdmin = requester?.role === "admin";

@@ -446,7 +446,7 @@ router.get("/deliveries/all", async (_req, res) => {
       riderId: deliveryOrdersTable.riderId,
       createdAt: deliveryOrdersTable.createdAt,
       businessName: businessesTable.name,
-      riderFullName: ridersTable.fullName,
+      riderName: ridersTable.fullName,
     })
     .from(deliveryOrdersTable)
     .leftJoin(businessesTable, eq(deliveryOrdersTable.businessId, businessesTable.id))

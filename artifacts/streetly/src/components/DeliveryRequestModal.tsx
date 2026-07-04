@@ -108,7 +108,8 @@ export function DeliveryRequestModal({ open, onClose, businessId, businessName, 
         data: { customerName, customerPhone, deliveryAddress, notes: notes || undefined },
       });
       onClose();
-      setLocation(`/deliveries/${order.id}`);
+      const trackingToken = (order as { trackingToken?: string }).trackingToken;
+      setLocation(trackingToken ? `/deliveries/${order.id}?token=${encodeURIComponent(trackingToken)}` : `/deliveries/${order.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to submit delivery request");
     }
