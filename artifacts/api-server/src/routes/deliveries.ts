@@ -64,10 +64,21 @@ router.post("/", async (req, res) => {
   return res.status(201).json(enriched);
 });
 
-// GET /businesses/:businessId/deliveries — business owner views their delivery orders
+// GET /businesses/:businessId/deliveries — business owner (or admin) views their delivery orders
 router.get("/", async (req, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
+
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  const [business] = await db.select().from(businessesTable).where(eq(businessesTable.id, businessId)).limit(1);
+  if (!business) return res.status(404).json({ error: "Business not found" });
+
+  const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const isOwner = business.ownerId === userId;
+  const isAdmin = requester?.role === "admin";
+  if (!isOwner && !isAdmin) return res.status(403).json({ error: "Forbidden" });
 
   const orders = await db.select().from(deliveryOrdersTable)
     .where(eq(deliveryOrdersTable.businessId, businessId))
@@ -104,6 +115,25 @@ standaloneRouter.post("/:id/accept", async (req, res) => {
   const [order] = await db.select().from(deliveryOrdersTable).where(eq(deliveryOrdersTable.id, id)).limit(1);
   if (!order) return res.status(404).json({ error: "Delivery order not found" });
   if (order.status !== "requested") return res.status(400).json({ error: "This order has already been claimed" });
+
+  const [business] = await db.select().from(businessesTable).where(eq(businessesTable.id, order.businessId)).limit(1);
+  const MAX_ACCEPT_RADIUS_KM = 25;
+  if (
+    business?.latitude != null && business?.longitude != null &&
+    rider.currentLatitude != null && rider.currentLongitude != null
+  ) {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(business.latitude - rider.currentLatitude);
+    const dLon = toRad(business.longitude - rider.currentLongitude);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(rider.currentLatitude)) * Math.cos(toRad(business.latitude)) * Math.sin(dLon / 2) ** 2;
+    const distanceKm = 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+    if (distanceKm > MAX_ACCEPT_RADIUS_KM) {
+      return res.status(400).json({ error: `You must be within ${MAX_ACCEPT_RADIUS_KM}km of the business to accept this delivery` });
+    }
+  }
 
   const [updated] = await db.update(deliveryOrdersTable)
     .set({ riderId: rider.id, status: "accepted", acceptedAt: new Date() })

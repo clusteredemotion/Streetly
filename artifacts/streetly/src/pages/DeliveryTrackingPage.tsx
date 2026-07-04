@@ -18,13 +18,24 @@ const authHeader = () => ({
 interface DeliveryOrder {
   id: number;
   businessId: number;
-  businessName?: string | null;
-  pickupLat?: number | null;
-  pickupLon?: number | null;
+  business?: {
+    id: number;
+    name: string;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    phone: string | null;
+  } | null;
   riderId: number | null;
-  riderName?: string | null;
-  riderLat?: number | null;
-  riderLon?: number | null;
+  rider?: {
+    id: number;
+    fullName: string;
+    phone: string;
+    vehicleType: string;
+    currentLatitude: number | null;
+    currentLongitude: number | null;
+    lastLocationAt: string | null;
+  } | null;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
@@ -46,7 +57,7 @@ function useDelivery(id: number) {
 }
 
 const STEPS = [
-  { key: "pending", label: "Requested", icon: Package },
+  { key: "requested", label: "Requested", icon: Package },
   { key: "accepted", label: "Rider Assigned", icon: Bike },
   { key: "picked_up", label: "Picked Up", icon: Truck },
   { key: "delivered", label: "Delivered", icon: CheckCircle },
@@ -145,8 +156,12 @@ export default function DeliveryTrackingPage() {
     );
   }
 
-  const pickup = order.pickupLat && order.pickupLon ? { lat: order.pickupLat, lon: order.pickupLon } : null;
-  const rider = order.riderLat && order.riderLon ? { lat: order.riderLat, lon: order.riderLon } : null;
+  const pickup = order.business?.latitude != null && order.business?.longitude != null
+    ? { lat: order.business.latitude, lon: order.business.longitude }
+    : null;
+  const rider = order.rider?.currentLatitude != null && order.rider?.currentLongitude != null
+    ? { lat: order.rider.currentLatitude, lon: order.rider.currentLongitude }
+    : null;
   const currentStepIdx = STEPS.findIndex((s) => s.key === order.status);
   const isCancelled = order.status === "cancelled";
 
@@ -164,7 +179,7 @@ export default function DeliveryTrackingPage() {
               <h1 className="text-lg font-bold text-white">Delivery #{order.id}</h1>
               <span className="text-xs text-white/40">{new Date(order.createdAt).toLocaleString()}</span>
             </div>
-            <p className="text-sm text-white/50">{order.businessName ?? `Business #${order.businessId}`}</p>
+            <p className="text-sm text-white/50">{order.business?.name ?? `Business #${order.businessId}`}</p>
           </div>
 
           {isCancelled ? (
@@ -218,9 +233,9 @@ export default function DeliveryTrackingPage() {
             <div className="flex items-center gap-2 text-sm text-white/70"><Phone className="h-4 w-4 text-white/30" />{order.customerPhone}</div>
             <div className="flex items-center gap-2 text-sm text-white/70"><MapPin className="h-4 w-4 text-white/30" />{order.deliveryAddress}</div>
             {order.notes && <div className="flex items-center gap-2 text-sm text-white/50"><Package className="h-4 w-4 text-white/30" />{order.notes}</div>}
-            {order.riderName && (
+            {order.rider?.fullName && (
               <div className="pt-2 mt-2 border-t border-white/8 flex items-center gap-2 text-sm text-white/70">
-                <Bike className="h-4 w-4 text-[#4a9eff]" /> Rider: {order.riderName}
+                <Bike className="h-4 w-4 text-[#4a9eff]" /> Rider: {order.rider.fullName}
               </div>
             )}
           </div>

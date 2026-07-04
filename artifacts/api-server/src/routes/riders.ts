@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { ridersTable, usersTable, deliveryOrdersTable } from "@workspace/db";
+import { ridersTable, usersTable, deliveryOrdersTable, businessesTable } from "@workspace/db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
 import { verifyToken } from "./auth.js";
 
@@ -152,14 +152,78 @@ router.get("/:riderId/orders", async (req, res) => {
   const riderId = parseInt(req.params.riderId);
   if (isNaN(riderId)) return res.status(400).json({ error: "Invalid riderId" });
 
-  const active = await db.select().from(deliveryOrdersTable)
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+  const [rider] = await db.select().from(ridersTable).where(eq(ridersTable.id, riderId)).limit(1);
+  if (!rider) return res.status(404).json({ error: "Rider not found" });
+
+  const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (rider.userId !== userId && requester?.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const activeRows = await db.select({
+    order: deliveryOrdersTable,
+    businessName: businessesTable.name,
+    pickupLat: businessesTable.latitude,
+    pickupLon: businessesTable.longitude,
+  })
+    .from(deliveryOrdersTable)
+    .leftJoin(businessesTable, eq(deliveryOrdersTable.businessId, businessesTable.id))
     .where(and(eq(deliveryOrdersTable.riderId, riderId), sql`${deliveryOrdersTable.status} NOT IN ('delivered', 'cancelled')`))
     .orderBy(desc(deliveryOrdersTable.createdAt));
+  const active = activeRows.map((r) => ({ ...r.order, businessName: r.businessName, pickupLat: r.pickupLat, pickupLon: r.pickupLon }));
 
-  const available = await db.select().from(deliveryOrdersTable)
-    .where(eq(deliveryOrdersTable.status, "requested"))
-    .orderBy(desc(deliveryOrdersTable.createdAt))
-    .limit(20);
+  type EnrichedOrder = typeof deliveryOrdersTable.$inferSelect & {
+    businessName: string | null; pickupLat: number | null; pickupLon: number | null;
+  };
+  let available: EnrichedOrder[] = [];
+  if (rider.currentLatitude != null && rider.currentLongitude != null) {
+    const nearbyRequested = await db.select({
+      order: deliveryOrdersTable,
+      businessName: businessesTable.name,
+      pickupLat: businessesTable.latitude,
+      pickupLon: businessesTable.longitude,
+      distanceKm: sql<number>`
+        6371 * acos(
+          least(1, greatest(-1,
+            cos(radians(${rider.currentLatitude})) * cos(radians(${businessesTable.latitude})) *
+            cos(radians(${businessesTable.longitude}) - radians(${rider.currentLongitude})) +
+            sin(radians(${rider.currentLatitude})) * sin(radians(${businessesTable.latitude}))
+          ))
+        )
+      `,
+    })
+      .from(deliveryOrdersTable)
+      .innerJoin(businessesTable, eq(deliveryOrdersTable.businessId, businessesTable.id))
+      .where(and(
+        eq(deliveryOrdersTable.status, "requested"),
+        sql`${businessesTable.latitude} IS NOT NULL AND ${businessesTable.longitude} IS NOT NULL`,
+      ))
+      .orderBy(desc(deliveryOrdersTable.createdAt))
+      .limit(50);
+
+    available = nearbyRequested
+      .filter((r) => r.distanceKm <= 25)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 20)
+      .map((r) => ({ ...r.order, businessName: r.businessName, pickupLat: r.pickupLat, pickupLon: r.pickupLon }));
+  } else {
+    // Rider has no known location yet — fall back to showing recent requests unranked.
+    const fallbackRows = await db.select({
+      order: deliveryOrdersTable,
+      businessName: businessesTable.name,
+      pickupLat: businessesTable.latitude,
+      pickupLon: businessesTable.longitude,
+    })
+      .from(deliveryOrdersTable)
+      .leftJoin(businessesTable, eq(deliveryOrdersTable.businessId, businessesTable.id))
+      .where(eq(deliveryOrdersTable.status, "requested"))
+      .orderBy(desc(deliveryOrdersTable.createdAt))
+      .limit(20);
+    available = fallbackRows.map((r) => ({ ...r.order, businessName: r.businessName, pickupLat: r.pickupLat, pickupLon: r.pickupLon }));
+  }
 
   const [completedCountRow] = await db.select({ count: count() }).from(deliveryOrdersTable)
     .where(and(eq(deliveryOrdersTable.riderId, riderId), eq(deliveryOrdersTable.status, "delivered")));
