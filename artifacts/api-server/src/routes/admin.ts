@@ -18,6 +18,35 @@ function generateToken(userId: number): string {
   return Buffer.from(JSON.stringify(payload)).toString("base64");
 }
 
+function getUserIdFromAuthHeader(req: { headers: { authorization?: string } }): number | null {
+  const h = req.headers.authorization;
+  if (!h?.startsWith("Bearer ")) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(h.slice(7), "base64").toString());
+    if (typeof payload?.userId !== "number") return null;
+    if (typeof payload?.exp === "number" && payload.exp < Date.now()) return null;
+    return payload.userId;
+  } catch {
+    return null;
+  }
+}
+
+router.use("/riders", async (req, res, next) => {
+  const userId = getUserIdFromAuthHeader(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (user?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+  next();
+});
+
+router.use("/deliveries", async (req, res, next) => {
+  const userId = getUserIdFromAuthHeader(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (user?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+  next();
+});
+
 // GET /admin/stats
 router.get("/stats", async (_req, res) => {
   const [bizTotal] = await db.select({ count: count() }).from(businessesTable);

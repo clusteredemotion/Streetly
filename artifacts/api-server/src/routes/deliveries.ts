@@ -93,8 +93,31 @@ standaloneRouter.get("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
   const [order] = await db.select().from(deliveryOrdersTable).where(eq(deliveryOrdersTable.id, id)).limit(1);
   if (!order) return res.status(404).json({ error: "Delivery order not found" });
+
+  const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  const isAdmin = requester?.role === "admin";
+  const isCustomer = order.customerUserId != null && order.customerUserId === userId;
+
+  let isAssignedRider = false;
+  if (order.riderId != null) {
+    const [rider] = await db.select().from(ridersTable).where(eq(ridersTable.id, order.riderId)).limit(1);
+    isAssignedRider = rider?.userId === userId;
+  }
+
+  let isBusinessOwner = false;
+  if (!isAdmin && !isCustomer && !isAssignedRider) {
+    const [business] = await db.select().from(businessesTable).where(eq(businessesTable.id, order.businessId)).limit(1);
+    isBusinessOwner = business?.ownerId === userId;
+  }
+
+  if (!isAdmin && !isCustomer && !isAssignedRider && !isBusinessOwner) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
   const enriched = await enrichDelivery(order);
   return res.json(enriched);
@@ -164,11 +187,24 @@ standaloneRouter.patch("/:id/status", async (req, res) => {
   const [rider] = await db.select().from(ridersTable).where(eq(ridersTable.userId, userId)).limit(1);
   if (!rider || order.riderId !== rider.id) return res.status(403).json({ error: "Forbidden" });
 
+  // Enforce a strict state machine: requested -> accepted -> picked_up -> delivered,
+  // with cancellation only allowed before the order has been delivered.
+  const VALID_TRANSITIONS: Record<string, string[]> = {
+    accepted: ["picked_up", "cancelled"],
+    picked_up: ["delivered", "cancelled"],
+  };
+  const allowedNextStatuses = VALID_TRANSITIONS[order.status] ?? [];
+  if (!allowedNextStatuses.includes(status)) {
+    return res.status(400).json({ error: `Cannot transition from "${order.status}" to "${status}"` });
+  }
+
   const timestampField = status === "picked_up" ? "pickedUpAt" : status === "delivered" ? "deliveredAt" : "cancelledAt";
   const [updated] = await db.update(deliveryOrdersTable)
     .set({ status, [timestampField]: new Date() })
-    .where(eq(deliveryOrdersTable.id, id))
+    .where(and(eq(deliveryOrdersTable.id, id), eq(deliveryOrdersTable.status, order.status)))
     .returning();
+
+  if (!updated) return res.status(409).json({ error: "Order status changed concurrently; please retry" });
 
   if (status === "delivered") {
     await db.update(ridersTable)
