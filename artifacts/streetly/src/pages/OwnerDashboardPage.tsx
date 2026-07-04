@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListBusinesses } from "@workspace/api-client-react";
-import { Building2, PlusCircle, Star, ShieldCheck, ArrowRight, Edit2, X, Save, Loader2, Trash2, Image as ImageIcon, Plus } from "lucide-react";
+import { Building2, PlusCircle, Star, ShieldCheck, ArrowRight, Edit2, X, Save, Loader2, Trash2, Image as ImageIcon, Plus, Package } from "lucide-react";
+import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 const authHeader = () => ({
@@ -202,6 +203,7 @@ export default function OwnerDashboardPage() {
   const { data, isLoading, refetch } = useListBusinesses({ limit: 20 });
   const businesses = data?.businesses ?? [];
   const [editBiz, setEditBiz] = useState<any | null>(null);
+  const [itemsBiz, setItemsBiz] = useState<any | null>(null);
   const [msaId, setMsaId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -230,6 +232,13 @@ export default function OwnerDashboardPage() {
             biz={editBiz}
             onClose={() => setEditBiz(null)}
             onSaved={() => { refetch(); setEditBiz(null); }}
+          />
+        )}
+        {itemsBiz && (
+          <MarketplaceItemsModal
+            businessId={itemsBiz.id}
+            businessName={itemsBiz.name}
+            onClose={() => setItemsBiz(null)}
           />
         )}
       </AnimatePresence>
@@ -327,6 +336,11 @@ export default function OwnerDashboardPage() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge className={statusColor(biz.status)}>{biz.status}</Badge>
+                  <Button size="sm" variant="outline"
+                    onClick={() => setItemsBiz(biz)}
+                    className="gap-1 text-primary border-primary/30 hover:bg-primary/10">
+                    <Package className="h-3.5 w-3.5" /> Items
+                  </Button>
                   <Button size="sm" variant="outline"
                     onClick={() => setEditBiz(biz)}
                     className="gap-1 text-primary border-primary/30 hover:bg-primary/10">

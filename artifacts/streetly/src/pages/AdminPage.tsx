@@ -33,6 +33,7 @@ import AdminCategories from "@/components/admin/AdminCategories";
 import AdminExport from "@/components/admin/AdminExport";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
+import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -1356,6 +1357,7 @@ export default function AdminPage() {
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [resetPwUser, setResetPwUser] = useState<{ id: number; name: string } | null>(null);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
+  const [itemsBusiness, setItemsBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
   const [reviewAgent, setReviewAgent] = useState<(typeof allAgents extends Array<infer T> ? T : never) | null>(null);
   const [bizSearch, setBizSearch] = useState("");
@@ -1486,6 +1488,13 @@ export default function AdminPage() {
             biz={editBusiness}
             onClose={() => setEditBusiness(null)}
             onSaved={() => { refetchAllBusinesses(); qc.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() }); }}
+          />
+        )}
+        {itemsBusiness && (
+          <MarketplaceItemsModal
+            businessId={itemsBusiness.id}
+            businessName={itemsBusiness.name}
+            onClose={() => setItemsBusiness(null)}
           />
         )}
         {viewAgentBiz && (
@@ -2282,6 +2291,10 @@ export default function AdminPage() {
                         <Button size="sm" variant="outline" onClick={() => setEditBusiness(biz)}
                           className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
                           <Edit2 className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setItemsBusiness(biz)}
+                          className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                          <List className="h-3.5 w-3.5" /> Items
                         </Button>
                         <Button size="sm" variant="outline"
                           onClick={async () => { await suspendBusiness.mutateAsync({ id: biz.id, suspend: biz.status !== "suspended" }); refetchAllBusinesses(); }}

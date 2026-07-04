@@ -837,6 +837,9 @@ export const GetRiderOrdersResponse = zod.object({
   "notes": zod.string().nullish(),
   "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
   "riderId": zod.number().nullish(),
+  "itemsSubtotal": zod.number().nullish(),
+  "deliveryFee": zod.number().nullish(),
+  "totalAmount": zod.number().nullish(),
   "requestedAt": zod.string().optional(),
   "acceptedAt": zod.string().nullish(),
   "pickedUpAt": zod.string().nullish(),
@@ -860,7 +863,15 @@ export const GetRiderOrdersResponse = zod.object({
   "currentLatitude": zod.number().nullish(),
   "currentLongitude": zod.number().nullish(),
   "lastLocationAt": zod.string().nullish()
-}).nullish()
+}).nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number().nullish(),
+  "itemName": zod.string(),
+  "unitPrice": zod.number(),
+  "quantity": zod.number()
+})).optional(),
+  "trackingToken": zod.string().optional().describe('Guest tracking token, only present once in the response right after creating an order without being logged in.')
 })),
   "available": zod.array(zod.object({
   "id": zod.number(),
@@ -874,6 +885,9 @@ export const GetRiderOrdersResponse = zod.object({
   "notes": zod.string().nullish(),
   "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
   "riderId": zod.number().nullish(),
+  "itemsSubtotal": zod.number().nullish(),
+  "deliveryFee": zod.number().nullish(),
+  "totalAmount": zod.number().nullish(),
   "requestedAt": zod.string().optional(),
   "acceptedAt": zod.string().nullish(),
   "pickedUpAt": zod.string().nullish(),
@@ -897,7 +911,15 @@ export const GetRiderOrdersResponse = zod.object({
   "currentLatitude": zod.number().nullish(),
   "currentLongitude": zod.number().nullish(),
   "lastLocationAt": zod.string().nullish()
-}).nullish()
+}).nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number().nullish(),
+  "itemName": zod.string(),
+  "unitPrice": zod.number(),
+  "quantity": zod.number()
+})).optional(),
+  "trackingToken": zod.string().optional().describe('Guest tracking token, only present once in the response right after creating an order without being logged in.')
 })),
   "completedCount": zod.number()
 })
@@ -939,6 +961,9 @@ export const ListBusinessDeliveriesResponseItem = zod.object({
   "notes": zod.string().nullish(),
   "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
   "riderId": zod.number().nullish(),
+  "itemsSubtotal": zod.number().nullish(),
+  "deliveryFee": zod.number().nullish(),
+  "totalAmount": zod.number().nullish(),
   "requestedAt": zod.string().optional(),
   "acceptedAt": zod.string().nullish(),
   "pickedUpAt": zod.string().nullish(),
@@ -962,7 +987,15 @@ export const ListBusinessDeliveriesResponseItem = zod.object({
   "currentLatitude": zod.number().nullish(),
   "currentLongitude": zod.number().nullish(),
   "lastLocationAt": zod.string().nullish()
-}).nullish()
+}).nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number().nullish(),
+  "itemName": zod.string(),
+  "unitPrice": zod.number(),
+  "quantity": zod.number()
+})).optional(),
+  "trackingToken": zod.string().optional().describe('Guest tracking token, only present once in the response right after creating an order without being logged in.')
 })
 export const ListBusinessDeliveriesResponse = zod.array(ListBusinessDeliveriesResponseItem)
 
@@ -986,6 +1019,9 @@ export const GetDeliveryOrderResponse = zod.object({
   "notes": zod.string().nullish(),
   "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
   "riderId": zod.number().nullish(),
+  "itemsSubtotal": zod.number().nullish(),
+  "deliveryFee": zod.number().nullish(),
+  "totalAmount": zod.number().nullish(),
   "requestedAt": zod.string().optional(),
   "acceptedAt": zod.string().nullish(),
   "pickedUpAt": zod.string().nullish(),
@@ -1009,7 +1045,15 @@ export const GetDeliveryOrderResponse = zod.object({
   "currentLatitude": zod.number().nullish(),
   "currentLongitude": zod.number().nullish(),
   "lastLocationAt": zod.string().nullish()
-}).nullish()
+}).nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number().nullish(),
+  "itemName": zod.string(),
+  "unitPrice": zod.number(),
+  "quantity": zod.number()
+})).optional(),
+  "trackingToken": zod.string().optional().describe('Guest tracking token, only present once in the response right after creating an order without being logged in.')
 })
 
 
@@ -1032,6 +1076,9 @@ export const AcceptDeliveryOrderResponse = zod.object({
   "notes": zod.string().nullish(),
   "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
   "riderId": zod.number().nullish(),
+  "itemsSubtotal": zod.number().nullish(),
+  "deliveryFee": zod.number().nullish(),
+  "totalAmount": zod.number().nullish(),
   "requestedAt": zod.string().optional(),
   "acceptedAt": zod.string().nullish(),
   "pickedUpAt": zod.string().nullish(),
@@ -1055,7 +1102,15 @@ export const AcceptDeliveryOrderResponse = zod.object({
   "currentLatitude": zod.number().nullish(),
   "currentLongitude": zod.number().nullish(),
   "lastLocationAt": zod.string().nullish()
-}).nullish()
+}).nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number().nullish(),
+  "itemName": zod.string(),
+  "unitPrice": zod.number(),
+  "quantity": zod.number()
+})).optional(),
+  "trackingToken": zod.string().optional().describe('Guest tracking token, only present once in the response right after creating an order without being logged in.')
 })
 
 
@@ -1082,6 +1137,9 @@ export const UpdateDeliveryStatusResponse = zod.object({
   "notes": zod.string().nullish(),
   "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
   "riderId": zod.number().nullish(),
+  "itemsSubtotal": zod.number().nullish(),
+  "deliveryFee": zod.number().nullish(),
+  "totalAmount": zod.number().nullish(),
   "requestedAt": zod.string().optional(),
   "acceptedAt": zod.string().nullish(),
   "pickedUpAt": zod.string().nullish(),
@@ -1105,7 +1163,146 @@ export const UpdateDeliveryStatusResponse = zod.object({
   "currentLatitude": zod.number().nullish(),
   "currentLongitude": zod.number().nullish(),
   "lastLocationAt": zod.string().nullish()
-}).nullish()
+}).nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "itemId": zod.number().nullish(),
+  "itemName": zod.string(),
+  "unitPrice": zod.number(),
+  "quantity": zod.number()
+})).optional(),
+  "trackingToken": zod.string().optional().describe('Guest tracking token, only present once in the response right after creating an order without being logged in.')
+})
+
+
+/**
+ * @summary List available marketplace items for a business (public storefront view)
+ */
+export const ListMarketplaceItemsParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const ListMarketplaceItemsResponseItem = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "price": zod.number(),
+  "imageUrl": zod.string().nullish(),
+  "isAvailable": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListMarketplaceItemsResponse = zod.array(ListMarketplaceItemsResponseItem)
+
+
+/**
+ * @summary Owner/admin adds a marketplace item to a business
+ */
+export const CreateMarketplaceItemParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const CreateMarketplaceItemBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "price": zod.number(),
+  "imageUrl": zod.string().optional()
+})
+
+
+/**
+ * @summary List all marketplace items for a business (owner/admin view, includes unavailable items)
+ */
+export const ListMarketplaceItemsForManagementParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const ListMarketplaceItemsForManagementResponseItem = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "price": zod.number(),
+  "imageUrl": zod.string().nullish(),
+  "isAvailable": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListMarketplaceItemsForManagementResponse = zod.array(ListMarketplaceItemsForManagementResponseItem)
+
+
+/**
+ * @summary Owner/admin updates a marketplace item
+ */
+export const UpdateMarketplaceItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateMarketplaceItemBody = zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().optional(),
+  "price": zod.number().optional(),
+  "imageUrl": zod.string().optional(),
+  "isAvailable": zod.boolean().optional()
+})
+
+export const UpdateMarketplaceItemResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "price": zod.number(),
+  "imageUrl": zod.string().nullish(),
+  "isAvailable": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Owner/admin deletes a marketplace item
+ */
+export const DeleteMarketplaceItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List online riders near a business with a computed delivery fee, for checkout rider selection
+ */
+export const GetAvailableRidersParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const GetAvailableRidersResponseItem = zod.object({
+  "id": zod.number(),
+  "fullName": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "distanceKm": zod.number(),
+  "deliveryFee": zod.number()
+})
+export const GetAvailableRidersResponse = zod.array(GetAvailableRidersResponseItem)
+
+
+/**
+ * @summary Checkout a cart of marketplace items with a chosen rider
+ */
+export const CreateMarketplaceOrderParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const CreateMarketplaceOrderBody = zod.object({
+  "items": zod.array(zod.object({
+  "itemId": zod.number(),
+  "quantity": zod.number()
+})),
+  "riderId": zod.number(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().optional(),
+  "deliveryLongitude": zod.number().optional(),
+  "notes": zod.string().optional()
 })
 
 

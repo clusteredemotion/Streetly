@@ -14,7 +14,8 @@ import geoRouter from "./geo";
 import contactRouter from "./contact";
 import supportTicketsRouter from "./support-tickets";
 import ridersRouter from "./riders";
-import deliveriesRouter, { standaloneDeliveriesRouter } from "./deliveries";
+import deliveriesRouter, { standaloneDeliveriesRouter, businessMarketRouter } from "./deliveries";
+import marketplaceItemsRouter, { standaloneMarketplaceItemsRouter } from "./marketplace-items";
 
 const router: IRouter = Router();
 
@@ -28,6 +29,9 @@ router.use("/businesses", businessesRouter);
 router.use("/businesses/:businessId/reviews", reviewsRouter);
 router.use("/businesses/:businessId/claim", claimsRouter);
 router.use("/businesses/:businessId/deliveries", deliveriesRouter);
+router.use("/businesses/:businessId/marketplace-items", marketplaceItemsRouter);
+router.use("/businesses/:businessId", businessMarketRouter);
+router.use("/marketplace-items", standaloneMarketplaceItemsRouter);
 router.use("/agents", agentsRouter);
 router.use("/riders", ridersRouter);
 router.use("/deliveries", standaloneDeliveriesRouter);

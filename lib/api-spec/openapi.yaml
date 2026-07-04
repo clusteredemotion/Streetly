@@ -886,6 +886,155 @@ paths:
               schema:
                 $ref: "#/components/schemas/DeliveryOrder"
 
+  /businesses/{businessId}/marketplace-items:
+    get:
+      operationId: listMarketplaceItems
+      tags: [marketplace]
+      summary: List available marketplace items for a business (public storefront view)
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marketplace items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketplaceItem"
+    post:
+      operationId: createMarketplaceItem
+      tags: [marketplace]
+      summary: Owner/admin adds a marketplace item to a business
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketplaceItemInput"
+      responses:
+        "201":
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketplaceItem"
+
+  /businesses/{businessId}/marketplace-items/manage:
+    get:
+      operationId: listMarketplaceItemsForManagement
+      tags: [marketplace]
+      summary: List all marketplace items for a business (owner/admin view, includes unavailable items)
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marketplace items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketplaceItem"
+
+  /marketplace-items/{id}:
+    patch:
+      operationId: updateMarketplaceItem
+      tags: [marketplace]
+      summary: Owner/admin updates a marketplace item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketplaceItemUpdateInput"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketplaceItem"
+    delete:
+      operationId: deleteMarketplaceItem
+      tags: [marketplace]
+      summary: Owner/admin deletes a marketplace item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Item deleted
+
+  /businesses/{businessId}/available-riders:
+    get:
+      operationId: getAvailableRiders
+      tags: [marketplace]
+      summary: List online riders near a business with a computed delivery fee, for checkout rider selection
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Available riders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableRider"
+
+  /businesses/{businessId}/marketplace-orders:
+    post:
+      operationId: createMarketplaceOrder
+      tags: [marketplace]
+      summary: Checkout a cart of marketplace items with a chosen rider
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketplaceOrderInput"
+      responses:
+        "201":
+          description: Marketplace order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryOrder"
+
   # Admin
   /admin/riders/pending:
     get:
@@ -1719,6 +1868,12 @@ components:
           enum: [requested, accepted, picked_up, delivered, cancelled]
         riderId:
           type: ["integer", "null"]
+        itemsSubtotal:
+          type: ["number", "null"]
+        deliveryFee:
+          type: ["number", "null"]
+        totalAmount:
+          type: ["number", "null"]
         requestedAt:
           type: string
         acceptedAt:
@@ -1765,6 +1920,28 @@ components:
               type: ["number", "null"]
             lastLocationAt:
               type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryOrderItem"
+        trackingToken:
+          description: Guest tracking token, only present once in the response right after creating an order without being logged in.
+          type: string
+
+    DeliveryOrderItem:
+      type: object
+      required: [id, itemName, unitPrice, quantity]
+      properties:
+        id:
+          type: integer
+        itemId:
+          type: ["integer", "null"]
+        itemName:
+          type: string
+        unitPrice:
+          type: number
+        quantity:
+          type: integer
 
     DeliveryStatusInput:
       type: object
@@ -1778,6 +1955,106 @@ components:
       type: object
       required: [customerName, customerPhone, deliveryAddress]
       properties:
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        deliveryAddress:
+          type: string
+        deliveryLatitude:
+          type: number
+        deliveryLongitude:
+          type: number
+        notes:
+          type: string
+
+    # Marketplace
+    MarketplaceItem:
+      type: object
+      required: [id, businessId, name, price, isAvailable, createdAt]
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+        imageUrl:
+          type: ["string", "null"]
+        isAvailable:
+          type: boolean
+        createdAt:
+          type: string
+
+    MarketplaceItemInput:
+      type: object
+      required: [name, price]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        imageUrl:
+          type: string
+
+    MarketplaceItemUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        imageUrl:
+          type: string
+        isAvailable:
+          type: boolean
+
+    AvailableRider:
+      type: object
+      required: [id, distanceKm, deliveryFee]
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: ["string", "null"]
+        vehicleType:
+          type: ["string", "null"]
+        currentLatitude:
+          type: ["number", "null"]
+        currentLongitude:
+          type: ["number", "null"]
+        distanceKm:
+          type: number
+        deliveryFee:
+          type: number
+
+    MarketplaceOrderItemInput:
+      type: object
+      required: [itemId, quantity]
+      properties:
+        itemId:
+          type: integer
+        quantity:
+          type: integer
+
+    MarketplaceOrderInput:
+      type: object
+      required: [items, riderId, customerName, customerPhone, deliveryAddress]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketplaceOrderItemInput"
+        riderId:
+          type: integer
         customerName:
           type: string
         customerPhone:

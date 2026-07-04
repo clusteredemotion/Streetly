@@ -38,6 +38,7 @@ const YtIcon = () => (
 );
 import { ClaimBusinessModal } from "@/components/ClaimBusinessModal";
 import { DeliveryRequestModal } from "@/components/DeliveryRequestModal";
+import MarketplaceSection from "@/components/marketplace/MarketplaceSection";
 import { Truck } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -498,6 +499,14 @@ export default function BusinessProfilePage() {
                   <p className="text-white/60 leading-relaxed text-sm">{business.description}</p>
                 </motion.div>
               )}
+
+              {/* Marketplace items */}
+              <MarketplaceSection
+                businessId={bizId}
+                businessName={business.name}
+                businessLat={business.latitude ?? null}
+                businessLon={business.longitude ?? null}
+              />
 
               {/* Map + Directions */}
               {business.latitude && business.longitude ? (

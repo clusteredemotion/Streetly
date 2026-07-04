@@ -461,6 +461,15 @@ export const DeliveryOrderStatus = {
   cancelled: 'cancelled',
 } as const;
 
+export interface DeliveryOrderItem {
+  id: number;
+  /** @nullable */
+  itemId?: number | null;
+  itemName: string;
+  unitPrice: number;
+  quantity: number;
+}
+
 /**
  * @nullable
  */
@@ -515,6 +524,12 @@ export interface DeliveryOrder {
   status: DeliveryOrderStatus;
   /** @nullable */
   riderId?: number | null;
+  /** @nullable */
+  itemsSubtotal?: number | null;
+  /** @nullable */
+  deliveryFee?: number | null;
+  /** @nullable */
+  totalAmount?: number | null;
   requestedAt?: string;
   /** @nullable */
   acceptedAt?: string | null;
@@ -529,6 +544,9 @@ export interface DeliveryOrder {
   business?: DeliveryOrderBusiness;
   /** @nullable */
   rider?: DeliveryOrderRider;
+  items?: DeliveryOrderItem[];
+  /** Guest tracking token, only present once in the response right after creating an order without being logged in. */
+  trackingToken?: string;
 }
 
 export interface RiderOrderQueue {
@@ -551,6 +569,64 @@ export interface DeliveryStatusInput {
 }
 
 export interface DeliveryOrderInput {
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress: string;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
+  notes?: string;
+}
+
+export interface MarketplaceItem {
+  id: number;
+  businessId: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  price: number;
+  /** @nullable */
+  imageUrl?: string | null;
+  isAvailable: boolean;
+  createdAt: string;
+}
+
+export interface MarketplaceItemInput {
+  name: string;
+  description?: string;
+  price: number;
+  imageUrl?: string;
+}
+
+export interface MarketplaceItemUpdateInput {
+  name?: string;
+  description?: string;
+  price?: number;
+  imageUrl?: string;
+  isAvailable?: boolean;
+}
+
+export interface AvailableRider {
+  id: number;
+  /** @nullable */
+  fullName?: string | null;
+  /** @nullable */
+  vehicleType?: string | null;
+  /** @nullable */
+  currentLatitude?: number | null;
+  /** @nullable */
+  currentLongitude?: number | null;
+  distanceKm: number;
+  deliveryFee: number;
+}
+
+export interface MarketplaceOrderItemInput {
+  itemId: number;
+  quantity: number;
+}
+
+export interface MarketplaceOrderInput {
+  items: MarketplaceOrderItemInput[];
+  riderId: number;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;

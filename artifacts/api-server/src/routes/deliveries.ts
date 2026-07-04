@@ -1,9 +1,32 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { deliveryOrdersTable, businessesTable, ridersTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import {
+  deliveryOrdersTable, businessesTable, ridersTable, usersTable,
+  marketplaceItemsTable, deliveryOrderItemsTable,
+} from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import { verifyToken } from "./auth.js";
+
+// Simple flat-fee-plus-distance pricing for rider delivery fees.
+const BASE_DELIVERY_FEE = 500;
+const PER_KM_DELIVERY_FEE = 100;
+const MAX_RIDER_SELECT_RADIUS_KM = 25;
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function computeDeliveryFee(distanceKm: number): number {
+  return Math.round(BASE_DELIVERY_FEE + PER_KM_DELIVERY_FEE * distanceKm);
+}
 
 function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
   const h = req.headers.authorization;
@@ -60,8 +83,14 @@ async function enrichDelivery(order: typeof deliveryOrdersTable.$inferSelect) {
     rider = r ?? null;
   }
 
+  const items = await db.select({
+    id: deliveryOrderItemsTable.id, itemId: deliveryOrderItemsTable.itemId,
+    itemName: deliveryOrderItemsTable.itemName, unitPrice: deliveryOrderItemsTable.unitPrice,
+    quantity: deliveryOrderItemsTable.quantity,
+  }).from(deliveryOrderItemsTable).where(eq(deliveryOrderItemsTable.deliveryOrderId, order.id));
+
   const { guestTrackingToken: _t, guestTrackingTokenExpiresAt: _e, ...safeOrder } = order;
-  return { ...safeOrder, business: business ?? null, rider };
+  return { ...safeOrder, business: business ?? null, rider, items };
 }
 
 // POST /businesses/:businessId/deliveries — customer creates a delivery request
@@ -266,5 +295,142 @@ standaloneRouter.patch("/:id/status", async (req, res) => {
   return res.json(enriched);
 });
 
+// Business-scoped marketplace checkout endpoints, mounted at /businesses/:businessId.
+const businessMarketRouter = Router({ mergeParams: true });
+
+// GET /businesses/:businessId/available-riders — online, approved riders near the business,
+// each with a computed delivery fee, so the customer can pick one at checkout.
+businessMarketRouter.get("/available-riders", async (req, res) => {
+  const businessId = parseInt(req.params.businessId);
+  if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
+
+  const [business] = await db.select().from(businessesTable).where(eq(businessesTable.id, businessId)).limit(1);
+  if (!business) return res.status(404).json({ error: "Business not found" });
+  if (business.latitude == null || business.longitude == null) {
+    return res.json([]);
+  }
+
+  const onlineRiders = await db.select().from(ridersTable)
+    .where(and(eq(ridersTable.status, "approved"), eq(ridersTable.isOnline, true)));
+
+  const withDistance = onlineRiders
+    .filter((r) => r.currentLatitude != null && r.currentLongitude != null)
+    .map((r) => {
+      const distanceKm = haversineKm(business.latitude!, business.longitude!, r.currentLatitude!, r.currentLongitude!);
+      return {
+        id: r.id, fullName: r.fullName, vehicleType: r.vehicleType,
+        currentLatitude: r.currentLatitude, currentLongitude: r.currentLongitude,
+        distanceKm, deliveryFee: computeDeliveryFee(distanceKm),
+      };
+    })
+    .filter((r) => r.distanceKm <= MAX_RIDER_SELECT_RADIUS_KM)
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  return res.json(withDistance);
+});
+
+// POST /businesses/:businessId/marketplace-orders — customer checks out a cart:
+// picks items + a specific rider, server recomputes all pricing and creates the order pre-assigned to that rider.
+businessMarketRouter.post("/marketplace-orders", async (req, res) => {
+  const businessId = parseInt(req.params.businessId);
+  if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
+
+  const [business] = await db.select().from(businessesTable).where(eq(businessesTable.id, businessId)).limit(1);
+  if (!business) return res.status(404).json({ error: "Business not found" });
+
+  const { items, riderId, customerName, customerPhone, deliveryAddress, deliveryLatitude, deliveryLongitude, notes } = req.body;
+  if (!customerName || !customerPhone || !deliveryAddress) {
+    return res.status(400).json({ error: "customerName, customerPhone, and deliveryAddress are required" });
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "At least one item is required" });
+  }
+  const riderIdNum = parseInt(riderId);
+  if (isNaN(riderIdNum)) return res.status(400).json({ error: "riderId is required" });
+
+  // Re-fetch item prices server-side — never trust client-supplied prices.
+  const itemIds = items.map((it: { itemId: number }) => Number(it.itemId)).filter((n: number) => !isNaN(n));
+  const dbItems = itemIds.length
+    ? await db.select().from(marketplaceItemsTable)
+        .where(and(eq(marketplaceItemsTable.businessId, businessId), inArray(marketplaceItemsTable.id, itemIds)))
+    : [];
+  const dbItemsById = new Map(dbItems.map((it) => [it.id, it]));
+
+  const orderLines: { itemId: number; itemName: string; unitPrice: number; quantity: number }[] = [];
+  let itemsSubtotal = 0;
+  for (const raw of items) {
+    const itemId = Number(raw.itemId);
+    const quantity = Number(raw.quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: "Each item must have a positive integer quantity" });
+    }
+    const dbItem = dbItemsById.get(itemId);
+    if (!dbItem || !dbItem.isAvailable) {
+      return res.status(400).json({ error: `Item ${itemId} is not available` });
+    }
+    orderLines.push({ itemId: dbItem.id, itemName: dbItem.name, unitPrice: dbItem.price, quantity });
+    itemsSubtotal += dbItem.price * quantity;
+  }
+
+  // Validate the chosen rider is online/approved and within range, and recompute their fee.
+  const [rider] = await db.select().from(ridersTable).where(eq(ridersTable.id, riderIdNum)).limit(1);
+  if (!rider || rider.status !== "approved" || !rider.isOnline) {
+    return res.status(400).json({ error: "Selected rider is not currently available" });
+  }
+  if (business.latitude == null || business.longitude == null || rider.currentLatitude == null || rider.currentLongitude == null) {
+    return res.status(400).json({ error: "Selected rider is not currently available" });
+  }
+  const distanceKm = haversineKm(business.latitude, business.longitude, rider.currentLatitude, rider.currentLongitude);
+  if (distanceKm > MAX_RIDER_SELECT_RADIUS_KM) {
+    return res.status(400).json({ error: "Selected rider is no longer within range" });
+  }
+  const deliveryFee = computeDeliveryFee(distanceKm);
+  const totalAmount = itemsSubtotal + deliveryFee;
+
+  const userId = getUserIdFromReq(req);
+  let plainTrackingToken: string | undefined;
+  let guestTrackingToken: string | null = null;
+  let guestTrackingTokenExpiresAt: Date | null = null;
+  if (!userId) {
+    plainTrackingToken = generateGuestTrackingToken();
+    guestTrackingToken = hashGuestTrackingToken(plainTrackingToken);
+    guestTrackingTokenExpiresAt = new Date(Date.now() + GUEST_TRACKING_TOKEN_TTL_MS);
+  }
+
+  const [order] = await db.insert(deliveryOrdersTable).values({
+    businessId,
+    customerUserId: userId ?? null,
+    customerName,
+    customerPhone,
+    deliveryAddress,
+    deliveryLatitude: deliveryLatitude !== undefined && deliveryLatitude !== "" ? Number(deliveryLatitude) : null,
+    deliveryLongitude: deliveryLongitude !== undefined && deliveryLongitude !== "" ? Number(deliveryLongitude) : null,
+    notes: notes ?? null,
+    status: "accepted",
+    riderId: rider.id,
+    acceptedAt: new Date(),
+    itemsSubtotal,
+    deliveryFee,
+    totalAmount,
+    guestTrackingToken,
+    guestTrackingTokenExpiresAt,
+  }).returning();
+
+  if (orderLines.length) {
+    await db.insert(deliveryOrderItemsTable).values(
+      orderLines.map((line) => ({
+        deliveryOrderId: order.id,
+        itemId: line.itemId,
+        itemName: line.itemName,
+        unitPrice: line.unitPrice,
+        quantity: line.quantity,
+      })),
+    );
+  }
+
+  const enriched = await enrichDelivery(order);
+  return res.status(201).json({ ...enriched, trackingToken: plainTrackingToken });
+});
+
 export default router;
-export { standaloneRouter as standaloneDeliveriesRouter };
+export { standaloneRouter as standaloneDeliveriesRouter, businessMarketRouter };

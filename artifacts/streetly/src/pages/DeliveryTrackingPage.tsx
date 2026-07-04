@@ -5,8 +5,9 @@ import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import {
   ArrowLeft, Package, User, Phone, MapPin, Bike, Clock,
-  CheckCircle, Loader2, AlertCircle, Truck,
+  CheckCircle, Loader2, AlertCircle, Truck, ShoppingBag,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -42,6 +43,10 @@ interface DeliveryOrder {
   notes: string | null;
   status: string;
   createdAt: string;
+  items?: { id: number; itemId: number | null; itemName: string; unitPrice: number; quantity: number }[];
+  itemsSubtotal?: number | null;
+  deliveryFee?: number | null;
+  totalAmount?: number | null;
 }
 
 function useDelivery(id: number, trackingToken: string | null) {
@@ -228,6 +233,34 @@ export default function DeliveryTrackingPage() {
           </div>
           {order.riderId && !rider && order.status !== "delivered" && (
             <p className="text-xs text-white/30 -mt-3">Rider assigned — waiting for live location update.</p>
+          )}
+
+          {/* Marketplace items + pricing breakdown */}
+          {order.items && order.items.length > 0 && (
+            <div className="rounded-2xl p-5 space-y-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-[#4a9eff]" /> Order Items
+              </h3>
+              <div className="space-y-1.5">
+                {order.items.map((it) => (
+                  <div key={it.id} className="flex items-center justify-between text-sm text-white/70">
+                    <span>{it.quantity}× {it.itemName}</span>
+                    <span>{formatCurrency(it.unitPrice * it.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 mt-1 border-t border-white/8 space-y-1">
+                <div className="flex items-center justify-between text-xs text-white/50">
+                  <span>Item subtotal</span><span>{formatCurrency(order.itemsSubtotal ?? 0)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-white/50">
+                  <span>Rider fee</span><span>{formatCurrency(order.deliveryFee ?? 0)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm font-bold text-white pt-1">
+                  <span>Total</span><span>{formatCurrency(order.totalAmount ?? 0)}</span>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Order details */}

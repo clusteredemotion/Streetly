@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DeliveryOrderBusiness } from './deliveryOrderBusiness';
+import type { DeliveryOrderItem } from './deliveryOrderItem';
 import type { DeliveryOrderRider } from './deliveryOrderRider';
 import type { DeliveryOrderStatus } from './deliveryOrderStatus';
 
@@ -26,6 +27,12 @@ export interface DeliveryOrder {
   status: DeliveryOrderStatus;
   /** @nullable */
   riderId?: number | null;
+  /** @nullable */
+  itemsSubtotal?: number | null;
+  /** @nullable */
+  deliveryFee?: number | null;
+  /** @nullable */
+  totalAmount?: number | null;
   requestedAt?: string;
   /** @nullable */
   acceptedAt?: string | null;
@@ -40,4 +47,7 @@ export interface DeliveryOrder {
   business?: DeliveryOrderBusiness;
   /** @nullable */
   rider?: DeliveryOrderRider;
+  items?: DeliveryOrderItem[];
+  /** Guest tracking token, only present once in the response right after creating an order without being logged in. */
+  trackingToken?: string;
 }
