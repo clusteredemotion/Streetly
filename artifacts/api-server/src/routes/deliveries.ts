@@ -12,22 +12,32 @@ function getUserIdFromReq(req: { headers: { authorization?: string } }): number 
   return payload?.userId ?? null;
 }
 
-// Guest orders (no logged-in customer) are tracked via an HMAC-signed token
-// handed back once at creation time, rather than requiring login. This keeps
-// order details from being viewable by anyone who merely guesses an id.
-const GUEST_TRACKING_SECRET = "streetly_guest_delivery_tracking_v1";
+// Guest orders (no logged-in customer) are tracked via a random, unguessable
+// per-order token handed back once at creation time, rather than requiring
+// login. The token is stored (hashed) on the order row and expires after a
+// fixed window, so it can't be regenerated/derived and doesn't live forever.
+const GUEST_TRACKING_TOKEN_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
-function generateGuestTrackingToken(orderId: number): string {
-  return crypto.createHmac("sha256", GUEST_TRACKING_SECRET).update(String(orderId)).digest("hex");
+function generateGuestTrackingToken(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
 
-function verifyGuestTrackingToken(orderId: number, token: unknown): boolean {
+function hashGuestTrackingToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function verifyGuestTrackingToken(
+  order: { guestTrackingToken: string | null; guestTrackingTokenExpiresAt: Date | null },
+  token: unknown,
+): boolean {
   if (typeof token !== "string" || !token) return false;
-  const expected = generateGuestTrackingToken(orderId);
-  const expectedBuf = Buffer.from(expected, "hex");
-  const tokenBuf = Buffer.from(token, "hex");
-  if (expectedBuf.length !== tokenBuf.length) return false;
-  return crypto.timingSafeEqual(expectedBuf, tokenBuf);
+  if (!order.guestTrackingToken || !order.guestTrackingTokenExpiresAt) return false;
+  if (order.guestTrackingTokenExpiresAt.getTime() < Date.now()) return false;
+
+  const expectedBuf = Buffer.from(order.guestTrackingToken, "hex");
+  const actualBuf = Buffer.from(hashGuestTrackingToken(token), "hex");
+  if (expectedBuf.length !== actualBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }
 
 const router = Router({ mergeParams: true });
@@ -50,7 +60,8 @@ async function enrichDelivery(order: typeof deliveryOrdersTable.$inferSelect) {
     rider = r ?? null;
   }
 
-  return { ...order, business: business ?? null, rider };
+  const { guestTrackingToken: _t, guestTrackingTokenExpiresAt: _e, ...safeOrder } = order;
+  return { ...safeOrder, business: business ?? null, rider };
 }
 
 // POST /businesses/:businessId/deliveries — customer creates a delivery request
@@ -68,6 +79,15 @@ router.post("/", async (req, res) => {
 
   const userId = getUserIdFromReq(req);
 
+  let plainTrackingToken: string | undefined;
+  let guestTrackingToken: string | null = null;
+  let guestTrackingTokenExpiresAt: Date | null = null;
+  if (!userId) {
+    plainTrackingToken = generateGuestTrackingToken();
+    guestTrackingToken = hashGuestTrackingToken(plainTrackingToken);
+    guestTrackingTokenExpiresAt = new Date(Date.now() + GUEST_TRACKING_TOKEN_TTL_MS);
+  }
+
   const [order] = await db.insert(deliveryOrdersTable).values({
     businessId,
     customerUserId: userId ?? null,
@@ -77,11 +97,12 @@ router.post("/", async (req, res) => {
     deliveryLatitude: deliveryLatitude !== undefined && deliveryLatitude !== "" ? Number(deliveryLatitude) : null,
     deliveryLongitude: deliveryLongitude !== undefined && deliveryLongitude !== "" ? Number(deliveryLongitude) : null,
     notes: notes ?? null,
+    guestTrackingToken,
+    guestTrackingTokenExpiresAt,
   }).returning();
 
   const enriched = await enrichDelivery(order);
-  const trackingToken = userId ? undefined : generateGuestTrackingToken(order.id);
-  return res.status(201).json({ ...enriched, trackingToken });
+  return res.status(201).json({ ...enriched, trackingToken: plainTrackingToken });
 });
 
 // GET /businesses/:businessId/deliveries — business owner (or admin) views their delivery orders
@@ -119,7 +140,7 @@ standaloneRouter.get("/:id", async (req, res) => {
   // Guest (unauthenticated) orders are tracked via a per-order signed token
   // returned once at creation time, instead of requiring the customer to log in.
   if (order.customerUserId == null) {
-    if (verifyGuestTrackingToken(order.id, req.query.token)) {
+    if (verifyGuestTrackingToken(order, req.query.token)) {
       const enriched = await enrichDelivery(order);
       return res.json(enriched);
     }

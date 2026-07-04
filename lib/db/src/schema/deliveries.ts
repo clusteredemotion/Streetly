@@ -21,6 +21,8 @@ export const deliveryOrdersTable = pgTable("delivery_orders", {
   notes: text("notes"),
   status: deliveryStatusEnum("status").notNull().default("requested"),
   riderId: integer("rider_id").references(() => ridersTable.id),
+  guestTrackingToken: text("guest_tracking_token"),
+  guestTrackingTokenExpiresAt: timestamp("guest_tracking_token_expires_at"),
   requestedAt: timestamp("requested_at").defaultNow().notNull(),
   acceptedAt: timestamp("accepted_at"),
   pickedUpAt: timestamp("picked_up_at"),

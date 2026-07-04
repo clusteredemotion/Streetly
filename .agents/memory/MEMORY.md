@@ -4,3 +4,4 @@
 - [Streetly SMTP mailer](streetly-smtp-mailer.md) — sendMail() reads settings table at call time, never throws; logs a warning and returns false when unconfigured instead of crashing callers
 - [Streetly user roles](streetly-user-roles.md) — DB user_role enum has no "customer" value; regular/customer accounts use role "visitor"
 - [Streetly codegen GET hooks](streetly-codegen-get-hooks.md) — OpenAPI codegen here only reliably emits mutation hooks; GET query hooks are often missing and must be hand-written as raw-fetch useQuery, mirroring AdminPage.tsx patterns
+- [Streetly guest resource access tokens](streetly-guest-tracking-tokens.md) — never derive guest access tokens deterministically from a record id; use random token + stored hash + expiry instead
