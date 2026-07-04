@@ -5,7 +5,7 @@ import {
   businessesTable, agentsTable, usersTable, withdrawalsTable,
   businessClaimsTable, businessPhotosTable, categoriesTable,
   citiesTable, areasTable, streetsTable, messagesTable,
-  supportTicketsTable,
+  supportTicketsTable, ridersTable, deliveryOrdersTable,
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
@@ -331,6 +331,99 @@ router.put("/agents/:id", async (req, res) => {
 
   if (!agent) return res.status(404).json({ error: "Agent not found" });
   return res.json(agent);
+});
+
+// GET /admin/riders/pending
+router.get("/riders/pending", async (_req, res) => {
+  const riders = await db.select().from(ridersTable).where(eq(ridersTable.status, "pending"));
+  return res.json(riders);
+});
+
+// GET /admin/riders/all — all riders with user info
+router.get("/riders/all", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: ridersTable.id,
+      userId: ridersTable.userId,
+      status: ridersTable.status,
+      fullName: ridersTable.fullName,
+      phone: ridersTable.phone,
+      vehicleType: ridersTable.vehicleType,
+      idType: ridersTable.idType,
+      idNumber: ridersTable.idNumber,
+      isOnline: ridersTable.isOnline,
+      totalDeliveries: ridersTable.totalDeliveries,
+      createdAt: ridersTable.createdAt,
+      userName: usersTable.name,
+      userEmail: usersTable.email,
+    })
+    .from(ridersTable)
+    .leftJoin(usersTable, eq(ridersTable.userId, usersTable.id))
+    .orderBy(ridersTable.createdAt);
+  return res.json(rows);
+});
+
+// PATCH /admin/riders/:id/approve
+router.patch("/riders/:id/approve", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { approved } = req.body;
+  const status = approved ? "approved" : "rejected";
+
+  const [rider] = await db.update(ridersTable)
+    .set({ status })
+    .where(eq(ridersTable.id, id))
+    .returning();
+
+  if (!rider) return res.status(404).json({ error: "Rider not found" });
+  return res.json(rider);
+});
+
+// PATCH /admin/riders/:id/suspend — toggle suspension
+router.patch("/riders/:id/suspend", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { suspend } = req.body;
+  const [rider] = await db.update(ridersTable)
+    .set({ status: suspend ? "suspended" : "approved", ...(suspend && { isOnline: false }) })
+    .where(eq(ridersTable.id, id))
+    .returning();
+  if (!rider) return res.status(404).json({ error: "Not found" });
+  return res.json(rider);
+});
+
+// DELETE /admin/riders/:id
+router.delete("/riders/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const [rider] = await db.select().from(ridersTable).where(eq(ridersTable.id, id)).limit(1);
+  if (!rider) return res.status(404).json({ error: "Not found" });
+  await db.delete(ridersTable).where(eq(ridersTable.id, id));
+  await db.update(usersTable).set({ role: "visitor" }).where(eq(usersTable.id, rider.userId));
+  return res.json({ ok: true });
+});
+
+// GET /admin/deliveries/all — all delivery orders with business/rider info
+router.get("/deliveries/all", async (_req, res) => {
+  const rows = await db
+    .select({
+      id: deliveryOrdersTable.id,
+      businessId: deliveryOrdersTable.businessId,
+      customerName: deliveryOrdersTable.customerName,
+      customerPhone: deliveryOrdersTable.customerPhone,
+      deliveryAddress: deliveryOrdersTable.deliveryAddress,
+      status: deliveryOrdersTable.status,
+      riderId: deliveryOrdersTable.riderId,
+      createdAt: deliveryOrdersTable.createdAt,
+      businessName: businessesTable.name,
+      riderFullName: ridersTable.fullName,
+    })
+    .from(deliveryOrdersTable)
+    .leftJoin(businessesTable, eq(deliveryOrdersTable.businessId, businessesTable.id))
+    .leftJoin(ridersTable, eq(deliveryOrdersTable.riderId, ridersTable.id))
+    .orderBy(desc(deliveryOrdersTable.createdAt));
+  return res.json(rows);
 });
 
 // GET /admin/users/all

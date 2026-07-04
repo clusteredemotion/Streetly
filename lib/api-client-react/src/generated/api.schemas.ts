@@ -383,6 +383,182 @@ export interface AgentLeaderboardEntry {
   totalEarnings: number;
 }
 
+export type RiderStatus = typeof RiderStatus[keyof typeof RiderStatus];
+
+
+export const RiderStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+  suspended: 'suspended',
+} as const;
+
+export interface Rider {
+  id: number;
+  userId: number;
+  userName?: string;
+  userEmail?: string;
+  status: RiderStatus;
+  /** @nullable */
+  fullName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  vehicleType?: string | null;
+  /** @nullable */
+  idType?: string | null;
+  /** @nullable */
+  idNumber?: string | null;
+  isOnline?: boolean;
+  /** @nullable */
+  currentLatitude?: number | null;
+  /** @nullable */
+  currentLongitude?: number | null;
+  /** @nullable */
+  lastLocationAt?: string | null;
+  totalDeliveries?: number;
+  createdAt: string;
+}
+
+export interface RiderOnlineStatusInput {
+  isOnline: boolean;
+}
+
+export interface RiderLocationInput {
+  latitude: number;
+  longitude: number;
+}
+
+export interface RiderApplicationInput {
+  fullName: string;
+  phone: string;
+  vehicleType: string;
+  idType?: string;
+  idNumber?: string;
+}
+
+export interface NearbyRider {
+  id: number;
+  /** @nullable */
+  fullName?: string | null;
+  /** @nullable */
+  vehicleType?: string | null;
+  currentLatitude: number;
+  currentLongitude: number;
+  /** @nullable */
+  lastLocationAt?: string | null;
+  distanceKm: number;
+}
+
+export type DeliveryOrderStatus = typeof DeliveryOrderStatus[keyof typeof DeliveryOrderStatus];
+
+
+export const DeliveryOrderStatus = {
+  requested: 'requested',
+  accepted: 'accepted',
+  picked_up: 'picked_up',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * @nullable
+ */
+export type DeliveryOrderBusiness = {
+  id?: number;
+  name?: string;
+  /** @nullable */
+  slug?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
+  phone?: string | null;
+} | null;
+
+/**
+ * @nullable
+ */
+export type DeliveryOrderRider = {
+  id?: number;
+  /** @nullable */
+  fullName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  vehicleType?: string | null;
+  /** @nullable */
+  currentLatitude?: number | null;
+  /** @nullable */
+  currentLongitude?: number | null;
+  /** @nullable */
+  lastLocationAt?: string | null;
+} | null;
+
+export interface DeliveryOrder {
+  id: number;
+  businessId: number;
+  /** @nullable */
+  customerUserId?: number | null;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress: string;
+  /** @nullable */
+  deliveryLatitude?: number | null;
+  /** @nullable */
+  deliveryLongitude?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  status: DeliveryOrderStatus;
+  /** @nullable */
+  riderId?: number | null;
+  requestedAt?: string;
+  /** @nullable */
+  acceptedAt?: string | null;
+  /** @nullable */
+  pickedUpAt?: string | null;
+  /** @nullable */
+  deliveredAt?: string | null;
+  /** @nullable */
+  cancelledAt?: string | null;
+  createdAt: string;
+  /** @nullable */
+  business?: DeliveryOrderBusiness;
+  /** @nullable */
+  rider?: DeliveryOrderRider;
+}
+
+export interface RiderOrderQueue {
+  active: DeliveryOrder[];
+  available: DeliveryOrder[];
+  completedCount: number;
+}
+
+export type DeliveryStatusInputStatus = typeof DeliveryStatusInputStatus[keyof typeof DeliveryStatusInputStatus];
+
+
+export const DeliveryStatusInputStatus = {
+  picked_up: 'picked_up',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+} as const;
+
+export interface DeliveryStatusInput {
+  status: DeliveryStatusInputStatus;
+}
+
+export interface DeliveryOrderInput {
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress: string;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
+  notes?: string;
+}
+
 export interface ApprovalInput {
   approved: boolean;
   reason?: string;
@@ -398,5 +574,11 @@ verified?: boolean;
 featured?: boolean;
 limit?: number;
 offset?: number;
+};
+
+export type GetNearbyRidersParams = {
+lat: number;
+lon: number;
+radiusKm?: number;
 };
 

@@ -37,6 +37,8 @@ const YtIcon = () => (
   </svg>
 );
 import { ClaimBusinessModal } from "@/components/ClaimBusinessModal";
+import { DeliveryRequestModal } from "@/components/DeliveryRequestModal";
+import { Truck } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -191,6 +193,7 @@ export default function BusinessProfilePage() {
   const [comment, setComment] = useState("");
   const [hoveredRating, setHoveredRating] = useState(0);
   const [claimOpen, setClaimOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
@@ -759,6 +762,16 @@ export default function BusinessProfilePage() {
                   </button>
                 )}
 
+                {/* Request Delivery CTA */}
+                <button
+                  onClick={() => setDeliveryOpen(true)}
+                  className="w-full mt-2.5 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all"
+                  style={{ background: "rgba(74,158,255,0.12)", border: "1px solid rgba(74,158,255,0.3)", color: "#4a9eff" }}
+                >
+                  <Truck className="h-4 w-4" />
+                  Request Delivery
+                </button>
+
                 <div className="mt-4 pt-4 border-t border-white/8 space-y-3">
                   <p className="text-xs text-white/30">
                     Listed {new Date(business.createdAt).toLocaleDateString("en-NG", { month: "long", year: "numeric" })}
@@ -793,6 +806,14 @@ export default function BusinessProfilePage() {
         onClose={() => setClaimOpen(false)}
         businessId={bizId}
         businessName={business.name}
+      />
+      <DeliveryRequestModal
+        open={deliveryOpen}
+        onClose={() => setDeliveryOpen(false)}
+        businessId={bizId}
+        businessName={business.name}
+        businessLat={business.latitude ?? null}
+        businessLon={business.longitude ?? null}
       />
     </Layout>
   );

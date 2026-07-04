@@ -2,3 +2,5 @@
 - [drizzle-kit push TTY failure](drizzle-push-tty.md) — push/push-force errors without a TTY for new tables; create the table via raw SQL instead
 - [Streetly auth pattern](streetly-auth-pattern.md) — no middleware; each protected route manually reads Bearer token and calls verifyToken; admin check is per-route via user.role === "admin"
 - [Streetly SMTP mailer](streetly-smtp-mailer.md) — sendMail() reads settings table at call time, never throws; logs a warning and returns false when unconfigured instead of crashing callers
+- [Streetly user roles](streetly-user-roles.md) — DB user_role enum has no "customer" value; regular/customer accounts use role "visitor"
+- [Streetly codegen GET hooks](streetly-codegen-get-hooks.md) — OpenAPI codegen here only reliably emits mutation hooks; GET query hooks are often missing and must be hand-written as raw-fetch useQuery, mirroring AdminPage.tsx patterns

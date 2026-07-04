@@ -13,6 +13,9 @@ import ExplorePage from "@/pages/ExplorePage";
 import AgentsPage from "@/pages/AgentsPage";
 import AgentApplyPage from "@/pages/AgentApplyPage";
 import AgentDashboardPage from "@/pages/AgentDashboardPage";
+import RiderApplyPage from "@/pages/RiderApplyPage";
+import RiderDashboardPage from "@/pages/RiderDashboardPage";
+import DeliveryTrackingPage from "@/pages/DeliveryTrackingPage";
 import OwnerDashboardPage from "@/pages/OwnerDashboardPage";
 import AdminPage from "@/pages/AdminPage";
 import LoginPage from "@/pages/LoginPage";
@@ -44,6 +47,9 @@ function Router() {
       <Route path="/agents" component={AgentsPage} />
       <Route path="/agents/apply" component={AgentApplyPage} />
       <Route path="/agent-dashboard" component={AgentDashboardPage} />
+      <Route path="/riders/apply" component={RiderApplyPage} />
+      <Route path="/rider-dashboard" component={RiderDashboardPage} />
+      <Route path="/deliveries/:id" component={DeliveryTrackingPage} />
       <Route path="/owner-dashboard" component={OwnerDashboardPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/auth/login" component={LoginPage} />

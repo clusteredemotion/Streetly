@@ -264,6 +264,78 @@ function useDeleteAgent() {
   });
 }
 
+function usePendingRiders() {
+  return useQuery({
+    queryKey: ["admin", "riders", "pending"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/riders/pending`, { headers: authHeader() });
+      return res.json() as Promise<Array<{
+        id: number; userId: number; status: string; fullName: string | null;
+        phone: string | null; vehicleType: string | null; idType: string | null; idNumber: string | null;
+        createdAt: string; userName: string | null; userEmail: string | null;
+      }>>;
+    },
+  });
+}
+
+function useAllRiders() {
+  return useQuery({
+    queryKey: ["admin", "riders", "all"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/riders/all`, { headers: authHeader() });
+      return res.json() as Promise<Array<{
+        id: number; userId: number; status: string; isOnline: boolean; fullName: string | null;
+        phone: string | null; vehicleType: string | null; totalDeliveries: number | null;
+        createdAt: string; userName: string | null; userEmail: string | null;
+      }>>;
+    },
+  });
+}
+
+function useApproveRiderAdmin() {
+  return useMutation({
+    mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
+      const res = await fetch(`${BASE}/api/admin/riders/${id}/approve`, {
+        method: "PATCH", headers: authHeader(), body: JSON.stringify({ approved }),
+      });
+      return res.json();
+    },
+  });
+}
+
+function useSuspendRider() {
+  return useMutation({
+    mutationFn: async ({ id, suspend }: { id: number; suspend: boolean }) => {
+      const res = await fetch(`${BASE}/api/admin/riders/${id}/suspend`, {
+        method: "PATCH", headers: authHeader(), body: JSON.stringify({ suspend }),
+      });
+      return res.json();
+    },
+  });
+}
+
+function useDeleteRider() {
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`${BASE}/api/admin/riders/${id}`, { method: "DELETE", headers: authHeader() });
+    },
+  });
+}
+
+function useAllDeliveries() {
+  return useQuery({
+    queryKey: ["admin", "deliveries", "all"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/deliveries/all`, { headers: authHeader() });
+      return res.json() as Promise<Array<{
+        id: number; businessId: number; businessName: string | null; riderId: number | null;
+        riderName: string | null; customerName: string; customerPhone: string; deliveryAddress: string;
+        status: string; createdAt: string;
+      }>>;
+    },
+  });
+}
+
 function useSuspendBusiness() {
   return useMutation({
     mutationFn: async ({ id, suspend }: { id: number; suspend: boolean }) => {
@@ -1255,6 +1327,9 @@ export default function AdminPage() {
   const { data: pendingAgents } = useGetPendingAgents();
   const { data: pendingClaims } = usePendingClaims();
   const { data: allAgents, refetch: refetchAgents } = useAllAgents();
+  const { data: pendingRiders, refetch: refetchPendingRiders } = usePendingRiders();
+  const { data: allRiders, refetch: refetchRiders } = useAllRiders();
+  const { data: allDeliveries, refetch: refetchDeliveries } = useAllDeliveries();
   const { data: allUsers, refetch: refetchUsers } = useAllUsers();
   const { data: allBusinesses, refetch: refetchAllBusinesses } = useAllBusinesses();
   const { data: featuredOrderData, refetch: refetchFeaturedOrder } = useFeaturedOrder();
@@ -1268,6 +1343,9 @@ export default function AdminPage() {
   const deleteUser = useDeleteUser();
   const suspendAgent = useSuspendAgent();
   const deleteAgent = useDeleteAgent();
+  const approveRider = useApproveRiderAdmin();
+  const suspendRider = useSuspendRider();
+  const deleteRider = useDeleteRider();
   const suspendBusiness = useSuspendBusiness();
   const deleteBusiness = useDeleteBusiness();
 
@@ -1341,6 +1419,12 @@ export default function AdminPage() {
     await approveBiz.mutateAsync({ id, data: { approved } });
     qc.invalidateQueries({ queryKey: getGetPendingBusinessesQueryKey() });
     qc.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+  };
+
+  const handleRiderApproval = async (id: number, approved: boolean) => {
+    await approveRider.mutateAsync({ id, approved });
+    refetchPendingRiders();
+    refetchRiders();
   };
 
   const handleAgentApproval = async (id: number, approved: boolean) => {
@@ -1582,6 +1666,11 @@ export default function AdminPage() {
             <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={handleNavSelect} />
             <NavItem section="kyc" active={activeSection} label="KYC Documents" icon={<FileText className="h-4 w-4" />} onSelect={handleNavSelect} />
 
+            <NavGroup label="Delivery" />
+            <NavItem section="pending-riders" active={activeSection} label="Pending Riders" icon={<AlertCircle className="h-4 w-4" />} badge={pendingRiders?.length} onSelect={handleNavSelect} />
+            <NavItem section="all-riders" active={activeSection} label="All Riders" icon={<User className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="all-deliveries" active={activeSection} label="Deliveries" icon={<Building2 className="h-4 w-4" />} onSelect={handleNavSelect} />
+
             <NavGroup label="Catalog" />
             <NavItem section="categories" active={activeSection} label="Categories" icon={<List className="h-4 w-4" />} onSelect={handleNavSelect} />
 
@@ -1822,6 +1911,103 @@ export default function AdminPage() {
                         className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </Button>
+                    </div>
+                  </AdminCard>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+
+          {/* ── Pending Riders ── */}
+          {activeSection === "pending-riders" && (
+            <>
+            <SectionHeader title="Pending Riders" sub="Review delivery rider applications and approve or reject them." />
+            {!pendingRiders?.length ? (
+              <EmptyState icon={<CheckCircle className="h-10 w-10 text-green-500" />} title="No pending riders" sub="All applications have been reviewed" />
+            ) : (
+              <div className="space-y-3">
+                {pendingRiders.map((rider) => (
+                  <AdminCard key={rider.id}>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-foreground">{rider.fullName ?? `Rider #${rider.id}`}</h3>
+                      <p className="text-xs text-muted-foreground">{rider.userEmail ?? "—"} · {rider.phone ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">Vehicle: {rider.vehicleType ?? "—"} · ID: {rider.idType ?? "—"} {rider.idNumber ?? ""}</p>
+                      <p className="text-xs text-muted-foreground">Applied: {new Date(rider.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <ApproveRejectButtons
+                      onApprove={() => handleRiderApproval(rider.id, true)}
+                      onReject={() => handleRiderApproval(rider.id, false)}
+                      loading={approveRider.isPending}
+                    />
+                  </AdminCard>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+
+          {/* ── All Riders ── */}
+          {activeSection === "all-riders" && (
+            <>
+            <SectionHeader title="All Riders" sub="Manage all registered delivery riders on Streetly." />
+            {!allRiders?.length ? (
+              <EmptyState icon={<Users className="h-10 w-10 text-white/20" />} title="No riders yet" sub="Riders will appear here once they apply" />
+            ) : (
+              <div className="space-y-2">
+                {allRiders.map((rider) => (
+                  <AdminCard key={rider.id}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <h3 className="font-semibold text-foreground">{rider.fullName ?? rider.userName ?? `Rider #${rider.id}`}</h3>
+                        <StatusBadge status={rider.status} />
+                        {rider.isOnline && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-green-400"
+                            style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400" /> Online
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{rider.userEmail ?? "—"} · {rider.phone ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">Vehicle: {rider.vehicleType ?? "—"} · Deliveries: {rider.totalDeliveries ?? 0}</p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0 flex-col sm:flex-row">
+                      <Button size="sm" variant="outline"
+                        onClick={async () => { await suspendRider.mutateAsync({ id: rider.id, suspend: rider.status !== "suspended" }); refetchRiders(); }}
+                        className={`gap-1 ${rider.status === "suspended" ? "text-green-400 border-green-400/30 hover:bg-green-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                        <Ban className="h-3.5 w-3.5" /> {rider.status === "suspended" ? "Unsuspend" : "Suspend"}
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => setConfirmDelete({ label: rider.fullName ?? `Rider #${rider.id}`, onConfirm: async () => { await deleteRider.mutateAsync(rider.id); refetchRiders(); } })}
+                        className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </Button>
+                    </div>
+                  </AdminCard>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+
+          {/* ── All Deliveries ── */}
+          {activeSection === "all-deliveries" && (
+            <>
+            <SectionHeader title="Deliveries" sub="All delivery requests placed across the platform." />
+            {!allDeliveries?.length ? (
+              <EmptyState icon={<CheckCircle className="h-10 w-10 text-white/20" />} title="No deliveries yet" sub="Delivery requests will appear here" />
+            ) : (
+              <div className="space-y-2">
+                {allDeliveries.map((d) => (
+                  <AdminCard key={d.id}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <h3 className="font-semibold text-foreground">#{d.id} · {d.businessName ?? `Business #${d.businessId}`}</h3>
+                        <StatusBadge status={d.status} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Customer: {d.customerName} · {d.customerPhone}</p>
+                      <p className="text-xs text-muted-foreground">To: {d.deliveryAddress}</p>
+                      <p className="text-xs text-muted-foreground">Rider: {d.riderName ?? "Unassigned"} · {new Date(d.createdAt).toLocaleDateString()}</p>
                     </div>
                   </AdminCard>
                 ))}

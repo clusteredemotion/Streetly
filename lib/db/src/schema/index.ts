@@ -8,3 +8,5 @@ export * from "./claims";
 export * from "./messages";
 export * from "./contact";
 export * from "./support";
+export * from "./riders";
+export * from "./deliveries";

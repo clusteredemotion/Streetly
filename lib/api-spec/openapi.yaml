@@ -21,6 +21,10 @@ tags:
     description: Business reviews
   - name: agents
     description: Field agent system
+  - name: riders
+    description: Delivery rider system
+  - name: deliveries
+    description: Delivery order tracking
   - name: admin
     description: Admin operations
   - name: stats
@@ -641,7 +645,288 @@ paths:
                 items:
                   $ref: "#/components/schemas/AgentLeaderboardEntry"
 
+  # Riders
+  /riders/by-user:
+    get:
+      operationId: getMyRiderProfile
+      tags: [riders]
+      summary: Get rider profile for the current user
+      responses:
+        "200":
+          description: Rider profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rider"
+
+  /riders/apply:
+    post:
+      operationId: applyAsRider
+      tags: [riders]
+      summary: Apply to become a delivery rider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiderApplicationInput"
+      responses:
+        "201":
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rider"
+
+  /riders/{riderId}/status:
+    patch:
+      operationId: setRiderOnlineStatus
+      tags: [riders]
+      summary: Go online or offline
+      parameters:
+        - name: riderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiderOnlineStatusInput"
+      responses:
+        "200":
+          description: Updated rider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rider"
+
+  /riders/{riderId}/location:
+    post:
+      operationId: updateRiderLocation
+      tags: [riders]
+      summary: Push a live GPS location update
+      parameters:
+        - name: riderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiderLocationInput"
+      responses:
+        "200":
+          description: Updated rider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rider"
+
+  /riders/nearby:
+    get:
+      operationId: getNearbyRiders
+      tags: [riders]
+      summary: Get online riders near a point
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: radiusKm
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Nearby riders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NearbyRider"
+
+  /riders/{riderId}/orders:
+    get:
+      operationId: getRiderOrders
+      tags: [riders]
+      summary: Get a rider's active order and available nearby requests
+      parameters:
+        - name: riderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rider order queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiderOrderQueue"
+
+  # Deliveries
+  /businesses/{businessId}/deliveries:
+    post:
+      operationId: createDeliveryOrder
+      tags: [deliveries]
+      summary: Request a delivery/pickup from a business
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryOrderInput"
+      responses:
+        "201":
+          description: Delivery order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryOrder"
+    get:
+      operationId: listBusinessDeliveries
+      tags: [deliveries]
+      summary: List delivery orders for a business
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeliveryOrder"
+
+  /deliveries/{id}:
+    get:
+      operationId: getDeliveryOrder
+      tags: [deliveries]
+      summary: Get a delivery order (for live tracking)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Delivery order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryOrder"
+
+  /deliveries/{id}/accept:
+    post:
+      operationId: acceptDeliveryOrder
+      tags: [deliveries]
+      summary: Rider accepts a delivery order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated delivery order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryOrder"
+
+  /deliveries/{id}/status:
+    patch:
+      operationId: updateDeliveryStatus
+      tags: [deliveries]
+      summary: Rider updates delivery order status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryStatusInput"
+      responses:
+        "200":
+          description: Updated delivery order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryOrder"
+
   # Admin
+  /admin/riders/pending:
+    get:
+      operationId: getPendingRiders
+      tags: [admin]
+      summary: Get riders pending approval
+      responses:
+        "200":
+          description: Pending riders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Rider"
+
+  /admin/riders/{id}/approve:
+    patch:
+      operationId: approveRider
+      tags: [admin]
+      summary: Approve or reject a rider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalInput"
+      responses:
+        "200":
+          description: Updated rider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rider"
+
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -1301,6 +1586,210 @@ components:
           type: integer
         totalEarnings:
           type: number
+
+    # Riders
+    Rider:
+      type: object
+      required: [id, userId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: string
+        userEmail:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected, suspended]
+        fullName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        vehicleType:
+          type: ["string", "null"]
+        idType:
+          type: ["string", "null"]
+        idNumber:
+          type: ["string", "null"]
+        isOnline:
+          type: boolean
+        currentLatitude:
+          type: ["number", "null"]
+        currentLongitude:
+          type: ["number", "null"]
+        lastLocationAt:
+          type: ["string", "null"]
+        totalDeliveries:
+          type: integer
+        createdAt:
+          type: string
+
+    RiderOnlineStatusInput:
+      type: object
+      required: [isOnline]
+      properties:
+        isOnline:
+          type: boolean
+
+    RiderLocationInput:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    RiderApplicationInput:
+      type: object
+      required: [fullName, phone, vehicleType]
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        vehicleType:
+          type: string
+        idType:
+          type: string
+        idNumber:
+          type: string
+
+    NearbyRider:
+      type: object
+      required: [id, currentLatitude, currentLongitude, distanceKm]
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: ["string", "null"]
+        vehicleType:
+          type: ["string", "null"]
+        currentLatitude:
+          type: number
+        currentLongitude:
+          type: number
+        lastLocationAt:
+          type: ["string", "null"]
+        distanceKm:
+          type: number
+
+    RiderOrderQueue:
+      type: object
+      required: [active, available, completedCount]
+      properties:
+        active:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryOrder"
+        available:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeliveryOrder"
+        completedCount:
+          type: integer
+
+    # Deliveries
+    DeliveryOrder:
+      type: object
+      required: [id, businessId, customerName, customerPhone, deliveryAddress, status, createdAt]
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: integer
+        customerUserId:
+          type: ["integer", "null"]
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        deliveryAddress:
+          type: string
+        deliveryLatitude:
+          type: ["number", "null"]
+        deliveryLongitude:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [requested, accepted, picked_up, delivered, cancelled]
+        riderId:
+          type: ["integer", "null"]
+        requestedAt:
+          type: string
+        acceptedAt:
+          type: ["string", "null"]
+        pickedUpAt:
+          type: ["string", "null"]
+        deliveredAt:
+          type: ["string", "null"]
+        cancelledAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        business:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            slug:
+              type: ["string", "null"]
+            address:
+              type: ["string", "null"]
+            latitude:
+              type: ["number", "null"]
+            longitude:
+              type: ["number", "null"]
+            phone:
+              type: ["string", "null"]
+        rider:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: integer
+            fullName:
+              type: ["string", "null"]
+            phone:
+              type: ["string", "null"]
+            vehicleType:
+              type: ["string", "null"]
+            currentLatitude:
+              type: ["number", "null"]
+            currentLongitude:
+              type: ["number", "null"]
+            lastLocationAt:
+              type: ["string", "null"]
+
+    DeliveryStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [picked_up, delivered, cancelled]
+
+    DeliveryOrderInput:
+      type: object
+      required: [customerName, customerPhone, deliveryAddress]
+      properties:
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        deliveryAddress:
+          type: string
+        deliveryLatitude:
+          type: number
+        deliveryLongitude:
+          type: number
+        notes:
+          type: string
 
     # Admin
     ApprovalInput:

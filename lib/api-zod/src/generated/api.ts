@@ -699,6 +699,473 @@ export const GetAgentLeaderboardResponse = zod.array(GetAgentLeaderboardResponse
 
 
 /**
+ * @summary Get rider profile for the current user
+ */
+export const GetMyRiderProfileResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'suspended']),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "idType": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "isOnline": zod.boolean().optional(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish(),
+  "totalDeliveries": zod.number().optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Apply to become a delivery rider
+ */
+export const ApplyAsRiderBody = zod.object({
+  "fullName": zod.string(),
+  "phone": zod.string(),
+  "vehicleType": zod.string(),
+  "idType": zod.string().optional(),
+  "idNumber": zod.string().optional()
+})
+
+
+/**
+ * @summary Go online or offline
+ */
+export const SetRiderOnlineStatusParams = zod.object({
+  "riderId": zod.coerce.number()
+})
+
+export const SetRiderOnlineStatusBody = zod.object({
+  "isOnline": zod.boolean()
+})
+
+export const SetRiderOnlineStatusResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'suspended']),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "idType": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "isOnline": zod.boolean().optional(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish(),
+  "totalDeliveries": zod.number().optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Push a live GPS location update
+ */
+export const UpdateRiderLocationParams = zod.object({
+  "riderId": zod.coerce.number()
+})
+
+export const UpdateRiderLocationBody = zod.object({
+  "latitude": zod.number(),
+  "longitude": zod.number()
+})
+
+export const UpdateRiderLocationResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'suspended']),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "idType": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "isOnline": zod.boolean().optional(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish(),
+  "totalDeliveries": zod.number().optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get online riders near a point
+ */
+export const GetNearbyRidersQueryParams = zod.object({
+  "lat": zod.coerce.number(),
+  "lon": zod.coerce.number(),
+  "radiusKm": zod.coerce.number().optional()
+})
+
+export const GetNearbyRidersResponseItem = zod.object({
+  "id": zod.number(),
+  "fullName": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number(),
+  "currentLongitude": zod.number(),
+  "lastLocationAt": zod.string().nullish(),
+  "distanceKm": zod.number()
+})
+export const GetNearbyRidersResponse = zod.array(GetNearbyRidersResponseItem)
+
+
+/**
+ * @summary Get a rider's active order and available nearby requests
+ */
+export const GetRiderOrdersParams = zod.object({
+  "riderId": zod.coerce.number()
+})
+
+export const GetRiderOrdersResponse = zod.object({
+  "active": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "customerUserId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().nullish(),
+  "deliveryLongitude": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+  "riderId": zod.number().nullish(),
+  "requestedAt": zod.string().optional(),
+  "acceptedAt": zod.string().nullish(),
+  "pickedUpAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "cancelledAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "business": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "slug": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
+  "rider": zod.object({
+  "id": zod.number().optional(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish()
+}).nullish()
+})),
+  "available": zod.array(zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "customerUserId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().nullish(),
+  "deliveryLongitude": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+  "riderId": zod.number().nullish(),
+  "requestedAt": zod.string().optional(),
+  "acceptedAt": zod.string().nullish(),
+  "pickedUpAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "cancelledAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "business": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "slug": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
+  "rider": zod.object({
+  "id": zod.number().optional(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish()
+}).nullish()
+})),
+  "completedCount": zod.number()
+})
+
+
+/**
+ * @summary Request a delivery/pickup from a business
+ */
+export const CreateDeliveryOrderParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const CreateDeliveryOrderBody = zod.object({
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().optional(),
+  "deliveryLongitude": zod.number().optional(),
+  "notes": zod.string().optional()
+})
+
+
+/**
+ * @summary List delivery orders for a business
+ */
+export const ListBusinessDeliveriesParams = zod.object({
+  "businessId": zod.coerce.number()
+})
+
+export const ListBusinessDeliveriesResponseItem = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "customerUserId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().nullish(),
+  "deliveryLongitude": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+  "riderId": zod.number().nullish(),
+  "requestedAt": zod.string().optional(),
+  "acceptedAt": zod.string().nullish(),
+  "pickedUpAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "cancelledAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "business": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "slug": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
+  "rider": zod.object({
+  "id": zod.number().optional(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish()
+}).nullish()
+})
+export const ListBusinessDeliveriesResponse = zod.array(ListBusinessDeliveriesResponseItem)
+
+
+/**
+ * @summary Get a delivery order (for live tracking)
+ */
+export const GetDeliveryOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetDeliveryOrderResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "customerUserId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().nullish(),
+  "deliveryLongitude": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+  "riderId": zod.number().nullish(),
+  "requestedAt": zod.string().optional(),
+  "acceptedAt": zod.string().nullish(),
+  "pickedUpAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "cancelledAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "business": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "slug": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
+  "rider": zod.object({
+  "id": zod.number().optional(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish()
+}).nullish()
+})
+
+
+/**
+ * @summary Rider accepts a delivery order
+ */
+export const AcceptDeliveryOrderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AcceptDeliveryOrderResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "customerUserId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().nullish(),
+  "deliveryLongitude": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+  "riderId": zod.number().nullish(),
+  "requestedAt": zod.string().optional(),
+  "acceptedAt": zod.string().nullish(),
+  "pickedUpAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "cancelledAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "business": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "slug": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
+  "rider": zod.object({
+  "id": zod.number().optional(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish()
+}).nullish()
+})
+
+
+/**
+ * @summary Rider updates delivery order status
+ */
+export const UpdateDeliveryStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateDeliveryStatusBody = zod.object({
+  "status": zod.enum(['picked_up', 'delivered', 'cancelled'])
+})
+
+export const UpdateDeliveryStatusResponse = zod.object({
+  "id": zod.number(),
+  "businessId": zod.number(),
+  "customerUserId": zod.number().nullish(),
+  "customerName": zod.string(),
+  "customerPhone": zod.string(),
+  "deliveryAddress": zod.string(),
+  "deliveryLatitude": zod.number().nullish(),
+  "deliveryLongitude": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['requested', 'accepted', 'picked_up', 'delivered', 'cancelled']),
+  "riderId": zod.number().nullish(),
+  "requestedAt": zod.string().optional(),
+  "acceptedAt": zod.string().nullish(),
+  "pickedUpAt": zod.string().nullish(),
+  "deliveredAt": zod.string().nullish(),
+  "cancelledAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "business": zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "slug": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "phone": zod.string().nullish()
+}).nullish(),
+  "rider": zod.object({
+  "id": zod.number().optional(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish()
+}).nullish()
+})
+
+
+/**
+ * @summary Get riders pending approval
+ */
+export const GetPendingRidersResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'suspended']),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "idType": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "isOnline": zod.boolean().optional(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish(),
+  "totalDeliveries": zod.number().optional(),
+  "createdAt": zod.string()
+})
+export const GetPendingRidersResponse = zod.array(GetPendingRidersResponseItem)
+
+
+/**
+ * @summary Approve or reject a rider
+ */
+export const ApproveRiderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApproveRiderBody = zod.object({
+  "approved": zod.boolean(),
+  "reason": zod.string().optional()
+})
+
+export const ApproveRiderResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'suspended']),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "idType": zod.string().nullish(),
+  "idNumber": zod.string().nullish(),
+  "isOnline": zod.boolean().optional(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish(),
+  "totalDeliveries": zod.number().optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary Get admin platform statistics
  */
 export const GetAdminStatsResponse = zod.object({

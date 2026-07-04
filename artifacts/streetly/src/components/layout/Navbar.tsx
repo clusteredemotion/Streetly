@@ -37,15 +37,23 @@ export function Navbar() {
   };
 
   const isAgent = user?.role === "field_agent";
+  const isRider = user?.role === "delivery_rider";
 
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/businesses", label: "Directory" },
     { href: "/explore", label: "Street Explorer" },
     ...(!isAgent ? [{ href: "/agents", label: "Become an Agent" }] : []),
+    ...(!isRider ? [{ href: "/riders/apply", label: "Become a Rider" }] : []),
     ...(!user ? [{ href: "/auth/register?role=business_owner", label: "List Your Business" }] : []),
     ...(user ? [{ href: "/support", label: "Support Tickets" }] : []),
   ];
+
+  const dashboardHref = (role: string | undefined) =>
+    role === "field_agent" ? "/agent-dashboard"
+    : role === "delivery_rider" ? "/rider-dashboard"
+    : role === "business_owner" ? "/owner-dashboard"
+    : "/admin";
 
   /* onMap = sitting at the top of the home page (map is fully visible behind us)
      → needs a light frosted glass bar with dark-blue text so it reads on light map tiles.
@@ -111,11 +119,7 @@ export function Navbar() {
                 )}>
                   {greeting}, <span className="font-semibold">{firstName}</span> 👋
                 </span>
-                <Link href={
-                  user.role === "field_agent" ? "/agent-dashboard"
-                  : user.role === "business_owner" ? "/owner-dashboard"
-                  : "/admin"
-                }>
+                <Link href={dashboardHref(user.role)}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -236,7 +240,7 @@ export function Navbar() {
                     <p className="text-sm text-white/60 px-1 font-medium">
                       {greeting}, <span className="text-white font-semibold">{firstName}</span> 👋
                     </p>
-                    <Link href={user.role === "field_agent" ? "/agent-dashboard" : user.role === "business_owner" ? "/owner-dashboard" : "/admin"}>
+                    <Link href={dashboardHref(user.role)}>
                       <Button variant="outline" className="w-full rounded-xl text-white border-white/20 hover:bg-white/10" onClick={() => setIsOpen(false)}>
                         Dashboard
                       </Button>

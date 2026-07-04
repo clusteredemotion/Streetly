@@ -13,6 +13,8 @@ import claimsRouter from "./claims";
 import geoRouter from "./geo";
 import contactRouter from "./contact";
 import supportTicketsRouter from "./support-tickets";
+import ridersRouter from "./riders";
+import deliveriesRouter, { standaloneDeliveriesRouter } from "./deliveries";
 
 const router: IRouter = Router();
 
@@ -25,7 +27,10 @@ router.use(locationsRouter);
 router.use("/businesses", businessesRouter);
 router.use("/businesses/:businessId/reviews", reviewsRouter);
 router.use("/businesses/:businessId/claim", claimsRouter);
+router.use("/businesses/:businessId/deliveries", deliveriesRouter);
 router.use("/agents", agentsRouter);
+router.use("/riders", ridersRouter);
+router.use("/deliveries", standaloneDeliveriesRouter);
 router.use("/admin", adminRouter);
 router.use("/streets", streetExplorerRouter);
 router.use("/contact", contactRouter);

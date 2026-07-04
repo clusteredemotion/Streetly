@@ -39,14 +39,24 @@ import type {
   ContactSubmission,
   CreateSupportTicketInput,
   CreateSupportTicketReplyInput,
+  DeliveryOrder,
+  DeliveryOrderInput,
+  DeliveryStatusInput,
   GeoInfo,
+  GetNearbyRidersParams,
   HealthStatus,
   ListBusinessesParams,
   LoginInput,
+  NearbyRider,
   PlatformStats,
   RegisterInput,
   Review,
   ReviewInput,
+  Rider,
+  RiderApplicationInput,
+  RiderLocationInput,
+  RiderOnlineStatusInput,
+  RiderOrderQueue,
   Street,
   SupportTicket,
   SupportTicketDetail,
@@ -2394,6 +2404,976 @@ export function useGetAgentLeaderboard<TData = Awaited<ReturnType<typeof getAgen
 
 
 
+
+export const getGetMyRiderProfileUrl = () => {
+
+
+
+
+  return `/api/riders/by-user`
+}
+
+/**
+ * @summary Get rider profile for the current user
+ */
+export const getMyRiderProfile = async ( options?: RequestInit): Promise<Rider> => {
+
+  return customFetch<Rider>(getGetMyRiderProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyRiderProfileQueryKey = () => {
+    return [
+    `/api/riders/by-user`
+    ] as const;
+    }
+
+
+export const getGetMyRiderProfileQueryOptions = <TData = Awaited<ReturnType<typeof getMyRiderProfile>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyRiderProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyRiderProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyRiderProfile>>> = ({ signal }) => getMyRiderProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyRiderProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyRiderProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getMyRiderProfile>>>
+export type GetMyRiderProfileQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get rider profile for the current user
+ */
+
+export function useGetMyRiderProfile<TData = Awaited<ReturnType<typeof getMyRiderProfile>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyRiderProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyRiderProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getApplyAsRiderUrl = () => {
+
+
+
+
+  return `/api/riders/apply`
+}
+
+/**
+ * @summary Apply to become a delivery rider
+ */
+export const applyAsRider = async (riderApplicationInput: RiderApplicationInput, options?: RequestInit): Promise<Rider> => {
+
+  return customFetch<Rider>(getApplyAsRiderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      riderApplicationInput,)
+  }
+);}
+
+
+
+
+export const getApplyAsRiderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyAsRider>>, TError,{data: BodyType<RiderApplicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyAsRider>>, TError,{data: BodyType<RiderApplicationInput>}, TContext> => {
+
+const mutationKey = ['applyAsRider'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyAsRider>>, {data: BodyType<RiderApplicationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  applyAsRider(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyAsRiderMutationResult = NonNullable<Awaited<ReturnType<typeof applyAsRider>>>
+    export type ApplyAsRiderMutationBody = BodyType<RiderApplicationInput>
+    export type ApplyAsRiderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Apply to become a delivery rider
+ */
+export const useApplyAsRider = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyAsRider>>, TError,{data: BodyType<RiderApplicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyAsRider>>,
+        TError,
+        {data: BodyType<RiderApplicationInput>},
+        TContext
+      > => {
+      return useMutation(getApplyAsRiderMutationOptions(options));
+    }
+
+export const getSetRiderOnlineStatusUrl = (riderId: number,) => {
+
+
+
+
+  return `/api/riders/${riderId}/status`
+}
+
+/**
+ * @summary Go online or offline
+ */
+export const setRiderOnlineStatus = async (riderId: number,
+    riderOnlineStatusInput: RiderOnlineStatusInput, options?: RequestInit): Promise<Rider> => {
+
+  return customFetch<Rider>(getSetRiderOnlineStatusUrl(riderId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      riderOnlineStatusInput,)
+  }
+);}
+
+
+
+
+export const getSetRiderOnlineStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRiderOnlineStatus>>, TError,{riderId: number;data: BodyType<RiderOnlineStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setRiderOnlineStatus>>, TError,{riderId: number;data: BodyType<RiderOnlineStatusInput>}, TContext> => {
+
+const mutationKey = ['setRiderOnlineStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setRiderOnlineStatus>>, {riderId: number;data: BodyType<RiderOnlineStatusInput>}> = (props) => {
+          const {riderId,data} = props ?? {};
+
+          return  setRiderOnlineStatus(riderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetRiderOnlineStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setRiderOnlineStatus>>>
+    export type SetRiderOnlineStatusMutationBody = BodyType<RiderOnlineStatusInput>
+    export type SetRiderOnlineStatusMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Go online or offline
+ */
+export const useSetRiderOnlineStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRiderOnlineStatus>>, TError,{riderId: number;data: BodyType<RiderOnlineStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setRiderOnlineStatus>>,
+        TError,
+        {riderId: number;data: BodyType<RiderOnlineStatusInput>},
+        TContext
+      > => {
+      return useMutation(getSetRiderOnlineStatusMutationOptions(options));
+    }
+
+export const getUpdateRiderLocationUrl = (riderId: number,) => {
+
+
+
+
+  return `/api/riders/${riderId}/location`
+}
+
+/**
+ * @summary Push a live GPS location update
+ */
+export const updateRiderLocation = async (riderId: number,
+    riderLocationInput: RiderLocationInput, options?: RequestInit): Promise<Rider> => {
+
+  return customFetch<Rider>(getUpdateRiderLocationUrl(riderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      riderLocationInput,)
+  }
+);}
+
+
+
+
+export const getUpdateRiderLocationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRiderLocation>>, TError,{riderId: number;data: BodyType<RiderLocationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRiderLocation>>, TError,{riderId: number;data: BodyType<RiderLocationInput>}, TContext> => {
+
+const mutationKey = ['updateRiderLocation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRiderLocation>>, {riderId: number;data: BodyType<RiderLocationInput>}> = (props) => {
+          const {riderId,data} = props ?? {};
+
+          return  updateRiderLocation(riderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRiderLocationMutationResult = NonNullable<Awaited<ReturnType<typeof updateRiderLocation>>>
+    export type UpdateRiderLocationMutationBody = BodyType<RiderLocationInput>
+    export type UpdateRiderLocationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Push a live GPS location update
+ */
+export const useUpdateRiderLocation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRiderLocation>>, TError,{riderId: number;data: BodyType<RiderLocationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRiderLocation>>,
+        TError,
+        {riderId: number;data: BodyType<RiderLocationInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRiderLocationMutationOptions(options));
+    }
+
+export const getGetNearbyRidersUrl = (params: GetNearbyRidersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/riders/nearby?${stringifiedParams}` : `/api/riders/nearby`
+}
+
+/**
+ * @summary Get online riders near a point
+ */
+export const getNearbyRiders = async (params: GetNearbyRidersParams, options?: RequestInit): Promise<NearbyRider[]> => {
+
+  return customFetch<NearbyRider[]>(getGetNearbyRidersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNearbyRidersQueryKey = (params?: GetNearbyRidersParams,) => {
+    return [
+    `/api/riders/nearby`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetNearbyRidersQueryOptions = <TData = Awaited<ReturnType<typeof getNearbyRiders>>, TError = ErrorType<unknown>>(params: GetNearbyRidersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNearbyRiders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNearbyRidersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNearbyRiders>>> = ({ signal }) => getNearbyRiders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNearbyRiders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNearbyRidersQueryResult = NonNullable<Awaited<ReturnType<typeof getNearbyRiders>>>
+export type GetNearbyRidersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get online riders near a point
+ */
+
+export function useGetNearbyRiders<TData = Awaited<ReturnType<typeof getNearbyRiders>>, TError = ErrorType<unknown>>(
+ params: GetNearbyRidersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNearbyRiders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNearbyRidersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetRiderOrdersUrl = (riderId: number,) => {
+
+
+
+
+  return `/api/riders/${riderId}/orders`
+}
+
+/**
+ * @summary Get a rider's active order and available nearby requests
+ */
+export const getRiderOrders = async (riderId: number, options?: RequestInit): Promise<RiderOrderQueue> => {
+
+  return customFetch<RiderOrderQueue>(getGetRiderOrdersUrl(riderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRiderOrdersQueryKey = (riderId: number,) => {
+    return [
+    `/api/riders/${riderId}/orders`
+    ] as const;
+    }
+
+
+export const getGetRiderOrdersQueryOptions = <TData = Awaited<ReturnType<typeof getRiderOrders>>, TError = ErrorType<unknown>>(riderId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRiderOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRiderOrdersQueryKey(riderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRiderOrders>>> = ({ signal }) => getRiderOrders(riderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(riderId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRiderOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRiderOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof getRiderOrders>>>
+export type GetRiderOrdersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a rider's active order and available nearby requests
+ */
+
+export function useGetRiderOrders<TData = Awaited<ReturnType<typeof getRiderOrders>>, TError = ErrorType<unknown>>(
+ riderId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRiderOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRiderOrdersQueryOptions(riderId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateDeliveryOrderUrl = (businessId: number,) => {
+
+
+
+
+  return `/api/businesses/${businessId}/deliveries`
+}
+
+/**
+ * @summary Request a delivery/pickup from a business
+ */
+export const createDeliveryOrder = async (businessId: number,
+    deliveryOrderInput: DeliveryOrderInput, options?: RequestInit): Promise<DeliveryOrder> => {
+
+  return customFetch<DeliveryOrder>(getCreateDeliveryOrderUrl(businessId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      deliveryOrderInput,)
+  }
+);}
+
+
+
+
+export const getCreateDeliveryOrderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDeliveryOrder>>, TError,{businessId: number;data: BodyType<DeliveryOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDeliveryOrder>>, TError,{businessId: number;data: BodyType<DeliveryOrderInput>}, TContext> => {
+
+const mutationKey = ['createDeliveryOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDeliveryOrder>>, {businessId: number;data: BodyType<DeliveryOrderInput>}> = (props) => {
+          const {businessId,data} = props ?? {};
+
+          return  createDeliveryOrder(businessId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDeliveryOrderMutationResult = NonNullable<Awaited<ReturnType<typeof createDeliveryOrder>>>
+    export type CreateDeliveryOrderMutationBody = BodyType<DeliveryOrderInput>
+    export type CreateDeliveryOrderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a delivery/pickup from a business
+ */
+export const useCreateDeliveryOrder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDeliveryOrder>>, TError,{businessId: number;data: BodyType<DeliveryOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDeliveryOrder>>,
+        TError,
+        {businessId: number;data: BodyType<DeliveryOrderInput>},
+        TContext
+      > => {
+      return useMutation(getCreateDeliveryOrderMutationOptions(options));
+    }
+
+export const getListBusinessDeliveriesUrl = (businessId: number,) => {
+
+
+
+
+  return `/api/businesses/${businessId}/deliveries`
+}
+
+/**
+ * @summary List delivery orders for a business
+ */
+export const listBusinessDeliveries = async (businessId: number, options?: RequestInit): Promise<DeliveryOrder[]> => {
+
+  return customFetch<DeliveryOrder[]>(getListBusinessDeliveriesUrl(businessId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBusinessDeliveriesQueryKey = (businessId: number,) => {
+    return [
+    `/api/businesses/${businessId}/deliveries`
+    ] as const;
+    }
+
+
+export const getListBusinessDeliveriesQueryOptions = <TData = Awaited<ReturnType<typeof listBusinessDeliveries>>, TError = ErrorType<unknown>>(businessId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBusinessDeliveries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBusinessDeliveriesQueryKey(businessId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBusinessDeliveries>>> = ({ signal }) => listBusinessDeliveries(businessId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(businessId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBusinessDeliveries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBusinessDeliveriesQueryResult = NonNullable<Awaited<ReturnType<typeof listBusinessDeliveries>>>
+export type ListBusinessDeliveriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List delivery orders for a business
+ */
+
+export function useListBusinessDeliveries<TData = Awaited<ReturnType<typeof listBusinessDeliveries>>, TError = ErrorType<unknown>>(
+ businessId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBusinessDeliveries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBusinessDeliveriesQueryOptions(businessId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetDeliveryOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/deliveries/${id}`
+}
+
+/**
+ * @summary Get a delivery order (for live tracking)
+ */
+export const getDeliveryOrder = async (id: number, options?: RequestInit): Promise<DeliveryOrder> => {
+
+  return customFetch<DeliveryOrder>(getGetDeliveryOrderUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeliveryOrderQueryKey = (id: number,) => {
+    return [
+    `/api/deliveries/${id}`
+    ] as const;
+    }
+
+
+export const getGetDeliveryOrderQueryOptions = <TData = Awaited<ReturnType<typeof getDeliveryOrder>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeliveryOrderQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryOrder>>> = ({ signal }) => getDeliveryOrder(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeliveryOrder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeliveryOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getDeliveryOrder>>>
+export type GetDeliveryOrderQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a delivery order (for live tracking)
+ */
+
+export function useGetDeliveryOrder<TData = Awaited<ReturnType<typeof getDeliveryOrder>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryOrder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeliveryOrderQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAcceptDeliveryOrderUrl = (id: number,) => {
+
+
+
+
+  return `/api/deliveries/${id}/accept`
+}
+
+/**
+ * @summary Rider accepts a delivery order
+ */
+export const acceptDeliveryOrder = async (id: number, options?: RequestInit): Promise<DeliveryOrder> => {
+
+  return customFetch<DeliveryOrder>(getAcceptDeliveryOrderUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAcceptDeliveryOrderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptDeliveryOrder>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptDeliveryOrder>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['acceptDeliveryOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptDeliveryOrder>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  acceptDeliveryOrder(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptDeliveryOrderMutationResult = NonNullable<Awaited<ReturnType<typeof acceptDeliveryOrder>>>
+
+    export type AcceptDeliveryOrderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Rider accepts a delivery order
+ */
+export const useAcceptDeliveryOrder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptDeliveryOrder>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptDeliveryOrder>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAcceptDeliveryOrderMutationOptions(options));
+    }
+
+export const getUpdateDeliveryStatusUrl = (id: number,) => {
+
+
+
+
+  return `/api/deliveries/${id}/status`
+}
+
+/**
+ * @summary Rider updates delivery order status
+ */
+export const updateDeliveryStatus = async (id: number,
+    deliveryStatusInput: DeliveryStatusInput, options?: RequestInit): Promise<DeliveryOrder> => {
+
+  return customFetch<DeliveryOrder>(getUpdateDeliveryStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      deliveryStatusInput,)
+  }
+);}
+
+
+
+
+export const getUpdateDeliveryStatusMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDeliveryStatus>>, TError,{id: number;data: BodyType<DeliveryStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDeliveryStatus>>, TError,{id: number;data: BodyType<DeliveryStatusInput>}, TContext> => {
+
+const mutationKey = ['updateDeliveryStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDeliveryStatus>>, {id: number;data: BodyType<DeliveryStatusInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateDeliveryStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDeliveryStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateDeliveryStatus>>>
+    export type UpdateDeliveryStatusMutationBody = BodyType<DeliveryStatusInput>
+    export type UpdateDeliveryStatusMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Rider updates delivery order status
+ */
+export const useUpdateDeliveryStatus = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDeliveryStatus>>, TError,{id: number;data: BodyType<DeliveryStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDeliveryStatus>>,
+        TError,
+        {id: number;data: BodyType<DeliveryStatusInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateDeliveryStatusMutationOptions(options));
+    }
+
+export const getGetPendingRidersUrl = () => {
+
+
+
+
+  return `/api/admin/riders/pending`
+}
+
+/**
+ * @summary Get riders pending approval
+ */
+export const getPendingRiders = async ( options?: RequestInit): Promise<Rider[]> => {
+
+  return customFetch<Rider[]>(getGetPendingRidersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPendingRidersQueryKey = () => {
+    return [
+    `/api/admin/riders/pending`
+    ] as const;
+    }
+
+
+export const getGetPendingRidersQueryOptions = <TData = Awaited<ReturnType<typeof getPendingRiders>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPendingRiders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPendingRidersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPendingRiders>>> = ({ signal }) => getPendingRiders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPendingRiders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPendingRidersQueryResult = NonNullable<Awaited<ReturnType<typeof getPendingRiders>>>
+export type GetPendingRidersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get riders pending approval
+ */
+
+export function useGetPendingRiders<TData = Awaited<ReturnType<typeof getPendingRiders>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPendingRiders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPendingRidersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getApproveRiderUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/riders/${id}/approve`
+}
+
+/**
+ * @summary Approve or reject a rider
+ */
+export const approveRider = async (id: number,
+    approvalInput: ApprovalInput, options?: RequestInit): Promise<Rider> => {
+
+  return customFetch<Rider>(getApproveRiderUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      approvalInput,)
+  }
+);}
+
+
+
+
+export const getApproveRiderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveRider>>, TError,{id: number;data: BodyType<ApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveRider>>, TError,{id: number;data: BodyType<ApprovalInput>}, TContext> => {
+
+const mutationKey = ['approveRider'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveRider>>, {id: number;data: BodyType<ApprovalInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveRider(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveRiderMutationResult = NonNullable<Awaited<ReturnType<typeof approveRider>>>
+    export type ApproveRiderMutationBody = BodyType<ApprovalInput>
+    export type ApproveRiderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject a rider
+ */
+export const useApproveRider = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveRider>>, TError,{id: number;data: BodyType<ApprovalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveRider>>,
+        TError,
+        {id: number;data: BodyType<ApprovalInput>},
+        TContext
+      > => {
+      return useMutation(getApproveRiderMutationOptions(options));
+    }
 
 export const getGetAdminStatsUrl = () => {
 
