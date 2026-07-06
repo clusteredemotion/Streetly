@@ -759,6 +759,32 @@ paths:
                 items:
                   $ref: "#/components/schemas/NearbyRider"
 
+  /riders/available:
+    get:
+      operationId: getAvailableRidersDirectory
+      tags: [riders]
+      summary: List all currently online/approved riders for the public rider directory
+      parameters:
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: lon
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Available riders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RiderDirectoryEntry"
+
   /riders/{riderId}/orders:
     get:
       operationId: getRiderOrders
@@ -1824,6 +1850,31 @@ components:
           type: ["string", "null"]
         distanceKm:
           type: number
+
+    RiderDirectoryEntry:
+      type: object
+      required: [id, totalDeliveries, createdAt]
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        vehicleType:
+          type: ["string", "null"]
+        currentLatitude:
+          type: ["number", "null"]
+        currentLongitude:
+          type: ["number", "null"]
+        lastLocationAt:
+          type: ["string", "null"]
+        distanceKm:
+          type: ["number", "null"]
+        totalDeliveries:
+          type: integer
+        createdAt:
+          type: string
 
     RiderOrderQueue:
       type: object

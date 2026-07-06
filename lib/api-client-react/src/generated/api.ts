@@ -44,6 +44,7 @@ import type {
   DeliveryOrderInput,
   DeliveryStatusInput,
   GeoInfo,
+  GetAvailableRidersDirectoryParams,
   GetNearbyRidersParams,
   HealthStatus,
   ListBusinessesParams,
@@ -59,6 +60,7 @@ import type {
   ReviewInput,
   Rider,
   RiderApplicationInput,
+  RiderDirectoryEntry,
   RiderLocationInput,
   RiderOnlineStatusInput,
   RiderOrderQueue,
@@ -2774,6 +2776,90 @@ export function useGetNearbyRiders<TData = Awaited<ReturnType<typeof getNearbyRi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetNearbyRidersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetAvailableRidersDirectoryUrl = (params?: GetAvailableRidersDirectoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/riders/available?${stringifiedParams}` : `/api/riders/available`
+}
+
+/**
+ * @summary List all currently online/approved riders for the public rider directory
+ */
+export const getAvailableRidersDirectory = async (params?: GetAvailableRidersDirectoryParams, options?: RequestInit): Promise<RiderDirectoryEntry[]> => {
+
+  return customFetch<RiderDirectoryEntry[]>(getGetAvailableRidersDirectoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAvailableRidersDirectoryQueryKey = (params?: GetAvailableRidersDirectoryParams,) => {
+    return [
+    `/api/riders/available`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAvailableRidersDirectoryQueryOptions = <TData = Awaited<ReturnType<typeof getAvailableRidersDirectory>>, TError = ErrorType<unknown>>(params?: GetAvailableRidersDirectoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAvailableRidersDirectory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAvailableRidersDirectoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAvailableRidersDirectory>>> = ({ signal }) => getAvailableRidersDirectory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAvailableRidersDirectory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAvailableRidersDirectoryQueryResult = NonNullable<Awaited<ReturnType<typeof getAvailableRidersDirectory>>>
+export type GetAvailableRidersDirectoryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all currently online/approved riders for the public rider directory
+ */
+
+export function useGetAvailableRidersDirectory<TData = Awaited<ReturnType<typeof getAvailableRidersDirectory>>, TError = ErrorType<unknown>>(
+ params?: GetAvailableRidersDirectoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAvailableRidersDirectory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAvailableRidersDirectoryQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

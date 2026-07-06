@@ -7,8 +7,9 @@ import {
   Search, MapPin, Navigation, Layers, X, Star, ShieldCheck,
   ArrowRight, Mic, ChevronDown, Zap, Clock, Radio, ChevronRight,
   MapPinOff, Activity, RotateCcw, RotateCw, Compass,
-  Car, Square, Navigation2, Flag, LocateFixed,
+  Car, Square, Navigation2, Flag, LocateFixed, Bike,
 } from "lucide-react";
+import { RiderDirectoryPanel } from "@/components/riders/RiderDirectoryPanel";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -197,6 +198,7 @@ export function HomeMapView() {
   const [pickerCity, setPickerCity] = useState("");
   const [pickerCountrySearch, setPickerCountrySearch] = useState("");
   const [rotationDeg, setRotationDeg] = useState(0);
+  const [showRiderDirectory, setShowRiderDirectory] = useState(false);
 
   /* ── Drive Mode state ── */
   const [showDriveSheet, setShowDriveSheet]           = useState(false);
@@ -1417,6 +1419,20 @@ export function HomeMapView() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* ── See all riders ── */}
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => setShowRiderDirectory(true)}
+        className="absolute bottom-28 left-4 z-[1000] flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl glass-panel"
+      >
+        <Bike className="h-4 w-4 text-[#4a9eff]" />
+        <span className="text-xs font-bold text-white">See all riders</span>
+      </motion.button>
+
+      <RiderDirectoryPanel open={showRiderDirectory} onClose={() => setShowRiderDirectory(false)} />
 
       {/* ── Map Style Switcher ── */}
       <div className="absolute bottom-28 right-4 z-[1000]">

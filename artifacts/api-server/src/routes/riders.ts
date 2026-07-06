@@ -147,6 +147,53 @@ router.get("/nearby", async (req, res) => {
   return res.json(nearby);
 });
 
+// GET /riders/available — all currently online/approved riders, for the public rider directory
+router.get("/available", async (req, res) => {
+  const lat = req.query.lat !== undefined ? parseFloat(req.query.lat as string) : null;
+  const lon = req.query.lon !== undefined ? parseFloat(req.query.lon as string) : null;
+  const hasOrigin = lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon);
+
+  const rows = await db
+    .select({
+      id: ridersTable.id,
+      fullName: ridersTable.fullName,
+      phone: ridersTable.phone,
+      vehicleType: ridersTable.vehicleType,
+      currentLatitude: ridersTable.currentLatitude,
+      currentLongitude: ridersTable.currentLongitude,
+      lastLocationAt: ridersTable.lastLocationAt,
+      totalDeliveries: ridersTable.totalDeliveries,
+      createdAt: ridersTable.createdAt,
+      distanceKm: hasOrigin
+        ? sql<number | null>`
+            CASE WHEN ${ridersTable.currentLatitude} IS NULL OR ${ridersTable.currentLongitude} IS NULL THEN NULL ELSE
+              6371 * acos(
+                least(1, greatest(-1,
+                  cos(radians(${lat})) * cos(radians(${ridersTable.currentLatitude})) *
+                  cos(radians(${ridersTable.currentLongitude}) - radians(${lon})) +
+                  sin(radians(${lat})) * sin(radians(${ridersTable.currentLatitude}))
+                ))
+              )
+            END
+          `
+        : sql<number | null>`NULL`,
+    })
+    .from(ridersTable)
+    .where(and(
+      eq(ridersTable.status, "approved"),
+      eq(ridersTable.isOnline, true),
+    ));
+
+  const sorted = [...rows].sort((a, b) => {
+    if (a.distanceKm == null && b.distanceKm == null) return 0;
+    if (a.distanceKm == null) return 1;
+    if (b.distanceKm == null) return -1;
+    return a.distanceKm - b.distanceKm;
+  });
+
+  return res.json(sorted);
+});
+
 // GET /riders/:riderId/orders — rider's order queue: their active order + nearby pending requests
 router.get("/:riderId/orders", async (req, res) => {
   const riderId = parseInt(req.params.riderId);

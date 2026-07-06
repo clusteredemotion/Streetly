@@ -450,6 +450,26 @@ export interface NearbyRider {
   distanceKm: number;
 }
 
+export interface RiderDirectoryEntry {
+  id: number;
+  /** @nullable */
+  fullName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  vehicleType?: string | null;
+  /** @nullable */
+  currentLatitude?: number | null;
+  /** @nullable */
+  currentLongitude?: number | null;
+  /** @nullable */
+  lastLocationAt?: string | null;
+  /** @nullable */
+  distanceKm?: number | null;
+  totalDeliveries: number;
+  createdAt: string;
+}
+
 export type DeliveryOrderStatus = typeof DeliveryOrderStatus[keyof typeof DeliveryOrderStatus];
 
 
@@ -656,5 +676,10 @@ export type GetNearbyRidersParams = {
 lat: number;
 lon: number;
 radiusKm?: number;
+};
+
+export type GetAvailableRidersDirectoryParams = {
+lat?: number;
+lon?: number;
 };
 

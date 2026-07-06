@@ -818,6 +818,29 @@ export const GetNearbyRidersResponse = zod.array(GetNearbyRidersResponseItem)
 
 
 /**
+ * @summary List all currently online/approved riders for the public rider directory
+ */
+export const GetAvailableRidersDirectoryQueryParams = zod.object({
+  "lat": zod.coerce.number().optional(),
+  "lon": zod.coerce.number().optional()
+})
+
+export const GetAvailableRidersDirectoryResponseItem = zod.object({
+  "id": zod.number(),
+  "fullName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "vehicleType": zod.string().nullish(),
+  "currentLatitude": zod.number().nullish(),
+  "currentLongitude": zod.number().nullish(),
+  "lastLocationAt": zod.string().nullish(),
+  "distanceKm": zod.number().nullish(),
+  "totalDeliveries": zod.number(),
+  "createdAt": zod.string()
+})
+export const GetAvailableRidersDirectoryResponse = zod.array(GetAvailableRidersDirectoryResponseItem)
+
+
+/**
  * @summary Get a rider's active order and available nearby requests
  */
 export const GetRiderOrdersParams = zod.object({
