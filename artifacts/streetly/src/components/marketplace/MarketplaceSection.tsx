@@ -34,7 +34,7 @@ export default function MarketplaceSection({
   if (isLoading) return null;
   if (!items || items.length === 0) return null;
 
-  const hasMore = typeof limit === "number" && items.length > limit;
+  const showStoreLink = typeof limit === "number" && items.length > 0;
   const visibleItems = typeof limit === "number" ? items.slice(0, limit) : items;
 
   return (
@@ -86,12 +86,12 @@ export default function MarketplaceSection({
           })}
         </div>
 
-        {hasMore && (
+        {showStoreLink && (
           <Link
             href={`/${businessSlug}/store`}
             className="mt-4 flex items-center justify-center gap-1.5 w-full py-3 rounded-2xl text-sm font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white transition-colors"
           >
-            See all {items.length} products <ArrowRight className="h-3.5 w-3.5" />
+            View Full Store <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         )}
       </motion.div>
