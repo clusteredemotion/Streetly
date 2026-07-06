@@ -1,30 +1,41 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useListMarketplaceItems } from "@workspace/api-client-react";
-import { ShoppingCart, Plus, Minus, Package, ImageIcon } from "lucide-react";
-import { useCart, CartProvider } from "./CartContext";
+import { ShoppingCart, Plus, Minus, Package, ImageIcon, ArrowRight } from "lucide-react";
+import { useCart } from "./CartContext";
 import MarketplaceCheckoutModal from "./MarketplaceCheckoutModal";
 import { formatCurrency } from "@/lib/utils";
 
-function MarketplaceSectionInner({
-  businessId,
-  businessName,
-  businessLat,
-  businessLon,
-}: {
+interface MarketplaceSectionProps {
   businessId: number;
   businessName: string;
+  businessSlug: string;
   businessLat: number | null;
   businessLon: number | null;
-}) {
+  /** Cap the number of items shown, with a "See all" link when more exist. Omit to show the full catalog. */
+  limit?: number;
+}
+
+export default function MarketplaceSection({
+  businessId,
+  businessName,
+  businessSlug,
+  businessLat,
+  businessLon,
+  limit,
+}: MarketplaceSectionProps) {
   const { data: items, isLoading } = useListMarketplaceItems(businessId);
-  const { lines, addItem, setQuantity, subtotal, itemCount } = useCart();
+  const { lines, addItem, setQuantity, subtotal, itemCount } = useCart(businessId);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const quantityFor = (itemId: number) => lines.find((l) => l.item.id === itemId)?.quantity ?? 0;
 
   if (isLoading) return null;
   if (!items || items.length === 0) return null;
+
+  const hasMore = typeof limit === "number" && items.length > limit;
+  const visibleItems = typeof limit === "number" ? items.slice(0, limit) : items;
 
   return (
     <>
@@ -36,7 +47,7 @@ function MarketplaceSectionInner({
         </div>
 
         <div className="space-y-3">
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const qty = quantityFor(item.id);
             return (
               <div key={item.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/8">
@@ -74,6 +85,15 @@ function MarketplaceSectionInner({
             );
           })}
         </div>
+
+        {hasMore && (
+          <Link
+            href={`/${businessSlug}/store`}
+            className="mt-4 flex items-center justify-center gap-1.5 w-full py-3 rounded-2xl text-sm font-semibold bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white transition-colors"
+          >
+            See all {items.length} products <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        )}
       </motion.div>
 
       {/* Sticky cart bar */}
@@ -107,18 +127,5 @@ function MarketplaceSectionInner({
         businessLon={businessLon}
       />
     </>
-  );
-}
-
-export default function MarketplaceSection(props: {
-  businessId: number;
-  businessName: string;
-  businessLat: number | null;
-  businessLon: number | null;
-}) {
-  return (
-    <CartProvider>
-      <MarketplaceSectionInner {...props} />
-    </CartProvider>
   );
 }

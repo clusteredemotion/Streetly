@@ -19,7 +19,7 @@ export default function MarketplaceCheckoutModal({
   open, onClose, businessId, businessName, businessLat, businessLon,
 }: MarketplaceCheckoutModalProps) {
   const [, setLocation] = useLocation();
-  const { lines, subtotal, clear } = useCart();
+  const { lines, subtotal, clear } = useCart(businessId);
   const { data: riders, isLoading: ridersLoading } = useGetAvailableRiders(businessId, { query: { enabled: open } });
   const createOrder = useCreateMarketplaceOrder();
 

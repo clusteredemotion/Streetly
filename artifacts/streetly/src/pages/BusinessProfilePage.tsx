@@ -504,8 +504,10 @@ export default function BusinessProfilePage() {
               <MarketplaceSection
                 businessId={bizId}
                 businessName={business.name}
+                businessSlug={slug}
                 businessLat={business.latitude ?? null}
                 businessLon={business.longitude ?? null}
+                limit={10}
               />
 
               {/* Map + Directions */}

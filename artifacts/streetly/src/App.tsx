@@ -9,6 +9,8 @@ import { Layout } from "@/components/layout/Layout";
 import HomePage from "@/pages/HomePage";
 import BusinessesPage from "@/pages/BusinessesPage";
 import BusinessProfilePage from "@/pages/BusinessProfilePage";
+import BusinessStorePage from "@/pages/BusinessStorePage";
+import { CartProvider } from "@/components/marketplace/CartContext";
 import ExplorePage from "@/pages/ExplorePage";
 import AgentsPage from "@/pages/AgentsPage";
 import AgentApplyPage from "@/pages/AgentApplyPage";
@@ -57,6 +59,7 @@ function Router() {
       <Route path="/about" component={AboutPage} />
       <Route path="/contact" component={ContactPage} />
       <Route path="/support" component={SupportTicketsPage} />
+      <Route path="/:slug/store" component={BusinessStorePage} />
       <Route path="/:slug" component={BusinessProfilePage} />
       <Route component={NotFound} />
     </Switch>
@@ -67,12 +70,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Preloader />
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <ScrollToTop />
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <CartProvider>
+          <Preloader />
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <ScrollToTop />
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </CartProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
