@@ -36,15 +36,25 @@ export default function RegisterPage() {
   const [role, setRole] = useState(getInitialRole);
   const [error, setError] = useState("");
 
+  const referralCode = new URLSearchParams(window.location.search).get("ref");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     try {
-      const result = await registerMutation.mutateAsync({ data: { name, email, password, role } });
+      const result = await registerMutation.mutateAsync({ 
+        data: { 
+          name, 
+          email, 
+          password, 
+          role,
+          referralCode 
+        } as any 
+      });
       localStorage.setItem("streetly_token", result.token);
       setAuthTokenGetter(() => localStorage.getItem("streetly_token"));
       if (role === "field_agent") navigate("/agents/apply");
-      else if (role === "business_owner") navigate("/owner-dashboard");
+      else if (role === "business_owner") navigate("/business/onboard");
       else navigate("/");
     } catch (err: any) {
       setError(err?.data?.error ?? "Registration failed. Please try again.");

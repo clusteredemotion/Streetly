@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useListBusinesses } from "@workspace/api-client-react";
-import { Building2, PlusCircle, Star, ShieldCheck, ArrowRight, Edit2, X, Save, Loader2, Trash2, Image as ImageIcon, Plus, Package } from "lucide-react";
+import { useListMyBusinesses } from "@workspace/api-client-react";
+import { Building2, PlusCircle, Star, ShieldCheck, ArrowRight, Edit2, X, Save, Loader2, Trash2, Image as ImageIcon, Plus, Package, BarChart3, Eye, MousePointer2, PhoneCall, ShoppingBag, MessageSquare } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -14,6 +15,157 @@ const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}`,
 });
+
+function AnalyticsModal({ biz, onClose }: { biz: any; onClose: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE}/api/businesses/${biz.id}/analytics`, { headers: authHeader() })
+      .then(r => r.json())
+      .then(d => {
+        setData(d);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [biz.id]);
+
+  const chartData = useMemo(() => {
+    if (!data?.daily) return [];
+    // Last 30 days
+    const days: any[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toISOString().split("T")[0];
+      const dayData = data.daily.filter((x: any) => x.day === dayStr);
+      days.push({
+        day: dayStr,
+        views: dayData.find((x: any) => x.eventType === "view")?.count ?? 0,
+        clicks: dayData.find((x: any) => x.eventType === "click")?.count ?? 0,
+        contacts: dayData.find((x: any) => x.eventType === "contact")?.count ?? 0,
+        orders: dayData.find((x: any) => x.eventType === "order")?.count ?? 0,
+      });
+    }
+    return days;
+  }, [data]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl flex flex-col bg-card border"
+        style={{ maxHeight: "90vh" }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            <h2 className="font-bold text-foreground">Analytics — {biz.name}</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/30" />
+            </div>
+          ) : !data ? (
+            <div className="text-center py-20 text-muted-foreground">No analytics data found.</div>
+          ) : (
+            <div className="space-y-8">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Views", value: data.totals?.view ?? 0, icon: Eye, color: "text-blue-500", bg: "bg-blue-50" },
+                  { label: "Total Clicks", value: data.totals?.click ?? 0, icon: MousePointer2, color: "text-purple-500", bg: "bg-purple-50" },
+                  { label: "Total Contacts", value: data.totals?.contact ?? 0, icon: PhoneCall, color: "text-green-500", bg: "bg-green-50" },
+                  { label: "Total Orders", value: data.totals?.order ?? 0, icon: ShoppingBag, color: "text-orange-500", bg: "bg-orange-50" },
+                ].map((s) => (
+                  <div key={s.label} className="p-4 rounded-xl border bg-card text-center">
+                    <div className={`w-10 h-10 rounded-lg ${s.bg} flex items-center justify-center mx-auto mb-2`}>
+                      <s.icon className={`h-5 w-5 ${s.color}`} />
+                    </div>
+                    <div className="text-2xl font-bold text-foreground">{s.value}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart */}
+              <div className="p-5 border rounded-xl bg-card">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-semibold text-foreground">Traffic & Engagement (Last 30 Days)</h3>
+                  <div className="flex items-center gap-4 text-[10px] font-medium uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Views</div>
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Clicks</div>
+                  </div>
+                </div>
+                <div className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#a855f7" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} minTickGap={20}
+                        tickFormatter={(str) => {
+                          const date = new Date(str);
+                          return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        }}
+                      />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
+                        labelStyle={{ fontWeight: "bold", marginBottom: "4px" }}
+                      />
+                      <Area type="monotone" dataKey="views" name="Views" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
+                      <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#a855f7" strokeWidth={2} fillOpacity={1} fill="url(#colorClicks)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Orders Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-5 border rounded-xl bg-card">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Store Performance</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                      <span className="text-sm text-muted-foreground">Order Count</span>
+                      <span className="font-bold text-foreground">{data.orders?.count ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-green-50">
+                      <span className="text-sm text-green-700">Total Revenue</span>
+                      <span className="font-bold text-green-700">₦{(data.orders?.revenue ?? 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upsell */}
+                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-2xl relative overflow-hidden flex flex-col justify-center">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full -mr-8 -mt-8" />
+                  <div className="relative z-10">
+                    <h3 className="font-bold text-purple-900">Upgrade to Premium</h3>
+                    <p className="text-xs text-purple-700 mt-1 mb-4 leading-relaxed">Upgrade to Premium for deeper analytics, including visitor demographics, heatmaps, and conversion tracking.</p>
+                    <Button size="sm" className="w-fit bg-purple-600 hover:bg-purple-700 text-white gap-2 rounded-full px-5">
+                      Upgrade Now <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 type BusinessPhoto = { id: number; url: string; caption: string | null };
 
@@ -200,10 +352,11 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
 
 export default function OwnerDashboardPage() {
   const [, navigate] = useLocation();
-  const { data, isLoading, refetch } = useListBusinesses({ limit: 20 });
-  const businesses = data?.businesses ?? [];
+  const { data, isLoading, refetch } = useListMyBusinesses();
+  const businesses = data ?? [];
   const [editBiz, setEditBiz] = useState<any | null>(null);
   const [itemsBiz, setItemsBiz] = useState<any | null>(null);
+  const [analyticsBiz, setAnalyticsBiz] = useState<any | null>(null);
   const [msaId, setMsaId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -241,6 +394,12 @@ export default function OwnerDashboardPage() {
             onClose={() => setItemsBiz(null)}
           />
         )}
+        {analyticsBiz && (
+          <AnalyticsModal
+            biz={analyticsBiz}
+            onClose={() => setAnalyticsBiz(null)}
+          />
+        )}
       </AnimatePresence>
 
       <div className="bg-gradient-to-r from-[#0547B6] to-[#1a6de8] text-white py-10">
@@ -254,7 +413,7 @@ export default function OwnerDashboardPage() {
               </span>
             )}
           </div>
-          <Button className="bg-white text-primary hover:bg-white/90 gap-2" onClick={() => navigate("/businesses")}>
+          <Button className="bg-white text-primary hover:bg-white/90 gap-2" onClick={() => navigate("/business/onboard")}>
             <PlusCircle className="h-4 w-4" /> Add Business
           </Button>
         </div>
@@ -264,7 +423,7 @@ export default function OwnerDashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total Listings", value: data?.total ?? 0 },
+            { label: "Total Listings", value: businesses.length },
             { label: "Approved", value: businesses.filter(b => b.status === "approved").length },
             { label: "Verified", value: businesses.filter(b => b.verified).length },
             { label: "Premium", value: businesses.filter(b => b.plan === "premium").length },
@@ -298,7 +457,7 @@ export default function OwnerDashboardPage() {
           <div className="text-center py-16 border rounded-xl">
             <Building2 className="h-12 w-12 mx-auto mb-4 text-muted" />
             <h3 className="font-semibold text-foreground mb-2">No businesses listed yet</h3>
-            <Button className="mt-2" onClick={() => navigate("/businesses")}>Add Your First Business</Button>
+            <Button className="mt-2" onClick={() => navigate("/business/onboard")}>Add Your First Business</Button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -336,6 +495,16 @@ export default function OwnerDashboardPage() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge className={statusColor(biz.status)}>{biz.status}</Badge>
+                  <Button size="sm" variant="outline"
+                    onClick={() => navigate("/messages")}
+                    className="gap-1 text-primary border-primary/30 hover:bg-primary/10">
+                    <MessageSquare className="h-3.5 w-3.5" /> Messages
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    onClick={() => setAnalyticsBiz(biz)}
+                    className="gap-1 text-primary border-primary/30 hover:bg-primary/10">
+                    <BarChart3 className="h-3.5 w-3.5" /> Analytics
+                  </Button>
                   <Button size="sm" variant="outline"
                     onClick={() => setItemsBiz(biz)}
                     className="gap-1 text-primary border-primary/30 hover:bg-primary/10">

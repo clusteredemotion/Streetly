@@ -12,8 +12,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   MapPin, Star, ShieldCheck, Phone, MessageCircle, Globe,
   Clock, ArrowLeft, ExternalLink, CheckCircle, Navigation,
-  X, Maximize2, Route, ChevronRight, Share2, Copy, Check
+  X, Maximize2, Route, ChevronRight, Share2, Copy, Check, MessageSquare
 } from "lucide-react";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /* ── Social brand SVGs (lucide doesn't include brand icons) ── */
 const IgIcon = () => (
@@ -196,6 +198,7 @@ export default function BusinessProfilePage() {
   const [claimOpen, setClaimOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -235,6 +238,21 @@ export default function BusinessProfilePage() {
     qc.invalidateQueries({ queryKey: getListReviewsQueryKey(bizId) });
     setReviewerName(""); setComment(""); setRating(5);
   };
+
+  const trackEvent = (eventType: "view" | "click" | "contact" | "order", meta?: string) => {
+    if (!bizId) return;
+    fetch(`${BASE}/api/analytics/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId: bizId, eventType, meta }),
+    }).catch(() => {}); // fire and forget
+  };
+
+  useEffect(() => {
+    if (bizId) {
+      trackEvent("view");
+    }
+  }, [bizId]);
 
   if (isLoading) {
     return (
@@ -276,6 +294,18 @@ export default function BusinessProfilePage() {
           />
         )}
       </AnimatePresence>
+
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden gap-0">
+          <DialogHeader className="p-4 border-b bg-card">
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Chat with {business.name}
+            </DialogTitle>
+          </DialogHeader>
+          <ChatPanel businessId={business.id} />
+        </DialogContent>
+      </Dialog>
 
       <div className="min-h-screen" style={{ background: "#060C1E" }}>
         <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -635,7 +665,31 @@ export default function BusinessProfilePage() {
                 <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wider">Contact</h3>
                 <div className="space-y-2.5">
                   {business.phone && (
+                    <button
+                      onClick={() => {
+                        const token = localStorage.getItem("streetly_token");
+                        if (!token) {
+                          navigate(`/auth/login?redirect=/${slug}`);
+                          return;
+                        }
+                        setChatOpen(true);
+                        trackEvent("contact", "chat");
+                      }}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors group mb-2"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <div className="text-[10px] text-primary/70 uppercase tracking-wider font-bold">In-App Chat</div>
+                        <div className="text-sm font-semibold text-white truncate">Message Business</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-primary/40 group-hover:text-primary/70 ml-auto flex-shrink-0" />
+                    </button>
+                  )}
+                  {business.phone && (
                     <a href={`tel:${business.phone}`}
+                      onClick={() => trackEvent("contact", "phone")}
                       className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/8 transition-colors group">
                       <div className="w-9 h-9 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0">
                         <Phone className="h-4 w-4 text-blue-400" />
@@ -649,6 +703,7 @@ export default function BusinessProfilePage() {
                   )}
                   {business.whatsapp && (
                     <a href={`https://wa.me/${business.whatsapp.replace(/\D/g, "")}`}
+                      onClick={() => trackEvent("contact", "whatsapp")}
                       target="_blank" rel="noreferrer"
                       className="flex items-center gap-3 p-3.5 rounded-2xl bg-green-500/8 hover:bg-green-500/15 border border-green-500/15 transition-colors group">
                       <div className="w-9 h-9 rounded-xl bg-green-500/15 flex items-center justify-center flex-shrink-0">
@@ -663,6 +718,7 @@ export default function BusinessProfilePage() {
                   )}
                   {business.website && (
                     <a href={business.website.startsWith("http") ? business.website : `https://${business.website}`}
+                      onClick={() => trackEvent("contact", "website")}
                       target="_blank" rel="noreferrer"
                       className="flex items-center gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/8 transition-colors group">
                       <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">

@@ -1,8 +1,23 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
+import { usersTable, referralsTable } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import crypto from "crypto";
+
+const REFERRAL_SIGNUP_BONUS = 100;
+
+function generateReferralCode(): string {
+  return crypto.randomBytes(4).toString("hex").toUpperCase();
+}
+
+async function generateUniqueReferralCode(): Promise<string> {
+  for (let i = 0; i < 10; i++) {
+    const code = generateReferralCode();
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.referralCode, code)).limit(1);
+    if (!existing) return code;
+  }
+  return `${generateReferralCode()}${Date.now().toString(36).toUpperCase()}`;
+}
 
 const router = Router();
 
@@ -55,7 +70,7 @@ async function generateMsaId(userId: number, role: string): Promise<string> {
 
 // POST /auth/register
 router.post("/register", async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, referralCode } = req.body;
   if (!name || !email || !password || !role) {
     return res.status(400).json({ error: "Missing required fields" });
   }
@@ -67,21 +82,43 @@ router.post("/register", async (req, res) => {
 
   const ip = getClientIp(req);
 
+  let referrer: typeof usersTable.$inferSelect | undefined;
+  if (referralCode && typeof referralCode === "string") {
+    const [found] = await db.select().from(usersTable).where(eq(usersTable.referralCode, referralCode.trim().toUpperCase())).limit(1);
+    referrer = found;
+  }
+
+  const ownReferralCode = await generateUniqueReferralCode();
+
   const [user] = await db.insert(usersTable).values({
     name,
     email,
     passwordHash: hashPassword(password),
     role: role as "visitor" | "business_owner" | "field_agent",
     registrationIp: ip,
+    referralCode: ownReferralCode,
+    referredByUserId: referrer?.id ?? null,
   }).returning();
 
   const msaId = await generateMsaId(user.id, user.role);
   await db.update(usersTable).set({ msaId }).where(eq(usersTable.id, user.id));
 
+  if (referrer) {
+    await db.insert(referralsTable).values({
+      referrerId: referrer.id,
+      refereeId: user.id,
+      pointsAwarded: REFERRAL_SIGNUP_BONUS,
+      reason: "signup",
+    });
+    await db.update(usersTable)
+      .set({ creditPoints: sql`${usersTable.creditPoints} + ${REFERRAL_SIGNUP_BONUS}` })
+      .where(eq(usersTable.id, referrer.id));
+  }
+
   const token = generateToken(user.id);
   return res.status(201).json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId, createdAt: user.createdAt },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId, referralCode: ownReferralCode, creditPoints: user.creditPoints, createdAt: user.createdAt },
   });
 });
 
@@ -117,7 +154,7 @@ router.get("/me", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt });
+  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, referralCode: user.referralCode, creditPoints: user.creditPoints, createdAt: user.createdAt });
 });
 
 export default router;

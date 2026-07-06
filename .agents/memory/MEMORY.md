@@ -3,8 +3,9 @@
 - [Streetly auth pattern](streetly-auth-pattern.md) — no middleware; each protected route manually reads Bearer token and calls verifyToken; admin check is per-route via user.role === "admin"
 - [Streetly SMTP mailer](streetly-smtp-mailer.md) — sendMail() reads settings table at call time, never throws; logs a warning and returns false when unconfigured instead of crashing callers
 - [Streetly user roles](streetly-user-roles.md) — DB user_role enum has no "customer" value; regular/customer accounts use role "visitor"
-- [Streetly codegen GET hooks](streetly-codegen-get-hooks.md) — OpenAPI codegen here only reliably emits mutation hooks; GET query hooks are often missing and must be hand-written as raw-fetch useQuery, mirroring AdminPage.tsx patterns
+- [Streetly codegen GET hooks](streetly-codegen-get-hooks.md) — GET query hooks generate fine with a complete spec entry (operationId/schema/route order); verify via grep before assuming codegen missed it
 - [Streetly guest resource access tokens](streetly-guest-tracking-tokens.md) — never derive guest access tokens deterministically from a record id; use random token + stored hash + expiry instead
 - [Streetly admin credentials](streetly-admin-credentials.md) — admin login is seeded in code (not a secret/env var); check ensureAdminUser() in api-server index.ts if you need to log in as admin for testing
 - [New workspace lib tsconfig composite](workspace-lib-tsconfig-composite.md) — a new lib package referenced by another package's tsconfig `references` must set `"composite": true` or downstream typecheck fails with TS6306
 - [Streetly image upload testing pitfall](streetly-image-upload-testing.md) — e2e subagent mistargets file inputs on pages with multiple upload widgets; cross-check with curl/DB before trusting a failure; images use base64 data URLs, no object storage
+- [Streetly owner-scoped resource lists](streetly-owner-scoped-lists.md) — public list endpoints only return approved records; owner dashboards need a dedicated `/mine` endpoint to see their own pending/rejected items

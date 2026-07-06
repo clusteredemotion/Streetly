@@ -1830,6 +1830,83 @@ export const useCreateBusiness = <TError = ErrorType<unknown>,
       return useMutation(getCreateBusinessMutationOptions(options));
     }
 
+export const getListMyBusinessesUrl = () => {
+
+
+
+
+  return `/api/businesses/mine`
+}
+
+/**
+ * @summary List businesses owned by the current authenticated user (any status)
+ */
+export const listMyBusinesses = async ( options?: RequestInit): Promise<Business[]> => {
+
+  return customFetch<Business[]>(getListMyBusinessesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyBusinessesQueryKey = () => {
+    return [
+    `/api/businesses/mine`
+    ] as const;
+    }
+
+
+export const getListMyBusinessesQueryOptions = <TData = Awaited<ReturnType<typeof listMyBusinesses>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBusinesses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyBusinessesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyBusinesses>>> = ({ signal }) => listMyBusinesses({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyBusinesses>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyBusinessesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyBusinesses>>>
+export type ListMyBusinessesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List businesses owned by the current authenticated user (any status)
+ */
+
+export function useListMyBusinesses<TData = Awaited<ReturnType<typeof listMyBusinesses>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBusinesses>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyBusinessesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetFeaturedBusinessesUrl = () => {
 
 

@@ -533,6 +533,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/Business"
 
+  /businesses/mine:
+    get:
+      operationId: listMyBusinesses
+      tags: [businesses]
+      summary: List businesses owned by the current authenticated user (any status)
+      responses:
+        "200":
+          description: The current user's businesses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Business"
+
   /businesses/featured:
     get:
       operationId: getFeaturedBusinesses

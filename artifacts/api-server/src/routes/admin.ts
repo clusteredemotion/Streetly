@@ -6,7 +6,7 @@ import {
   businessClaimsTable, businessPhotosTable, categoriesTable,
   citiesTable, areasTable, streetsTable, messagesTable,
   supportTicketsTable, ridersTable, deliveryOrdersTable,
-  marketplaceItemsTable,
+  marketplaceItemsTable, vacantPropertiesTable, propertyPhotosTable,
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
@@ -258,6 +258,38 @@ router.patch("/businesses/:id/approve", async (req, res) => {
   }
 
   return res.json(biz);
+});
+
+// GET /admin/properties/pending
+router.get("/properties/pending", async (_req, res) => {
+  const rows = await db.select().from(vacantPropertiesTable).where(eq(vacantPropertiesTable.status, "pending")).orderBy(desc(vacantPropertiesTable.createdAt));
+  return res.json(rows);
+});
+
+// PATCH /admin/properties/:id/approve
+router.patch("/properties/:id/approve", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const { approved } = req.body;
+  const status = approved ? "approved" : "rejected";
+
+  const [prop] = await db.update(vacantPropertiesTable)
+    .set({ status })
+    .where(eq(vacantPropertiesTable.id, id))
+    .returning();
+
+  if (!prop) return res.status(404).json({ error: "Property not found" });
+  return res.json(prop);
+});
+
+// DELETE /admin/properties/:id
+router.delete("/properties/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  await db.delete(propertyPhotosTable).where(eq(propertyPhotosTable.propertyId, id));
+  await db.delete(vacantPropertiesTable).where(eq(vacantPropertiesTable.id, id));
+  return res.json({ ok: true });
 });
 
 // GET /admin/agents/pending

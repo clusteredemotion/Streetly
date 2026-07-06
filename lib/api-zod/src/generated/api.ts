@@ -430,6 +430,45 @@ export const CreateBusinessBody = zod.object({
 
 
 /**
+ * @summary List businesses owned by the current authenticated user (any status)
+ */
+export const ListMyBusinessesResponseItem = zod.object({
+  "id": zod.number(),
+  "slug": zod.string().nullish(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "categoryId": zod.number(),
+  "categoryName": zod.string().nullish(),
+  "streetId": zod.number(),
+  "streetName": zod.string().nullish(),
+  "areaName": zod.string().nullish(),
+  "cityName": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "whatsapp": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "openingHours": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected', 'suspended']),
+  "verified": zod.boolean().optional(),
+  "featured": zod.boolean().optional(),
+  "plan": zod.enum(['free', 'premium']).optional(),
+  "rating": zod.number().nullish(),
+  "reviewCount": zod.number().optional(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "url": zod.string(),
+  "caption": zod.string().nullish()
+})).optional(),
+  "ownerId": zod.number().nullish(),
+  "agentId": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListMyBusinessesResponse = zod.array(ListMyBusinessesResponseItem)
+
+
+/**
  * @summary Get featured businesses (premium/verified)
  */
 export const GetFeaturedBusinessesResponseItem = zod.object({

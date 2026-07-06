@@ -2,9 +2,10 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   businessesTable, businessPhotosTable, categoriesTable,
-  streetsTable, areasTable, citiesTable, reviewsTable
+  streetsTable, areasTable, citiesTable, reviewsTable, marketplaceItemsTable
 } from "@workspace/db";
 import { eq, and, ilike, sql, asc, desc } from "drizzle-orm";
+import { requireAuth } from "../lib/authHelpers";
 
 const router = Router();
 
@@ -81,6 +82,14 @@ router.get("/", async (req, res) => {
   return res.json({ businesses: enriched, total });
 });
 
+// GET /businesses/mine — businesses owned by the current authenticated user (any status)
+router.get("/mine", requireAuth, async (req, res) => {
+  const user = (req as any).currentUser;
+  const rows = await db.select().from(businessesTable).where(eq(businessesTable.ownerId, user.id));
+  const enriched = await Promise.all(rows.map(enrichBusiness));
+  return res.json(enriched);
+});
+
 // GET /businesses/featured
 router.get("/featured", async (_req, res) => {
   const rows = await db.select().from(businessesTable)
@@ -151,6 +160,104 @@ router.post("/", async (req, res) => {
 
   const enriched = await enrichBusiness(biz);
   return res.status(201).json(enriched);
+});
+
+// POST /businesses/self-register — a logged-in business owner lists their own business
+router.post("/self-register", requireAuth, async (req, res) => {
+  const user = (req as any).currentUser;
+  if (user.role !== "business_owner") {
+    return res.status(403).json({ error: "Only business owner accounts can self-register a business" });
+  }
+
+  const {
+    name, description, categoryId,
+    stateName, cityName, areaName, streetName,
+    address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, youtubeUrl,
+    latitude, longitude, openingHours,
+    photos = [],
+    products = [],
+  } = req.body;
+
+  if (!name || !categoryId || !cityName || !areaName || !streetName) {
+    return res.status(400).json({ error: "name, categoryId, cityName, areaName, streetName are required" });
+  }
+
+  let cityRows = await db.select().from(citiesTable)
+    .where(and(ilike(citiesTable.name, cityName), ilike(citiesTable.state, stateName || "%")))
+    .limit(1);
+  let city = cityRows[0];
+  if (!city) {
+    const inserted = await db.insert(citiesTable).values({ name: cityName, state: stateName || "Unknown", country: "Nigeria" }).returning();
+    city = inserted[0];
+  }
+
+  let areaRows = await db.select().from(areasTable).where(and(ilike(areasTable.name, areaName), eq(areasTable.cityId, city.id))).limit(1);
+  let area = areaRows[0];
+  if (!area) {
+    const inserted = await db.insert(areasTable).values({ name: areaName, cityId: city.id }).returning();
+    area = inserted[0];
+  }
+
+  let streetRows = await db.select().from(streetsTable).where(and(ilike(streetsTable.name, streetName), eq(streetsTable.areaId, area.id))).limit(1);
+  let street = streetRows[0];
+  if (!street) {
+    const inserted = await db.insert(streetsTable).values({ name: streetName, areaId: area.id }).returning();
+    street = inserted[0];
+  }
+
+  const slug = await generateUniqueSlug(name);
+
+  const [biz] = await db.insert(businessesTable).values({
+    name,
+    slug,
+    description: description || null,
+    categoryId: Number(categoryId),
+    streetId: street.id,
+    address: address || null,
+    phone: phone || null,
+    whatsapp: whatsapp || null,
+    website: website || null,
+    instagramUrl: instagramUrl || null,
+    facebookUrl: facebookUrl || null,
+    tiktokUrl: tiktokUrl || null,
+    youtubeUrl: youtubeUrl || null,
+    latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
+    longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
+    openingHours: openingHours || null,
+    status: "pending",
+    verified: false,
+    featured: false,
+    ownerId: user.id,
+  }).returning();
+
+  if (Array.isArray(photos) && photos.length > 0) {
+    await db.insert(businessPhotosTable).values(
+      photos.slice(0, 10).map((p: { url: string; caption?: string }) => ({
+        businessId: biz.id, url: p.url, caption: p.caption ?? null,
+      }))
+    );
+  }
+
+  if (Array.isArray(products) && products.length > 0) {
+    const validProducts = products.filter(
+      (p: { name?: string; price?: number | string }) =>
+        p && typeof p.name === "string" && p.name.trim().length > 0 &&
+        p.price !== undefined && p.price !== null && !isNaN(Number(p.price)) && Number(p.price) >= 0
+    );
+    if (validProducts.length > 0) {
+      await db.insert(marketplaceItemsTable).values(
+        validProducts.map((p: { name: string; description?: string; price: number | string; imageUrl?: string }) => ({
+          businessId: biz.id,
+          name: p.name.trim(),
+          description: p.description?.trim() || null,
+          price: Number(p.price),
+          imageUrl: p.imageUrl || null,
+        }))
+      );
+    }
+  }
+
+  return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });
 });
 
 // PATCH /businesses/:id

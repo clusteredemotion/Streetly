@@ -1381,6 +1381,50 @@ function ResetPasswordModal({ user, onClose }: {
   );
 }
 
+type AdminProperty = {
+  id: number; title: string; description: string | null; address: string;
+  sizeSqft: number | null; priceAmount: number | null; priceType: string;
+  contactName: string; contactPhone: string; status: string; createdAt: string;
+  photos: Array<{ id: number; url: string }>;
+};
+
+function usePendingProperties() {
+  return useQuery({
+    queryKey: ["admin", "properties", "pending"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/properties/pending`, { headers: authHeader() });
+      return res.json() as Promise<AdminProperty[]>;
+    },
+  });
+}
+
+function useApproveProperty() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, approved }: { id: number; approved: boolean }) => {
+      const res = await fetch(`${BASE}/api/admin/properties/${id}/approve`, {
+        method: "PATCH", headers: authHeader(), body: JSON.stringify({ approved }),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "properties", "pending"] });
+    },
+  });
+}
+
+function useDeleteProperty() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`${BASE}/api/admin/properties/${id}`, { method: "DELETE", headers: authHeader() });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "properties", "pending"] });
+    },
+  });
+}
+
 /* ── Impersonate banner ── */
 function ImpersonateBanner({ name, token, onClear }: { name: string; token: string; onClear: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -1438,7 +1482,7 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 
 const SECTION_LABELS: Record<string, string> = {
   analytics: "Dashboard", "add-business": "Add Business",
-  businesses: "Pending Review", "all-businesses": "All Businesses",
+  businesses: "Pending Review", properties: "Pending Properties", "all-businesses": "All Businesses",
   "featured-order": "Featured Order", claims: "Ownership Claims",
   "all-users": "All Users", "all-agents": "All Agents",
   "pending-agents": "Pending Agents", kyc: "KYC Documents",
@@ -1484,6 +1528,7 @@ export default function AdminPage() {
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: pendingBiz } = useGetPendingBusinesses();
+  const { data: pendingProperties } = usePendingProperties();
   const { data: pendingAgents } = useGetPendingAgents();
   const { data: pendingClaims } = usePendingClaims();
   const { data: allAgents, refetch: refetchAgents } = useAllAgents();
@@ -1496,6 +1541,8 @@ export default function AdminPage() {
   const { data: withdrawals, refetch: refetchWithdrawals } = usePendingWithdrawals();
 
   const approveBiz = useApproveBusiness();
+  const approveProperty = useApproveProperty();
+  const deleteProperty = useDeleteProperty();
   const approveAgent = useApproveAgent();
   const approveClaim = useApproveClaim();
   const approveWithdrawal = useApproveWithdrawal();
@@ -1512,13 +1559,13 @@ export default function AdminPage() {
   const { data: allKYC } = useAllKYC();
 
   const [adminNotes, setAdminNotes] = useState<Record<number, string>>({});
-  const [editAgent, setEditAgent] = useState<typeof allAgents extends Array<infer T> ? T | null : null>(null);
+  const [editAgent, setEditAgent] = useState<any>(null);
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [resetPwUser, setResetPwUser] = useState<{ id: number; name: string } | null>(null);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
   const [itemsBusiness, setItemsBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
-  const [reviewAgent, setReviewAgent] = useState<(typeof allAgents extends Array<infer T> ? T : never) | null>(null);
+  const [reviewAgent, setReviewAgent] = useState<any>(null);
   const [reviewRider, setReviewRider] = useState<PendingRider | null>(null);
   const [bizSearch, setBizSearch] = useState("");
   const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
@@ -1840,6 +1887,7 @@ export default function AdminPage() {
             <NavGroup label="Businesses" />
             <NavItem section="add-business" active={activeSection} label="Add Business" icon={<Plus className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="businesses" active={activeSection} label="Pending Review" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingBusinesses} onSelect={handleNavSelect} />
+            <NavItem section="properties" active={activeSection} label="Pending Properties" icon={<Building2 className="h-4 w-4" />} badge={pendingProperties?.length} onSelect={handleNavSelect} />
             <NavItem section="all-businesses" active={activeSection} label="All Businesses" icon={<Building2 className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="featured-order" active={activeSection} label="Featured Order" icon={<Star className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="claims" active={activeSection} label="Ownership Claims" icon={<ShieldCheck className="h-4 w-4" />} badge={pendingClaims?.length} onSelect={handleNavSelect} />
@@ -1965,6 +2013,55 @@ export default function AdminPage() {
                       onReject={() => handleBizApproval(biz.id, false)}
                       loading={approveBiz.isPending}
                     />
+                  </AdminCard>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+
+          {/* ── Pending Properties ── */}
+          {activeSection === "properties" && (
+            <>
+            <SectionHeader title="Pending Properties" sub="Review and approve or reject vacant property submissions." />
+            {!pendingProperties?.length ? (
+              <EmptyState icon={<CheckCircle className="h-10 w-10 text-green-500" />} title="No pending properties" sub="All properties have been reviewed" />
+            ) : (
+              <div className="space-y-3">
+                {pendingProperties.map((prop) => (
+                  <AdminCard key={prop.id}>
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      {prop.photos?.[0] ? (
+                        <img src={prop.photos[0].url} alt="" className="w-16 h-16 rounded-xl object-cover border border-white/10 flex-shrink-0" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-6 w-6 text-white/20" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground truncate">{prop.title}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{prop.address}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {prop.priceType} · {prop.priceAmount ? `₦${prop.priceAmount.toLocaleString()}` : "Price on request"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Contact: {prop.contactName} ({prop.contactPhone})
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">Submitted: {new Date(prop.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <ApproveRejectButtons
+                        onApprove={() => approveProperty.mutateAsync({ id: prop.id, approved: true })}
+                        onReject={() => approveProperty.mutateAsync({ id: prop.id, approved: false })}
+                        loading={approveProperty.isPending}
+                      />
+                      <Button size="sm" variant="ghost" 
+                        onClick={() => setConfirmDelete({ label: prop.title, onConfirm: async () => { await deleteProperty.mutateAsync(prop.id); } })}
+                        className="h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
                   </AdminCard>
                 ))}
               </div>

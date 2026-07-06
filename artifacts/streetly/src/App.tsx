@@ -19,12 +19,17 @@ import RiderApplyPage from "@/pages/RiderApplyPage";
 import RiderDashboardPage from "@/pages/RiderDashboardPage";
 import DeliveryTrackingPage from "@/pages/DeliveryTrackingPage";
 import OwnerDashboardPage from "@/pages/OwnerDashboardPage";
+import BusinessOnboardingPage from "@/pages/BusinessOnboardingPage";
 import AdminPage from "@/pages/AdminPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import AboutPage from "@/pages/AboutPage";
+import AccountPage from "@/pages/AccountPage";
 import ContactPage from "@/pages/ContactPage";
 import SupportTicketsPage from "@/pages/SupportTicketsPage";
+import MessagesPage from "@/pages/MessagesPage";
+import PropertiesPage from "@/pages/PropertiesPage";
+import PropertySubmitPage from "@/pages/PropertySubmitPage";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -52,13 +57,20 @@ function Router() {
       <Route path="/riders/apply" component={RiderApplyPage} />
       <Route path="/rider-dashboard" component={RiderDashboardPage} />
       <Route path="/deliveries/:id" component={DeliveryTrackingPage} />
+      <Route path="/business/onboard" component={BusinessOnboardingPage} />
       <Route path="/owner-dashboard" component={OwnerDashboardPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/auth/login" component={LoginPage} />
       <Route path="/auth/register" component={RegisterPage} />
+      <Route path="/account">
+        {() => localStorage.getItem("streetly_token") ? <AccountPage /> : <LoginPage />}
+      </Route>
       <Route path="/about" component={AboutPage} />
+      <Route path="/properties" component={PropertiesPage} />
+      <Route path="/properties/submit" component={PropertySubmitPage} />
       <Route path="/contact" component={ContactPage} />
       <Route path="/support" component={SupportTicketsPage} />
+      <Route path="/messages" component={MessagesPage} />
       <Route path="/:slug/store" component={BusinessStorePage} />
       <Route path="/:slug" component={BusinessProfilePage} />
       <Route component={NotFound} />

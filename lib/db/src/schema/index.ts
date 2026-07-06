@@ -11,3 +11,7 @@ export * from "./support";
 export * from "./riders";
 export * from "./deliveries";
 export * from "./marketplace";
+export * from "./analytics";
+export * from "./referrals";
+export * from "./chat";
+export * from "./properties";

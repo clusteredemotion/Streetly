@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetMe } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, MapPin, ChevronRight } from "lucide-react";
+import { Menu, X, MapPin, ChevronRight, User as UserIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ export function Navbar() {
   const isHome = location === "/";
 
   const token = localStorage.getItem("streetly_token");
-  const { data: user } = useGetMe({ query: { enabled: !!token } });
+  const { data: user } = useGetMe({ query: { enabled: !!token, queryKey: ["getMe", !!token] } });
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -41,11 +41,14 @@ export function Navbar() {
 
   const navLinks = [
     { href: "/", label: "Home" },
+    { href: "/properties", label: "Properties" },
     { href: "/businesses", label: "Directory" },
     { href: "/explore", label: "Street Explorer" },
     ...(!isAgent ? [{ href: "/agents", label: "Become an Agent" }] : []),
     ...(!isRider ? [{ href: "/riders/apply", label: "Become a Rider" }] : []),
     ...(!user ? [{ href: "/auth/register?role=business_owner", label: "List Your Business" }] : []),
+    ...(user ? [{ href: "/account", label: "My Account" }] : []),
+    ...(user ? [{ href: "/messages", label: "Messages" }] : []),
     ...(user ? [{ href: "/support", label: "Support Tickets" }] : []),
   ];
 
@@ -119,6 +122,19 @@ export function Navbar() {
                 )}>
                   {greeting}, <span className="font-semibold">{firstName}</span> 👋
                 </span>
+                <Link href="/account">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(onMap
+                      ? "text-[#0547B6]/80 hover:bg-blue-700/8 hover:text-[#0547B6]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    <UserIcon className="h-4 w-4 mr-2" />
+                    Account
+                  </Button>
+                </Link>
                 <Link href={dashboardHref(user.role)}>
                   <Button
                     variant="ghost"

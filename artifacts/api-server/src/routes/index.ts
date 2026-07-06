@@ -17,6 +17,10 @@ import ridersRouter from "./riders";
 import deliveriesRouter, { standaloneDeliveriesRouter, businessMarketRouter } from "./deliveries";
 import marketplaceItemsRouter, { standaloneMarketplaceItemsRouter } from "./marketplace-items";
 import storageRouter from "./storage";
+import analyticsRouter from "./analytics";
+import referralsRouter from "./referrals";
+import chatRouter from "./chat";
+import propertiesRouter from "./properties";
 
 const router: IRouter = Router();
 
@@ -32,6 +36,7 @@ router.use("/businesses/:businessId/reviews", reviewsRouter);
 router.use("/businesses/:businessId/claim", claimsRouter);
 router.use("/businesses/:businessId/deliveries", deliveriesRouter);
 router.use("/businesses/:businessId/marketplace-items", marketplaceItemsRouter);
+router.use("/businesses/:businessId/analytics", analyticsRouter);
 router.use("/businesses/:businessId", businessMarketRouter);
 router.use("/marketplace-items", standaloneMarketplaceItemsRouter);
 router.use("/agents", agentsRouter);
@@ -41,5 +46,9 @@ router.use("/admin", adminRouter);
 router.use("/streets", streetExplorerRouter);
 router.use("/contact", contactRouter);
 router.use("/support-tickets", supportTicketsRouter);
+router.use("/analytics", analyticsRouter);
+router.use("/users", referralsRouter);
+router.use("/conversations", chatRouter);
+router.use("/properties", propertiesRouter);
 
 export default router;
