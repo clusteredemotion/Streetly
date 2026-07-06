@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
+import AddPropertyForm from "@/components/admin/AddPropertyForm";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminMessages from "@/components/admin/AdminMessages";
 import AdminSupportTickets from "@/components/admin/AdminSupportTickets";
@@ -1248,6 +1249,145 @@ function RiderReviewModal({ rider, onClose, onApprove, onReject, approving }: {
   );
 }
 
+/* ── Property Review Modal (full profile with photos before approval) ── */
+function PropertyReviewModal({ property, onClose, onApprove, onReject, onDelete, approving, readOnly }: {
+  property: AdminProperty;
+  onClose: () => void;
+  onApprove?: () => void;
+  onReject?: () => void;
+  onDelete?: () => void;
+  approving?: boolean;
+  readOnly?: boolean;
+}) {
+  const [imgView, setImgView] = useState<string | null>(null);
+  const locationParts = [property.streetName, property.areaName, property.cityName].filter(Boolean);
+
+  const infoRows = [
+    { label: "Address", value: property.address },
+    { label: "Location", value: locationParts.length ? locationParts.join(", ") : null },
+    { label: "Size", value: property.sizeSqft ? `${property.sizeSqft.toLocaleString()} sqft` : null },
+    { label: "Price", value: property.priceAmount ? `₦${property.priceAmount.toLocaleString()} (${property.priceType})` : `Price on request (${property.priceType})` },
+    { label: "Submitted", value: new Date(property.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) },
+    { label: "Status", value: property.status },
+  ].filter(r => r.value);
+
+  const contactRows = [
+    { label: "Contact Name", value: property.contactName },
+    { label: "Contact Phone", value: property.contactPhone },
+  ].filter(r => r.value);
+
+  return (
+    <>
+      <AnimatePresence>
+        {imgView && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-6"
+            style={{ background: "rgba(0,0,0,0.92)" }}
+            onClick={() => setImgView(null)}>
+            <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+              <X className="h-5 w-5" />
+            </button>
+            <img src={imgView} alt="Property" className="max-w-full max-h-full rounded-2xl object-contain shadow-2xl" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          className="w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+          style={{ background: "#0b1929", border: "1px solid rgba(255,255,255,0.10)" }}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[#4a9eff]/15 flex items-center justify-center">
+                <Building2 className="h-3.5 w-3.5 text-[#4a9eff]" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white text-sm">{property.title}</h2>
+                <p className="text-[11px] text-white/40">Property #{property.id}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+            {/* Photos */}
+            <div>
+              <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Camera className="h-3 w-3" /> Photos ({property.photos?.length ?? 0})
+              </p>
+              {property.photos?.length ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {property.photos.map((photo) => (
+                    <div key={photo.id} className="relative group cursor-pointer rounded-xl overflow-hidden"
+                      onClick={() => setImgView(photo.url)}>
+                      <img src={photo.url} alt="Property"
+                        className="w-full h-24 object-cover rounded-xl transition-transform group-hover:scale-105" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-xl">
+                        <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-32 rounded-xl flex flex-col items-center justify-center gap-2"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.1)" }}>
+                  <Camera className="h-7 w-7 text-white/15" />
+                  <span className="text-xs text-white/25">No photos uploaded</span>
+                </div>
+              )}
+            </div>
+
+            {property.description && (
+              <div>
+                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2">Description</p>
+                <p className="text-sm text-white/70 leading-relaxed">{property.description}</p>
+              </div>
+            )}
+
+            <InfoSection title="Property Information" icon={MapPin} rows={infoRows} />
+            <InfoSection title="Contact Information" icon={User} rows={contactRows} />
+          </div>
+
+          {!readOnly && (onApprove || onReject || onDelete) && (
+            <div className="px-5 py-4 border-t border-white/10 flex-shrink-0"
+              style={{ background: "rgba(0,0,0,0.2)" }}>
+              <div className="flex gap-3">
+                {onReject && (
+                  <button onClick={onReject} disabled={approving}
+                    className="flex-1 h-10 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                    <XCircle className="h-4 w-4" /> Reject
+                  </button>
+                )}
+                {onApprove && (
+                  <button onClick={onApprove} disabled={approving}
+                    className="flex-1 h-10 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50">
+                    {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    Approve Property
+                  </button>
+                )}
+                {onDelete && (
+                  <button onClick={onDelete}
+                    className="h-10 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </>
+  );
+}
+
 /* ── Edit User Modal ── */
 function EditUserModal({ user, onClose, onSaved }: {
   user: { id: number; name: string; email: string; role: string; createdAt: string };
@@ -1385,6 +1525,7 @@ type AdminProperty = {
   id: number; title: string; description: string | null; address: string;
   sizeSqft: number | null; priceAmount: number | null; priceType: string;
   contactName: string; contactPhone: string; status: string; createdAt: string;
+  streetName?: string | null; areaName?: string | null; cityName?: string | null;
   photos: Array<{ id: number; url: string }>;
 };
 
@@ -1393,6 +1534,16 @@ function usePendingProperties() {
     queryKey: ["admin", "properties", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/properties/pending`, { headers: authHeader() });
+      return res.json() as Promise<AdminProperty[]>;
+    },
+  });
+}
+
+function useAllProperties() {
+  return useQuery({
+    queryKey: ["admin", "properties", "all"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/properties/all`, { headers: authHeader() });
       return res.json() as Promise<AdminProperty[]>;
     },
   });
@@ -1408,7 +1559,7 @@ function useApproveProperty() {
       return res.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "properties", "pending"] });
+      qc.invalidateQueries({ queryKey: ["admin", "properties"] });
     },
   });
 }
@@ -1420,7 +1571,7 @@ function useDeleteProperty() {
       await fetch(`${BASE}/api/admin/properties/${id}`, { method: "DELETE", headers: authHeader() });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin", "properties", "pending"] });
+      qc.invalidateQueries({ queryKey: ["admin", "properties"] });
     },
   });
 }
@@ -1482,7 +1633,8 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 
 const SECTION_LABELS: Record<string, string> = {
   analytics: "Dashboard", "add-business": "Add Business",
-  businesses: "Pending Review", properties: "Pending Properties", "all-businesses": "All Businesses",
+  businesses: "Pending Review", properties: "Pending Properties", "all-properties": "All Properties",
+  "add-property": "Add Property", "all-businesses": "All Businesses",
   "featured-order": "Featured Order", claims: "Ownership Claims",
   "all-users": "All Users", "all-agents": "All Agents",
   "pending-agents": "Pending Agents", kyc: "KYC Documents",
@@ -1529,6 +1681,7 @@ export default function AdminPage() {
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: pendingBiz } = useGetPendingBusinesses();
   const { data: pendingProperties } = usePendingProperties();
+  const { data: allProperties, refetch: refetchAllProperties } = useAllProperties();
   const { data: pendingAgents } = useGetPendingAgents();
   const { data: pendingClaims } = usePendingClaims();
   const { data: allAgents, refetch: refetchAgents } = useAllAgents();
@@ -1567,6 +1720,8 @@ export default function AdminPage() {
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
   const [reviewAgent, setReviewAgent] = useState<any>(null);
   const [reviewRider, setReviewRider] = useState<PendingRider | null>(null);
+  const [reviewProperty, setReviewProperty] = useState<AdminProperty | null>(null);
+  const [reviewPropertyReadOnly, setReviewPropertyReadOnly] = useState(false);
   const [bizSearch, setBizSearch] = useState("");
   const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
   const [featuredSaved, setFeaturedSaved] = useState(false);
@@ -1744,6 +1899,24 @@ export default function AdminPage() {
             }}
           />
         )}
+        {reviewProperty && (
+          <PropertyReviewModal
+            property={reviewProperty}
+            readOnly={reviewPropertyReadOnly}
+            onClose={() => setReviewProperty(null)}
+            approving={approveProperty.isPending}
+            {...(reviewPropertyReadOnly ? {} : {
+              onApprove: async () => {
+                await approveProperty.mutateAsync({ id: reviewProperty.id, approved: true });
+                setReviewProperty(null);
+              },
+              onReject: async () => {
+                await approveProperty.mutateAsync({ id: reviewProperty.id, approved: false });
+                setReviewProperty(null);
+              },
+            })}
+          />
+        )}
       </AnimatePresence>
 
       {confirmDelete && (
@@ -1888,6 +2061,8 @@ export default function AdminPage() {
             <NavItem section="add-business" active={activeSection} label="Add Business" icon={<Plus className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="businesses" active={activeSection} label="Pending Review" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingBusinesses} onSelect={handleNavSelect} />
             <NavItem section="properties" active={activeSection} label="Pending Properties" icon={<Building2 className="h-4 w-4" />} badge={pendingProperties?.length} onSelect={handleNavSelect} />
+            <NavItem section="add-property" active={activeSection} label="Add Property" icon={<Plus className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="all-properties" active={activeSection} label="All Properties" icon={<Building2 className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="all-businesses" active={activeSection} label="All Businesses" icon={<Building2 className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="featured-order" active={activeSection} label="Featured Order" icon={<Star className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="claims" active={activeSection} label="Ownership Claims" icon={<ShieldCheck className="h-4 w-4" />} badge={pendingClaims?.length} onSelect={handleNavSelect} />
@@ -2048,6 +2223,13 @@ export default function AdminPage() {
                           Contact: {prop.contactName} ({prop.contactPhone})
                         </p>
                         <p className="text-[10px] text-muted-foreground/60 mt-1">Submitted: {new Date(prop.createdAt).toLocaleDateString()}</p>
+                        <button
+                          onClick={() => { setReviewProperty(prop); setReviewPropertyReadOnly(false); }}
+                          className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors hover:bg-amber-500/20"
+                          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "#fbbf24" }}
+                        >
+                          <List className="h-3 w-3" /> View Full Details & Photos
+                        </button>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -2058,6 +2240,67 @@ export default function AdminPage() {
                       />
                       <Button size="sm" variant="ghost" 
                         onClick={() => setConfirmDelete({ label: prop.title, onConfirm: async () => { await deleteProperty.mutateAsync(prop.id); } })}
+                        className="h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </AdminCard>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+
+          {/* ── Add Property ── */}
+          {activeSection === "add-property" && (
+            <>
+            <SectionHeader title="Add Property" sub="Directly list a vacant property on Streetly." />
+            <AddPropertyForm onSuccess={() => { refetchAllProperties(); setActiveSection("all-properties"); }} />
+            </>
+          )}
+
+          {/* ── All Properties ── */}
+          {activeSection === "all-properties" && (
+            <>
+            <SectionHeader title="All Properties" sub="Manage every property listing on Streetly." />
+            {!allProperties?.length ? (
+              <EmptyState icon={<Building2 className="h-10 w-10 text-white/20" />} title="No properties yet" sub="Properties will appear here once submitted or added" />
+            ) : (
+              <div className="space-y-3">
+                {allProperties.map((prop) => (
+                  <AdminCard key={prop.id}>
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      {prop.photos?.[0] ? (
+                        <img src={prop.photos[0].url} alt="" className="w-16 h-16 rounded-xl object-cover border border-white/10 flex-shrink-0" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-6 w-6 text-white/20" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <h3 className="font-semibold text-foreground truncate">{prop.title}</h3>
+                          <StatusBadge status={prop.status} />
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{prop.address}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {prop.priceType} · {prop.priceAmount ? `₦${prop.priceAmount.toLocaleString()}` : "Price on request"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Contact: {prop.contactName} ({prop.contactPhone})
+                        </p>
+                        <button
+                          onClick={() => { setReviewProperty(prop); setReviewPropertyReadOnly(true); }}
+                          className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors hover:bg-[#4a9eff]/20"
+                          style={{ background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.25)", color: "#4a9eff" }}
+                        >
+                          <Eye className="h-3 w-3" /> View Details & Photos
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <Button size="sm" variant="ghost"
+                        onClick={() => setConfirmDelete({ label: prop.title, onConfirm: async () => { await deleteProperty.mutateAsync(prop.id); refetchAllProperties(); } })}
                         className="h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5">
                         <Trash2 className="h-3 w-3" /> Delete
                       </Button>

@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
+import { enrichProperty } from "./properties";
 
 const router = Router();
 
@@ -263,7 +264,125 @@ router.patch("/businesses/:id/approve", async (req, res) => {
 // GET /admin/properties/pending
 router.get("/properties/pending", async (_req, res) => {
   const rows = await db.select().from(vacantPropertiesTable).where(eq(vacantPropertiesTable.status, "pending")).orderBy(desc(vacantPropertiesTable.createdAt));
-  return res.json(rows);
+  const enriched = await Promise.all(rows.map(enrichProperty));
+  return res.json(enriched);
+});
+
+// GET /admin/properties/all — every property regardless of status, enriched with location + photos
+router.get("/properties/all", async (_req, res) => {
+  const rows = await db.select().from(vacantPropertiesTable).orderBy(desc(vacantPropertiesTable.createdAt));
+  const enriched = await Promise.all(rows.map(enrichProperty));
+  return res.json(enriched);
+});
+
+// GET /admin/properties/:id — single property detail, enriched
+router.get("/properties/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const [prop] = await db.select().from(vacantPropertiesTable).where(eq(vacantPropertiesTable.id, id)).limit(1);
+  if (!prop) return res.status(404).json({ error: "Property not found" });
+  const enriched = await enrichProperty(prop);
+  return res.json(enriched);
+});
+
+// POST /admin/properties — admin directly adds a new property (auto-approved)
+router.post("/properties", async (req, res) => {
+  const {
+    title, description, address, streetId,
+    stateName, cityName, areaName, streetName,
+    latitude, longitude,
+    sizeSqft, priceAmount, priceType, contactName, contactPhone,
+    photos = [], status,
+  } = req.body;
+
+  if (!title || !address || !contactName || !contactPhone) {
+    return res.status(400).json({ error: "title, address, contactName, contactPhone are required" });
+  }
+
+  let resolvedStreetId: number | null = streetId ? Number(streetId) : null;
+
+  if (!resolvedStreetId && cityName && areaName && streetName) {
+    let cityRows = await db.select().from(citiesTable)
+      .where(and(ilike(citiesTable.name, cityName), ilike(citiesTable.state, stateName || "%")))
+      .limit(1);
+    let city = cityRows[0];
+    if (!city) {
+      const inserted = await db.insert(citiesTable).values({ name: cityName, state: stateName || "Unknown", country: "Nigeria" }).returning();
+      city = inserted[0];
+    }
+
+    let areaRows = await db.select().from(areasTable).where(and(ilike(areasTable.name, areaName), eq(areasTable.cityId, city.id))).limit(1);
+    let area = areaRows[0];
+    if (!area) {
+      const inserted = await db.insert(areasTable).values({ name: areaName, cityId: city.id }).returning();
+      area = inserted[0];
+    }
+
+    let streetRows = await db.select().from(streetsTable).where(and(ilike(streetsTable.name, streetName), eq(streetsTable.areaId, area.id))).limit(1);
+    let street = streetRows[0];
+    if (!street) {
+      const inserted = await db.insert(streetsTable).values({ name: streetName, areaId: area.id }).returning();
+      street = inserted[0];
+    }
+    resolvedStreetId = street.id;
+  }
+
+  const [prop] = await db.insert(vacantPropertiesTable).values({
+    title,
+    description: description || null,
+    address,
+    streetId: resolvedStreetId,
+    latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
+    longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
+    sizeSqft: sizeSqft !== undefined && sizeSqft !== "" ? Number(sizeSqft) : undefined,
+    priceAmount: priceAmount !== undefined && priceAmount !== "" ? Number(priceAmount) : undefined,
+    priceType: priceType || "rent",
+    contactName,
+    contactPhone,
+    status: status === "pending" ? "pending" : "approved",
+  }).returning();
+
+  if (Array.isArray(photos) && photos.length > 0) {
+    await db.insert(propertyPhotosTable).values(
+      photos.slice(0, 10).map((url: string) => ({ propertyId: prop.id, url }))
+    );
+  }
+
+  const enriched = await enrichProperty(prop);
+  return res.status(201).json(enriched);
+});
+
+// PUT /admin/properties/:id — edit any property
+router.put("/properties/:id", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const {
+    title, description, address, streetId, latitude, longitude,
+    sizeSqft, priceAmount, priceType, contactName, contactPhone, status,
+  } = req.body;
+
+  const [prop] = await db.update(vacantPropertiesTable)
+    .set({
+      ...(title !== undefined && { title }),
+      ...(description !== undefined && { description: description || null }),
+      ...(address !== undefined && { address }),
+      ...(streetId !== undefined && { streetId: streetId ? Number(streetId) : null }),
+      ...(latitude !== undefined && { latitude: latitude === "" ? null : Number(latitude) }),
+      ...(longitude !== undefined && { longitude: longitude === "" ? null : Number(longitude) }),
+      ...(sizeSqft !== undefined && { sizeSqft: sizeSqft === "" ? null : Number(sizeSqft) }),
+      ...(priceAmount !== undefined && { priceAmount: priceAmount === "" ? null : Number(priceAmount) }),
+      ...(priceType !== undefined && { priceType }),
+      ...(contactName !== undefined && { contactName }),
+      ...(contactPhone !== undefined && { contactPhone }),
+      ...(status !== undefined && { status }),
+    })
+    .where(eq(vacantPropertiesTable.id, id))
+    .returning();
+
+  if (!prop) return res.status(404).json({ error: "Property not found" });
+  const enriched = await enrichProperty(prop);
+  return res.json(enriched);
 });
 
 // PATCH /admin/properties/:id/approve

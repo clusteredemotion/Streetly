@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
 import {
   useGetPlatformStats,
   useListCategories,
@@ -12,13 +13,61 @@ import {
 import {
   ArrowRight, Building2, Users, Globe,
   CheckCircle, MapPin, ChevronRight,
-  Star, ShieldCheck, Zap,
+  Star, ShieldCheck, Zap, Bike, MessageSquare, ShoppingBag,
 } from "lucide-react";
 import { BusinessCard } from "@/components/business/BusinessCard";
 import { HomeMapView } from "@/components/HomeMapView";
 import { AGENT_COMMISSION_PER_LISTING, AGENT_HIGH_QUALITY_BONUS } from "@/lib/constants";
 import appStoreBadge from "@/assets/app-store-badge.svg";
 import googlePlayBadge from "@/assets/google-play-badge.png";
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+type HomeProperty = {
+  id: number; title: string; sizeSqft: number | null; priceAmount: number | null;
+  priceType: string; areaName?: string | null; cityName?: string | null; streetName?: string | null;
+  photos: Array<{ id: number; url: string }>;
+};
+
+function useLatestProperties() {
+  return useQuery({
+    queryKey: ["home", "properties", "latest"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/properties`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (Array.isArray(data) ? data : []).slice(0, 3) as HomeProperty[];
+    },
+    staleTime: 60_000,
+  });
+}
+
+const PLATFORM_FEATURES = [
+  {
+    icon: Building2, color: "#4a9eff", tag: "Property Listings",
+    title: "Find Vacant Commercial Spaces",
+    desc: "Browse vacant shops, offices, and commercial buildings across every city Streetly covers.",
+    cta: "Browse Properties", path: "/properties",
+  },
+  {
+    icon: Bike, color: "#22c55e", tag: "Delivery & Dispatch",
+    title: "Real-Time Delivery Tracking",
+    desc: "Streetly riders pick up and dispatch orders with live GPS tracking from pickup to doorstep.",
+    cta: "Become a Rider", path: "/riders/apply",
+  },
+  {
+    icon: ShoppingBag, color: "#a78bfa", tag: "Marketplace Orders",
+    title: "Order Directly From Businesses",
+    desc: "Buy products and place orders straight from business storefronts, with delivery built in.",
+    cta: "Explore Businesses", path: "/businesses",
+  },
+  {
+    icon: MessageSquare, color: "#fb923c", tag: "Messaging & Support",
+    title: "Chat & Get Help Instantly",
+    desc: "Message business owners directly or reach our support team whenever you need help.",
+    cta: "Open Messages", path: "/messages",
+  },
+];
 
 /* ── Animated counter ── */
 function AnimatedNumber({ value }: { value: number }) {
@@ -110,6 +159,7 @@ export default function HomePage() {
   const { data: stats } = useGetPlatformStats();
   const { data: categories } = useListCategories();
   const { data: featuredBusinesses } = useGetFeaturedBusinesses();
+  const { data: latestProperties } = useLatestProperties();
 
   return (
     <Layout>
@@ -255,8 +305,83 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── 5: PROPERTY INTELLIGENCE ── */}
+      {/* ── 5: PROPERTY LISTINGS (live) ── */}
       <section className="py-20" style={{ background: "linear-gradient(180deg, #060c1e 0%, #08122a 100%)" }}>
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex items-end justify-between mb-12 flex-wrap gap-4"
+          >
+            <div>
+              <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Now Live</p>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Find Vacant Commercial Spaces</h2>
+              <p className="text-white/50 mt-3 max-w-xl">
+                Discover vacant shops, offices, and commercial buildings listed by verified street scouts.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/properties")}
+              className="gap-2 hidden sm:flex rounded-full text-white/60 hover:text-white hover:bg-white/10 border border-white/10"
+            >
+              Browse Properties <ArrowRight className="h-4 w-4" />
+            </Button>
+          </motion.div>
+
+          {latestProperties && latestProperties.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {latestProperties.map((prop, i) => (
+                <motion.div
+                  key={prop.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.12 }}
+                  whileHover={{ y: -4 }}
+                  onClick={() => navigate("/properties")}
+                  className="cursor-pointer"
+                >
+                  <GlassCard className="overflow-hidden">
+                    <div className="h-36 bg-white/[0.03] flex items-center justify-center overflow-hidden">
+                      {prop.photos?.[0] ? (
+                        <img src={prop.photos[0].url} alt={prop.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Building2 className="h-8 w-8 text-white/15" />
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-2"
+                        style={{ background: "#4a9eff18", color: "#4a9eff" }}>
+                        {prop.priceType}
+                      </span>
+                      <h3 className="font-bold text-base text-white truncate">{prop.title}</h3>
+                      <p className="text-sm text-white/50 mt-0.5 truncate">
+                        {[prop.areaName, prop.cityName].filter(Boolean).join(", ") || "Location on request"}
+                      </p>
+                      <div className="flex items-center justify-between text-sm mt-4">
+                        <span className="text-white/40">{prop.sizeSqft ? `${prop.sizeSqft.toLocaleString()} sqft` : "—"}</span>
+                        <span className="font-bold text-white">
+                          {prop.priceAmount ? `₦${prop.priceAmount.toLocaleString()}` : "Price on request"}
+                        </span>
+                      </div>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <GlassCard className="p-10 text-center" hover={false}>
+              <Building2 className="h-8 w-8 text-white/20 mx-auto mb-3" />
+              <p className="text-white/50">New property listings are coming soon. Check back shortly.</p>
+            </GlassCard>
+          )}
+        </div>
+      </section>
+
+      {/* ── 5b: PLATFORM FEATURES ── */}
+      <section className="py-20" style={{ background: "#060c1e" }}>
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -264,55 +389,40 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <Badge className="mb-4 text-xs border-white/10 text-white/60"
-              style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(12px)" }}>
-              Coming Soon
-            </Badge>
-            <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Property Intelligence</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Find Vacant Commercial Spaces</h2>
+            <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-2">Everything In One Place</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">More Than a Business Directory</h2>
             <p className="text-white/50 mt-3 max-w-xl mx-auto">
-              Discover vacant shops, offices, and commercial buildings across the world's key business districts.
+              From property hunting to doorstep delivery, Streetly connects every part of your city.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[
-              { type: "Vacant Shop", area: "Adeola Odeku St, VI", size: "45 sqm", price: "₦2.5M/yr", tag: "Available Now", color: "#22c55e" },
-              { type: "Office Space", area: "Wuse II, Abuja", size: "120 sqm", price: "₦5.8M/yr", tag: "3 Available", color: "#4a9eff" },
-              { type: "Commercial Building", area: "Ikeja GRA, Lagos", size: "400 sqm", price: "₦18M/yr", tag: "New Listing", color: "#a78bfa" },
-            ].map((prop, i) => (
-              <motion.div
-                key={prop.area}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {PLATFORM_FEATURES.map((f, i) => (
+              <motion.button
+                key={f.tag}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.12 }}
+                transition={{ delay: i * 0.1 }}
                 whileHover={{ y: -4 }}
+                onClick={() => navigate(f.path)}
+                className="text-left"
               >
-                <GlassCard className="p-5 cursor-default">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-full mb-2"
-                        style={{ background: `${prop.color}18`, color: prop.color }}>
-                        {prop.tag}
-                      </span>
-                      <h3 className="font-bold text-base text-white">{prop.type}</h3>
-                      <p className="text-sm text-white/50 mt-0.5">{prop.area}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                      style={{ background: `${prop.color}15` }}>
-                      <Building2 className="h-5 w-5" style={{ color: prop.color }} />
-                    </div>
+                <GlassCard className="p-5 h-full flex flex-col">
+                  <div className="w-11 h-11 rounded-2xl mb-4 flex items-center justify-center"
+                    style={{ background: `${f.color}18` }}>
+                    <f.icon className="h-5 w-5" style={{ color: f.color }} />
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/40">{prop.size}</span>
-                    <span className="font-bold text-white">{prop.price}</span>
-                  </div>
-                  <div className="mt-4 h-1.5 rounded-full bg-white/[0.06]">
-                    <div className="h-full rounded-full w-2/3" style={{ background: prop.color }} />
+                  <span className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: f.color }}>
+                    {f.tag}
+                  </span>
+                  <h3 className="font-bold text-white text-base mb-2">{f.title}</h3>
+                  <p className="text-sm text-white/50 flex-1">{f.desc}</p>
+                  <div className="flex items-center gap-1.5 mt-4 text-sm font-semibold text-white/70">
+                    {f.cta} <ChevronRight className="h-4 w-4" />
                   </div>
                 </GlassCard>
-              </motion.div>
+              </motion.button>
             ))}
           </div>
         </div>

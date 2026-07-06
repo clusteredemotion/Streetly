@@ -8,7 +8,7 @@ import { requireAuth } from "../lib/authHelpers";
 
 const router = Router();
 
-async function enrichProperty(prop: typeof vacantPropertiesTable.$inferSelect) {
+export async function enrichProperty(prop: typeof vacantPropertiesTable.$inferSelect) {
   const photos = await db.select().from(propertyPhotosTable).where(eq(propertyPhotosTable.propertyId, prop.id));
   const [street] = prop.streetId ? await db.select().from(streetsTable).where(eq(streetsTable.id, prop.streetId)).limit(1) : [];
   const [area] = street ? await db.select().from(areasTable).where(eq(areasTable.id, street.areaId)).limit(1) : [];

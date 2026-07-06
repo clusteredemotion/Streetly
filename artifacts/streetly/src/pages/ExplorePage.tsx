@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Country, State as CSCState } from "country-state-city";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
@@ -54,8 +55,15 @@ export default function ExplorePage() {
   const { data: streets } = useListStreets(areaId!, { query: { enabled: !!areaId } });
   const { data: businesses, isLoading: bizLoading } = useGetStreetBusinesses(streetId!, { query: { enabled: !!streetId } });
 
-  const countries = [...new Set((allCities ?? []).map(c => c.country).filter(Boolean))].sort();
-  const states = [...new Set((allCities ?? []).filter(c => !country || c.country === country).map(c => c.state).filter(Boolean))].sort();
+  const dbCountries = [...new Set((allCities ?? []).map(c => c.country).filter(Boolean))];
+  const allCountryObjs = Country.getAllCountries();
+  const countries = [...new Set([...allCountryObjs.map(c => c.name), ...dbCountries])].sort();
+
+  const selectedCountryObj = allCountryObjs.find(c => c.name === country);
+  const dbStatesForCountry = [...new Set((allCities ?? []).filter(c => !country || c.country === country).map(c => c.state).filter(Boolean))];
+  const cscStatesForCountry = selectedCountryObj ? CSCState.getStatesOfCountry(selectedCountryObj.isoCode).map(s => s.name) : [];
+  const states = [...new Set([...cscStatesForCountry, ...dbStatesForCountry])].sort();
+
   const cities = (allCities ?? []).filter(c => (!country || c.country === country) && (!state || c.state === state));
 
   const selectedCity = cities.find(c => c.id === cityId);
@@ -121,7 +129,7 @@ export default function ExplorePage() {
                 <GlassSelect
                   value={state}
                   onChange={(v) => { setState(v); setCityId(null); setAreaId(null); setStreetId(null); }}
-                  disabled={countries.length > 1 && !country}
+                  disabled={!country}
                   placeholder={country ? "Select a state…" : "Select a country first"}
                 >
                   {states.map(s => (
@@ -136,7 +144,7 @@ export default function ExplorePage() {
                 <GlassSelect
                   value={cityId ? String(cityId) : ""}
                   onChange={(v) => { setCityId(Number(v)); setAreaId(null); setStreetId(null); }}
-                  placeholder="Select a city…"
+                  placeholder={cities.length > 0 ? "Select a city…" : "No cities listed here yet"}
                 >
                   {cities.map(city => (
                     <option key={city.id} value={String(city.id)} style={{ background: "#0a1628" }}>
