@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import {
   agentsTable, usersTable, withdrawalsTable, businessesTable,
   businessPhotosTable, categoriesTable, citiesTable, areasTable, streetsTable,
+  marketplaceItemsTable,
 } from "@workspace/db";
 import { eq, desc, count, and, ilike } from "drizzle-orm";
 import { verifyToken } from "./auth.js";
@@ -152,6 +153,7 @@ router.post("/:agentId/businesses", async (req, res) => {
     address, phone, whatsapp, website, instagramUrl, facebookUrl, tiktokUrl, youtubeUrl,
     latitude, longitude, openingHours,
     photos = [],
+    products = [],
   } = req.body;
 
   if (!name || !categoryId || !cityName || !areaName || !streetName) {
@@ -209,6 +211,25 @@ router.post("/:agentId/businesses", async (req, res) => {
         businessId: biz.id, url: p.url, caption: p.caption ?? null,
       }))
     );
+  }
+
+  if (Array.isArray(products) && products.length > 0) {
+    const validProducts = products.filter(
+      (p: { name?: string; price?: number | string }) =>
+        p && typeof p.name === "string" && p.name.trim().length > 0 &&
+        p.price !== undefined && p.price !== null && !isNaN(Number(p.price)) && Number(p.price) >= 0
+    );
+    if (validProducts.length > 0) {
+      await db.insert(marketplaceItemsTable).values(
+        validProducts.map((p: { name: string; description?: string; price: number | string; imageUrl?: string }) => ({
+          businessId: biz.id,
+          name: p.name.trim(),
+          description: p.description?.trim() || null,
+          price: Number(p.price),
+          imageUrl: p.imageUrl || null,
+        }))
+      );
+    }
   }
 
   return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });

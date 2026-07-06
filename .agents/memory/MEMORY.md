@@ -7,3 +7,4 @@
 - [Streetly guest resource access tokens](streetly-guest-tracking-tokens.md) — never derive guest access tokens deterministically from a record id; use random token + stored hash + expiry instead
 - [Streetly admin credentials](streetly-admin-credentials.md) — admin login is seeded in code (not a secret/env var); check ensureAdminUser() in api-server index.ts if you need to log in as admin for testing
 - [New workspace lib tsconfig composite](workspace-lib-tsconfig-composite.md) — a new lib package referenced by another package's tsconfig `references` must set `"composite": true` or downstream typecheck fails with TS6306
+- [Streetly image upload testing pitfall](streetly-image-upload-testing.md) — e2e subagent mistargets file inputs on pages with multiple upload widgets; cross-check with curl/DB before trusting a failure; images use base64 data URLs, no object storage

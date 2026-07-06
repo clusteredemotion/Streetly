@@ -14,7 +14,7 @@ import {
   Loader2, Navigation, ChevronDown, AlertCircle,
   CreditCard, ShieldCheck, Star, ArrowRight, Plus,
   Edit2, Save, LayoutDashboard, List, Image as ImageIcon,
-  XCircle, RefreshCw,
+  XCircle, RefreshCw, Package,
 } from "lucide-react";
 import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 
@@ -285,6 +285,11 @@ function PhotoPanel({ photos, onChange }: {
 
 // ── Add Business Tab ─────────────────────────────────────────────────────────
 
+interface ProductForm {
+  name: string; description: string; price: string; imageUrl: string;
+}
+const EMPTY_PRODUCT: ProductForm = { name: "", description: "", price: "", imageUrl: "" };
+
 interface BizForm {
   name: string; description: string; categoryId: string;
   countryName: string; stateName: string; cityName: string; areaName: string; streetName: string;
@@ -292,14 +297,102 @@ interface BizForm {
   instagramUrl: string; facebookUrl: string; tiktokUrl: string; youtubeUrl: string;
   openingHours: string; latitude: string; longitude: string;
   photos: Array<{ url: string; caption: string }>;
+  products: ProductForm[];
 }
 const DEFAULT_BIZ: BizForm = {
   name: "", description: "", categoryId: "",
   countryName: "", stateName: "", cityName: "", areaName: "", streetName: "",
   address: "", phone: "", whatsapp: "", website: "",
   instagramUrl: "", facebookUrl: "", tiktokUrl: "", youtubeUrl: "",
-  openingHours: "", latitude: "", longitude: "", photos: [],
+  openingHours: "", latitude: "", longitude: "", photos: [], products: [],
 };
+
+function ProductsPanel({ products, onChange }: {
+  products: ProductForm[];
+  onChange: (v: ProductForm[]) => void;
+}) {
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+
+  const addProduct = () => onChange([...products, { ...EMPTY_PRODUCT }]);
+  const removeProduct = (idx: number) => onChange(products.filter((_, i) => i !== idx));
+  const updateProduct = (idx: number, patch: Partial<ProductForm>) =>
+    onChange(products.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+
+  const handleImage = async (idx: number, file: File | undefined) => {
+    if (!file) return;
+    setUploadingIdx(idx);
+    try {
+      const dataUrl = await compressImage(file);
+      updateProduct(idx, { imageUrl: dataUrl });
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {products.map((p, idx) => (
+        <div key={idx} className="rounded-xl p-3 space-y-2.5"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-white/60">Product {idx + 1}</span>
+            <button type="button" onClick={() => removeProduct(idx)} className="text-white/40 hover:text-red-400">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex gap-3">
+            <label
+              className={`relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed ${p.imageUrl ? "border-transparent" : "border-white/20 hover:border-[#4a9eff]/60"}`}
+              style={{ background: "rgba(255,255,255,0.05)" }}
+            >
+              {uploadingIdx === idx ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#4a9eff]" />
+              ) : p.imageUrl ? (
+                <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <ImageIcon className="h-5 w-5 text-white/25" />
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImage(idx, e.target.files?.[0])} />
+            </label>
+            <div className="flex-1 space-y-2">
+              <input
+                value={p.name}
+                onChange={(e) => updateProduct(idx, { name: e.target.value })}
+                placeholder="Product name"
+                className="w-full px-3 py-2 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+              />
+              <div className="flex gap-2">
+                <input
+                  type="number" min="0"
+                  value={p.price}
+                  onChange={(e) => updateProduct(idx, { price: e.target.value })}
+                  placeholder="Price (₦)"
+                  className="w-28 px-3 py-2 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                />
+                <input
+                  value={p.description}
+                  onChange={(e) => updateProduct(idx, { description: e.target.value })}
+                  placeholder="Description (optional)"
+                  className="flex-1 px-3 py-2 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addProduct}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-[#4a9eff] border border-dashed border-[#4a9eff]/30 hover:bg-[#4a9eff]/5 transition-colors"
+      >
+        <Plus className="h-4 w-4" /> Add Product
+      </button>
+    </div>
+  );
+}
 
 function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: () => void }) {
   const [form, setForm] = useState<BizForm>(DEFAULT_BIZ);
@@ -612,6 +705,14 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
       {/* Photos */}
       <SectionCard icon={Camera} title={`Business Photos (${form.photos.length}/10)`}>
         <PhotoPanel photos={form.photos} onChange={(v) => set("photos", v)} />
+      </SectionCard>
+
+      {/* Products */}
+      <SectionCard icon={Package} title={`Products (${form.products.length})`}>
+        <p className="text-xs text-white/40 mb-3">
+          Optional — list products or services this business sells so customers can order online once approved.
+        </p>
+        <ProductsPanel products={form.products} onChange={(v) => set("products", v)} />
       </SectionCard>
 
       <AnimatePresence>

@@ -11,6 +11,26 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { X, Plus, Trash2, Edit2, Loader2, Save, Package, ImageIcon } from "lucide-react";
 
+function compressImage(file: File, maxW = 1000, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxW) { height = Math.round((height * maxW) / width); width = maxW; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas error"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 function ItemForm({
   initial,
   onCancel,
@@ -26,8 +46,20 @@ function ItemForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [price, setPrice] = useState(initial?.price !== undefined ? String(initial.price) : "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const canSubmit = name.trim().length > 0 && parseFloat(price) > 0;
+
+  const handleImageChange = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const dataUrl = await compressImage(file);
+      setImageUrl(dataUrl);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   return (
     <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -52,28 +84,46 @@ function ItemForm({
           style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-1">Price (₦)</label>
-          <input
-            type="number"
-            min="0"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="0"
-            className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-white/50 mb-1">Image URL</label>
-          <input
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
-          />
+      <div>
+        <label className="block text-xs font-medium text-white/50 mb-1">Price (₦)</label>
+        <input
+          type="number"
+          min="0"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="0"
+          className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-white/50 mb-1">Product Image</label>
+        <div className="flex items-center gap-3">
+          <label
+            className={`relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed ${imageUrl ? "border-transparent" : "border-white/20 hover:border-[#4a9eff]/60"}`}
+            style={{ background: "rgba(255,255,255,0.05)" }}
+          >
+            {uploadingImage ? (
+              <Loader2 className="h-4 w-4 animate-spin text-[#4a9eff]" />
+            ) : imageUrl ? (
+              <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon className="h-5 w-5 text-white/25" />
+            )}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageChange(e.target.files?.[0])} />
+          </label>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-white/40">{imageUrl ? "Click image to replace" : "Click to upload an image"}</span>
+            {imageUrl && (
+              <button
+                type="button"
+                onClick={() => setImageUrl("")}
+                className="text-xs text-red-400 hover:text-red-300 text-left"
+              >
+                Remove image
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex gap-2 justify-end pt-1">
