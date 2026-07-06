@@ -24,14 +24,38 @@ export async function enrichProperty(prop: typeof vacantPropertiesTable.$inferSe
 
 // GET /properties — public, approved only, with filters
 router.get("/", async (req, res) => {
-  const { priceType, minSize, maxPrice, streetId } = req.query;
+  const { priceType, minSize, maxPrice, streetId, areaId, cityId, country, state } = req.query;
   const conditions = [eq(vacantPropertiesTable.status, "approved")];
   if (priceType) conditions.push(eq(vacantPropertiesTable.priceType, priceType as "rent" | "lease" | "sale"));
   if (streetId) conditions.push(eq(vacantPropertiesTable.streetId, Number(streetId)));
   if (minSize) conditions.push(gte(vacantPropertiesTable.sizeSqft, Number(minSize)));
   if (maxPrice) conditions.push(lte(vacantPropertiesTable.priceAmount, Number(maxPrice)));
 
-  const rows = await db.select().from(vacantPropertiesTable).where(and(...conditions)).orderBy(desc(vacantPropertiesTable.createdAt));
+  let rows = await db.select().from(vacantPropertiesTable).where(and(...conditions)).orderBy(desc(vacantPropertiesTable.createdAt));
+
+  if (areaId || cityId || country || state) {
+    const locRows = await db.select({
+      streetId: streetsTable.id,
+      areaId: areasTable.id,
+      cityId: citiesTable.id,
+      country: citiesTable.country,
+      state: citiesTable.state,
+    }).from(streetsTable)
+      .innerJoin(areasTable, eq(streetsTable.areaId, areasTable.id))
+      .innerJoin(citiesTable, eq(areasTable.cityId, citiesTable.id));
+    const locMap = new Map(locRows.map(r => [r.streetId, r]));
+
+    rows = rows.filter(p => {
+      const loc = p.streetId ? locMap.get(p.streetId) : undefined;
+      if (!loc) return false;
+      if (areaId && loc.areaId !== Number(areaId)) return false;
+      if (cityId && loc.cityId !== Number(cityId)) return false;
+      if (country && loc.country !== country) return false;
+      if (state && loc.state !== state) return false;
+      return true;
+    });
+  }
+
   const enriched = await Promise.all(rows.map(enrichProperty));
   return res.json(enriched);
 });

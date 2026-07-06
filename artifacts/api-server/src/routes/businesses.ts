@@ -53,7 +53,7 @@ async function enrichBusiness(biz: typeof businessesTable.$inferSelect) {
 
 // GET /businesses
 router.get("/", async (req, res) => {
-  const { q, categoryId, cityId, areaId, streetId, verified, featured, limit = 20, offset = 0 } = req.query;
+  const { q, categoryId, cityId, areaId, streetId, country, state, verified, featured, limit = 20, offset = 0 } = req.query;
 
   let rows = await db.select().from(businessesTable).where(eq(businessesTable.status, "approved"));
 
@@ -64,16 +64,27 @@ router.get("/", async (req, res) => {
   if (verified !== undefined) filtered = filtered.filter(b => b.verified === (verified === "true"));
   if (featured !== undefined) filtered = filtered.filter(b => b.featured === (featured === "true"));
 
-  if (cityId || areaId) {
-    const enriched = await Promise.all(filtered.map(enrichBusiness));
-    let e = enriched;
-    if (areaId) {
-      const streetIds = (await db.select().from(streetsTable).where(eq(streetsTable.areaId, Number(areaId)))).map(s => s.id);
-      e = e.filter(b => streetIds.includes(b.streetId));
-    }
-    const total = e.length;
-    const page = e.slice(Number(offset), Number(offset) + Number(limit));
-    return res.json({ businesses: page, total });
+  if (cityId || areaId || country || state) {
+    const locRows = await db.select({
+      streetId: streetsTable.id,
+      areaId: areasTable.id,
+      cityId: citiesTable.id,
+      country: citiesTable.country,
+      state: citiesTable.state,
+    }).from(streetsTable)
+      .innerJoin(areasTable, eq(streetsTable.areaId, areasTable.id))
+      .innerJoin(citiesTable, eq(areasTable.cityId, citiesTable.id));
+    const locMap = new Map(locRows.map(r => [r.streetId, r]));
+
+    filtered = filtered.filter(b => {
+      const loc = locMap.get(b.streetId);
+      if (!loc) return false;
+      if (areaId && loc.areaId !== Number(areaId)) return false;
+      if (cityId && loc.cityId !== Number(cityId)) return false;
+      if (country && loc.country !== country) return false;
+      if (state && loc.state !== state) return false;
+      return true;
+    });
   }
 
   const total = filtered.length;

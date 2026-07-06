@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Country, State as CSCState } from "country-state-city";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
@@ -10,9 +10,24 @@ import {
   useListCities,
   useListAreas,
   useListStreets,
-  useGetStreetBusinesses,
 } from "@workspace/api-client-react";
-import { MapPin, ChevronRight, Building2, Grid, List, ChevronDown } from "lucide-react";
+import { MapPin, ChevronRight, Building2, Home, Grid, List, ChevronDown } from "lucide-react";
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+type ExploreBusiness = {
+  id: number; slug?: string | null; name: string; categoryName?: string | null;
+  streetName?: string | null; areaName?: string | null; cityName?: string | null;
+  address?: string | null; phone?: string | null; rating?: number | null;
+  reviewCount?: number; verified?: boolean; featured?: boolean; plan?: string;
+  openingHours?: string | null; photos?: Array<{ id: number; url: string; caption?: string | null }>;
+};
+
+type ExploreProperty = {
+  id: number; title: string; sizeSqft: number | null; priceAmount: number | null;
+  priceType: string; areaName?: string | null; cityName?: string | null; streetName?: string | null;
+  photos: Array<{ id: number; url: string }>;
+};
 
 function GlassSelect({
   value, onChange, disabled, placeholder, children,
@@ -49,11 +64,15 @@ export default function ExplorePage() {
   const [areaId, setAreaId] = useState<number | null>(null);
   const [streetId, setStreetId] = useState<number | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [tab, setTab] = useState<"businesses" | "properties">("businesses");
 
   const { data: allCities } = useListCities();
-  const { data: areas } = useListAreas(cityId!, { query: { enabled: !!cityId } });
-  const { data: streets } = useListStreets(areaId!, { query: { enabled: !!areaId } });
-  const { data: businesses, isLoading: bizLoading } = useGetStreetBusinesses(streetId!, { query: { enabled: !!streetId } });
+  const { data: areas } = useListAreas(cityId!);
+  const { data: streets } = useListStreets(areaId!);
+
+  const [businesses, setBusinesses] = useState<ExploreBusiness[]>([]);
+  const [properties, setProperties] = useState<ExploreProperty[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const dbCountries = [...new Set((allCities ?? []).map(c => c.country).filter(Boolean))];
   const allCountryObjs = Country.getAllCountries();
@@ -69,6 +88,38 @@ export default function ExplorePage() {
   const selectedCity = cities.find(c => c.id === cityId);
   const selectedArea = areas?.find(a => a.id === areaId);
   const selectedStreet = streets?.find(s => s.id === streetId);
+
+  useEffect(() => {
+    if (!country) {
+      setBusinesses([]);
+      setProperties([]);
+      return;
+    }
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set("country", country);
+    if (state) params.set("state", state);
+    if (cityId) params.set("cityId", String(cityId));
+    if (areaId) params.set("areaId", String(areaId));
+    if (streetId) params.set("streetId", String(streetId));
+    params.set("limit", "60");
+
+    Promise.all([
+      fetch(`${BASE}/api/businesses?${params.toString()}`).then(r => r.ok ? r.json() : { businesses: [] }),
+      fetch(`${BASE}/api/properties?${params.toString()}`).then(r => r.ok ? r.json() : []),
+    ])
+      .then(([bizRes, propRes]) => {
+        setBusinesses(Array.isArray(bizRes?.businesses) ? bizRes.businesses : []);
+        setProperties(Array.isArray(propRes) ? propRes : []);
+      })
+      .catch(() => {
+        setBusinesses([]);
+        setProperties([]);
+      })
+      .finally(() => setLoading(false));
+  }, [country, state, cityId, areaId, streetId]);
+
+  const hasResults = businesses.length > 0 || properties.length > 0;
 
   return (
     <Layout>
@@ -111,6 +162,9 @@ export default function ExplorePage() {
               </div>
               Select a Location
             </h2>
+            <p className="text-white/40 text-xs mb-4 -mt-3">
+              Pick as much or as little as you like — results update as soon as you choose a country.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">Country</label>
@@ -130,7 +184,7 @@ export default function ExplorePage() {
                   value={state}
                   onChange={(v) => { setState(v); setCityId(null); setAreaId(null); setStreetId(null); }}
                   disabled={!country}
-                  placeholder={country ? "Select a state…" : "Select a country first"}
+                  placeholder={country ? "All states in this country" : "Select a country first"}
                 >
                   {states.map(s => (
                     <option key={s} value={s} style={{ background: "#0a1628" }}>{s}</option>
@@ -143,8 +197,9 @@ export default function ExplorePage() {
                 <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">City</label>
                 <GlassSelect
                   value={cityId ? String(cityId) : ""}
-                  onChange={(v) => { setCityId(Number(v)); setAreaId(null); setStreetId(null); }}
-                  placeholder={cities.length > 0 ? "Select a city…" : "No cities listed here yet"}
+                  onChange={(v) => { setCityId(v ? Number(v) : null); setAreaId(null); setStreetId(null); }}
+                  disabled={!country}
+                  placeholder={cities.length > 0 ? "All cities in this area" : "No cities listed here yet"}
                 >
                   {cities.map(city => (
                     <option key={city.id} value={String(city.id)} style={{ background: "#0a1628" }}>
@@ -157,9 +212,9 @@ export default function ExplorePage() {
                 <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">Area / District</label>
                 <GlassSelect
                   value={areaId ? String(areaId) : ""}
-                  onChange={(v) => { setAreaId(Number(v)); setStreetId(null); }}
+                  onChange={(v) => { setAreaId(v ? Number(v) : null); setStreetId(null); }}
                   disabled={!cityId}
-                  placeholder={cityId ? "Select an area…" : "Select a city first"}
+                  placeholder={cityId ? "All areas in this city" : "Select a city first"}
                 >
                   {areas?.map(area => (
                     <option key={area.id} value={String(area.id)} style={{ background: "#0a1628" }}>{area.name}</option>
@@ -170,9 +225,9 @@ export default function ExplorePage() {
                 <label className="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wider">Street</label>
                 <GlassSelect
                   value={streetId ? String(streetId) : ""}
-                  onChange={(v) => setStreetId(Number(v))}
+                  onChange={(v) => setStreetId(v ? Number(v) : null)}
                   disabled={!areaId}
-                  placeholder={areaId ? "Select a street…" : "Select an area first"}
+                  placeholder={areaId ? "All streets in this area" : "Select an area first"}
                 >
                   {streets?.map(street => (
                     <option key={street.id} value={String(street.id)} style={{ background: "#0a1628" }}>{street.name}</option>
@@ -218,104 +273,157 @@ export default function ExplorePage() {
             )}
           </motion.div>
 
-          {/* Street Banner */}
-          <AnimatePresence>
-            {streetId && selectedStreet && (
+          {country && (
+            <>
+              {/* Tabs + View toggle */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="rounded-2xl p-6 mb-6 flex items-center justify-between flex-wrap gap-4"
+                className="rounded-2xl p-4 mb-6 flex items-center justify-between flex-wrap gap-4"
                 style={{
                   background: "linear-gradient(135deg, rgba(74,158,255,0.12) 0%, rgba(74,158,255,0.04) 100%)",
                   border: "1px solid rgba(74,158,255,0.2)",
                   backdropFilter: "blur(20px)",
                 }}
               >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <MapPin className="h-5 w-5 text-[#4a9eff]" />
-                    <h2 className="font-bold text-xl text-white">{selectedStreet.name}</h2>
-                  </div>
-                  <p className="text-white/50 text-sm">
-                    {selectedArea?.name} · {selectedCity?.name} · {selectedCity?.state}
-                  </p>
+                <div className="flex rounded-xl overflow-hidden border border-white/10">
+                  <button
+                    onClick={() => setTab("businesses")}
+                    className={`px-4 py-2 text-sm font-semibold flex items-center gap-1.5 transition-colors ${tab === "businesses" ? "bg-[#4a9eff] text-white" : "text-white/50 hover:text-white/80"}`}
+                  >
+                    <Building2 className="h-3.5 w-3.5" /> Businesses ({businesses.length})
+                  </button>
+                  <button
+                    onClick={() => setTab("properties")}
+                    className={`px-4 py-2 text-sm font-semibold flex items-center gap-1.5 transition-colors ${tab === "properties" ? "bg-[#4a9eff] text-white" : "text-white/50 hover:text-white/80"}`}
+                  >
+                    <Home className="h-3.5 w-3.5" /> Properties ({properties.length})
+                  </button>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge className="gap-1.5 px-3 py-1.5 bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20">
-                    <Building2 className="h-3.5 w-3.5" />
-                    {businesses?.length ?? 0} businesses
-                  </Badge>
-                  <div className="flex rounded-xl overflow-hidden border border-white/10">
-                    <button
-                      onClick={() => setView("grid")}
-                      className={`p-2.5 transition-colors ${view === "grid" ? "bg-[#4a9eff] text-white" : "text-white/40 hover:text-white/70"}`}
-                    >
-                      <Grid className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setView("list")}
-                      className={`p-2.5 transition-colors ${view === "list" ? "bg-[#4a9eff] text-white" : "text-white/40 hover:text-white/70"}`}
-                    >
-                      <List className="h-4 w-4" />
-                    </button>
-                  </div>
+                <div className="flex rounded-xl overflow-hidden border border-white/10">
+                  <button
+                    onClick={() => setView("grid")}
+                    className={`p-2.5 transition-colors ${view === "grid" ? "bg-[#4a9eff] text-white" : "text-white/40 hover:text-white/70"}`}
+                  >
+                    <Grid className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setView("list")}
+                    className={`p-2.5 transition-colors ${view === "list" ? "bg-[#4a9eff] text-white" : "text-white/40 hover:text-white/70"}`}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
                 </div>
               </motion.div>
-            )}
-          </AnimatePresence>
 
-          {/* Results */}
-          {streetId && (
-            bizLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <Skeleton className="h-48 w-full" style={{ background: "rgba(255,255,255,0.06)" }} />
-                    <div className="p-4 space-y-3">
-                      <Skeleton className="h-4 w-3/4" style={{ background: "rgba(255,255,255,0.06)" }} />
-                      <Skeleton className="h-3 w-1/2" style={{ background: "rgba(255,255,255,0.04)" }} />
+              {/* Results */}
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <Skeleton className="h-48 w-full" style={{ background: "rgba(255,255,255,0.06)" }} />
+                      <div className="p-4 space-y-3">
+                        <Skeleton className="h-4 w-3/4" style={{ background: "rgba(255,255,255,0.06)" }} />
+                        <Skeleton className="h-3 w-1/2" style={{ background: "rgba(255,255,255,0.04)" }} />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : businesses && businesses.length > 0 ? (
-              <AnimatePresence>
-                <div className={view === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
-                  {businesses.map((biz, i) => (
-                    <motion.div
-                      key={biz.id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.06 }}
-                    >
-                      <BusinessCard business={biz} />
-                    </motion.div>
                   ))}
                 </div>
-              </AnimatePresence>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center py-20 rounded-2xl"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <Building2 className="h-12 w-12 mx-auto mb-4 text-white/10" />
-                <h3 className="text-lg font-semibold text-white mb-2">No businesses on this street yet</h3>
-                <p className="text-white/40 text-sm mb-6">Be the first agent to register businesses here!</p>
-                <Button
-                  onClick={() => window.location.href = "/agents/apply"}
-                  className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white rounded-full px-6"
-                >
-                  Become an Agent
-                </Button>
-              </motion.div>
-            )
+              ) : tab === "businesses" ? (
+                businesses.length > 0 ? (
+                  <AnimatePresence>
+                    <div className={view === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+                      {businesses.map((biz, i) => (
+                        <motion.div
+                          key={biz.id}
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.06 }}
+                        >
+                          <BusinessCard business={biz} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </AnimatePresence>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-20 rounded-2xl"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                  >
+                    <Building2 className="h-12 w-12 mx-auto mb-4 text-white/10" />
+                    <h3 className="text-lg font-semibold text-white mb-2">No businesses found here yet</h3>
+                    <p className="text-white/40 text-sm mb-6">Be the first agent to register businesses in this location!</p>
+                    <Button
+                      onClick={() => window.location.href = "/agents/apply"}
+                      className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white rounded-full px-6"
+                    >
+                      Become an Agent
+                    </Button>
+                  </motion.div>
+                )
+              ) : (
+                properties.length > 0 ? (
+                  <AnimatePresence>
+                    <div className={view === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+                      {properties.map((prop, i) => (
+                        <motion.div
+                          key={prop.id}
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.06 }}
+                        >
+                          <div className="rounded-2xl overflow-hidden bg-card border border-border/60 hover:border-primary/20 h-full flex flex-col">
+                            <div className="h-44 bg-muted overflow-hidden flex-shrink-0 flex items-center justify-center">
+                              {prop.photos?.[0] ? (
+                                <img src={prop.photos[0].url} alt={prop.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <Home className="h-8 w-8 text-muted-foreground/30" />
+                              )}
+                            </div>
+                            <div className="p-4 flex-1 flex flex-col">
+                              <Badge className="w-fit mb-2 bg-[#4a9eff]/15 text-[#4a9eff] border-[#4a9eff]/20">{prop.priceType}</Badge>
+                              <h3 className="font-bold text-foreground truncate">{prop.title}</h3>
+                              <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                                {[prop.streetName, prop.areaName, prop.cityName].filter(Boolean).join(", ")}
+                              </p>
+                              <div className="flex items-center justify-between text-sm mt-auto pt-3">
+                                <span className="text-muted-foreground">{prop.sizeSqft ? `${prop.sizeSqft.toLocaleString()} sqft` : "—"}</span>
+                                <span className="font-bold text-foreground">
+                                  {prop.priceAmount ? `₦${prop.priceAmount.toLocaleString()}` : "Price on request"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </AnimatePresence>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-20 rounded-2xl"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                  >
+                    <Home className="h-12 w-12 mx-auto mb-4 text-white/10" />
+                    <h3 className="text-lg font-semibold text-white mb-2">No vacant properties found here yet</h3>
+                    <p className="text-white/40 text-sm mb-6">Check back soon, or list a vacant property yourself.</p>
+                    <Button
+                      onClick={() => window.location.href = "/properties/submit"}
+                      className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white rounded-full px-6"
+                    >
+                      Submit a Property
+                    </Button>
+                  </motion.div>
+                )
+              )}
+            </>
           )}
 
           {/* Initial State */}
-          {!cityId && (
+          {!country && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -327,7 +435,7 @@ export default function ExplorePage() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-3">Start Exploring</h2>
               <p className="text-white/40 max-w-md mx-auto text-sm leading-relaxed">
-                Select a city, then an area, then a street to discover all the businesses in that location.
+                Select a country to see every business and property listed there. Narrow it down further by state, city, area, or street whenever you like.
               </p>
             </motion.div>
           )}

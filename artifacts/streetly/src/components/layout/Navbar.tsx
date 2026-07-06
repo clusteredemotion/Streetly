@@ -56,7 +56,8 @@ export function Navbar() {
     role === "field_agent" ? "/agent-dashboard"
     : role === "delivery_rider" ? "/rider-dashboard"
     : role === "business_owner" ? "/owner-dashboard"
-    : "/admin";
+    : role === "admin" ? "/admin"
+    : "/account";
 
   /* onMap = sitting at the top of the home page (map is fully visible behind us)
      → needs a light frosted glass bar with dark-blue text so it reads on light map tiles.
