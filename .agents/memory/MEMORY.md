@@ -5,3 +5,5 @@
 - [Streetly user roles](streetly-user-roles.md) — DB user_role enum has no "customer" value; regular/customer accounts use role "visitor"
 - [Streetly codegen GET hooks](streetly-codegen-get-hooks.md) — OpenAPI codegen here only reliably emits mutation hooks; GET query hooks are often missing and must be hand-written as raw-fetch useQuery, mirroring AdminPage.tsx patterns
 - [Streetly guest resource access tokens](streetly-guest-tracking-tokens.md) — never derive guest access tokens deterministically from a record id; use random token + stored hash + expiry instead
+- [Streetly admin credentials](streetly-admin-credentials.md) — admin login is seeded in code (not a secret/env var); check ensureAdminUser() in api-server index.ts if you need to log in as admin for testing
+- [New workspace lib tsconfig composite](workspace-lib-tsconfig-composite.md) — a new lib package referenced by another package's tsconfig `references` must set `"composite": true` or downstream typecheck fails with TS6306

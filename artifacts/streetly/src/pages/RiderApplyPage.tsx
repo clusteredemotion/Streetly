@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, CheckCircle, User, ShieldCheck, Bike, Car, Loader2,
   Eye, EyeOff, Mail, Lock, AlertCircle, Clock, ChevronDown,
+  Calendar, MapPin, IdCard, FileCheck2, Upload,
 } from "lucide-react";
+import { useUpload } from "@workspace/object-storage-web";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -46,6 +48,63 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
     <label className="block text-xs font-medium text-[#a8c0e8] mb-1.5">
       {children}{required && <span className="text-red-400 ml-0.5">*</span>}
     </label>
+  );
+}
+
+function GlassTextarea({ value, onChange, placeholder, rows = 3 }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; rows?: number;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all resize-none"
+      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+    />
+  );
+}
+
+function DocumentUploadField({ label, objectPath, onUploaded }: {
+  label: string; objectPath: string | null; onUploaded: (path: string) => void;
+}) {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const { uploadFile, isUploading, error } = useUpload({
+    onSuccess: (res) => onUploaded(res.objectPath),
+  });
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    await uploadFile(file);
+  };
+
+  return (
+    <div>
+      <FieldLabel required>{label}</FieldLabel>
+      <label
+        className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm cursor-pointer transition-all hover:bg-white/[0.08]"
+        style={{
+          background: "rgba(255,255,255,0.06)",
+          border: objectPath ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,255,255,0.10)",
+        }}
+      >
+        <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleChange} disabled={isUploading} />
+        {isUploading ? (
+          <Loader2 className="h-4 w-4 text-[#4a9eff] animate-spin flex-shrink-0" />
+        ) : objectPath ? (
+          <FileCheck2 className="h-4 w-4 text-green-400 flex-shrink-0" />
+        ) : (
+          <Upload className="h-4 w-4 text-white/40 flex-shrink-0" />
+        )}
+        <span className={`truncate ${objectPath ? "text-green-300" : "text-white/50"}`}>
+          {isUploading ? "Uploading…" : objectPath ? (fileName ?? "Uploaded") : `Choose file (image or PDF)`}
+        </span>
+      </label>
+      {error && <p className="text-xs text-red-400 mt-1">{error.message}</p>}
+    </div>
   );
 }
 
@@ -232,10 +291,15 @@ interface FormState {
   fullName: string;
   phone: string;
   vehicleType: string;
-  idType: string;
-  idNumber: string;
+  dateOfBirth: string;
+  address: string;
+  passportObjectPath: string | null;
+  ninSlipObjectPath: string | null;
 }
-const DEFAULT: FormState = { fullName: "", phone: "", vehicleType: "motorcycle", idType: "nin", idNumber: "" };
+const DEFAULT: FormState = {
+  fullName: "", phone: "", vehicleType: "motorcycle",
+  dateOfBirth: "", address: "", passportObjectPath: null, ninSlipObjectPath: null,
+};
 
 function RiderApplicationForm({ userName }: { userName: string }) {
   const [form, setForm] = useState<FormState>({ ...DEFAULT, fullName: userName });
@@ -251,6 +315,10 @@ function RiderApplicationForm({ userName }: { userName: string }) {
     if (!form.fullName.trim()) return setError("Full name is required");
     if (!form.phone.trim()) return setError("Phone number is required");
     if (!form.vehicleType) return setError("Vehicle type is required");
+    if (!form.dateOfBirth) return setError("Date of birth is required");
+    if (!form.address.trim()) return setError("Full address is required");
+    if (!form.passportObjectPath) return setError("Please upload your passport");
+    if (!form.ninSlipObjectPath) return setError("Please upload your NIN slip");
 
     setSubmitting(true);
     try {
@@ -330,21 +398,46 @@ function RiderApplicationForm({ userName }: { userName: string }) {
           </div>
         </SectionCard>
 
+        <SectionCard icon={IdCard} title="Personal Details">
+          <div className="space-y-3">
+            <div>
+              <FieldLabel required>Date of Birth</FieldLabel>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
+                <input
+                  type="date"
+                  value={form.dateOfBirth}
+                  onChange={(e) => set("dateOfBirth")(e.target.value)}
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-[#4a9eff]/40 transition-all [color-scheme:dark]"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                />
+              </div>
+            </div>
+            <div>
+              <FieldLabel required>Full Address</FieldLabel>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 h-4 w-4 text-white/30 pointer-events-none" />
+                <div className="pl-6">
+                  <GlassTextarea value={form.address} onChange={set("address")} placeholder="Street, city, state" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
         <SectionCard icon={ShieldCheck} title="Identity Verification">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>ID Type</FieldLabel>
-              <GlassSelect value={form.idType} onChange={set("idType")}>
-                <option value="nin">NIN</option>
-                <option value="drivers_license">Driver's License</option>
-                <option value="voters_card">Voter's Card</option>
-                <option value="passport">International Passport</option>
-              </GlassSelect>
-            </div>
-            <div>
-              <FieldLabel>ID Number</FieldLabel>
-              <GlassInput value={form.idNumber} onChange={set("idNumber")} placeholder="ID number" />
-            </div>
+          <div className="space-y-3">
+            <DocumentUploadField
+              label="Upload Passport"
+              objectPath={form.passportObjectPath}
+              onUploaded={(path) => setForm(f => ({ ...f, passportObjectPath: path }))}
+            />
+            <DocumentUploadField
+              label="Upload NIN Slip"
+              objectPath={form.ninSlipObjectPath}
+              onUploaded={(path) => setForm(f => ({ ...f, ninSlipObjectPath: path }))}
+            />
           </div>
         </SectionCard>
 

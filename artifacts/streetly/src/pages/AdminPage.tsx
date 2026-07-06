@@ -23,6 +23,7 @@ import {
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
   MessageSquare, LifeBuoy, Star, BarChart2, ChevronRight, Download, Settings, Menu,
+  Calendar, IdCard,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -265,16 +266,20 @@ function useDeleteAgent() {
   });
 }
 
+interface PendingRider {
+  id: number; userId: number; status: string; fullName: string | null;
+  phone: string | null; vehicleType: string | null; idType: string | null; idNumber: string | null;
+  dateOfBirth: string | null; address: string | null;
+  passportObjectPath: string | null; ninSlipObjectPath: string | null;
+  createdAt: string; userName: string | null; userEmail: string | null;
+}
+
 function usePendingRiders() {
   return useQuery({
     queryKey: ["admin", "riders", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/riders/pending`, { headers: authHeader() });
-      return res.json() as Promise<Array<{
-        id: number; userId: number; status: string; fullName: string | null;
-        phone: string | null; vehicleType: string | null; idType: string | null; idNumber: string | null;
-        createdAt: string; userName: string | null; userEmail: string | null;
-      }>>;
+      return res.json() as Promise<PendingRider[]>;
     },
   });
 }
@@ -1089,6 +1094,160 @@ function InfoSection({ title, icon: Icon, rows }: {
   );
 }
 
+/* ── Rider Review Modal (full profile with documents before approval) ── */
+function RiderReviewModal({ rider, onClose, onApprove, onReject, approving }: {
+  rider: {
+    id: number; fullName: string | null; phone: string | null; vehicleType: string | null;
+    idType: string | null; idNumber: string | null; dateOfBirth: string | null; address: string | null;
+    passportObjectPath: string | null; ninSlipObjectPath: string | null;
+    userEmail: string | null; userName: string | null; createdAt: string;
+  };
+  onClose: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  approving: boolean;
+}) {
+  const [imgView, setImgView] = useState<string | null>(null);
+  const name = rider.fullName ?? rider.userName ?? `Rider #${rider.id}`;
+  const passportUrl = rider.passportObjectPath ? `${BASE}/api/storage${rider.passportObjectPath}` : null;
+  const ninSlipUrl = rider.ninSlipObjectPath ? `${BASE}/api/storage${rider.ninSlipObjectPath}` : null;
+
+  const infoRows = [
+    { label: "Full Name", value: name },
+    { label: "Email", value: rider.userEmail },
+    { label: "Phone", value: rider.phone },
+    { label: "Vehicle Type", value: rider.vehicleType },
+    { label: "Date of Birth", value: rider.dateOfBirth ? new Date(rider.dateOfBirth).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) : null },
+    { label: "Address", value: rider.address },
+    { label: "Applied", value: new Date(rider.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) },
+  ].filter(r => r.value);
+
+  const idRows = [
+    { label: "ID Type", value: rider.idType?.toUpperCase().replace("_", " ") },
+    { label: "ID Number", value: rider.idNumber },
+  ].filter(r => r.value);
+
+  return (
+    <>
+      <AnimatePresence>
+        {imgView && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-6"
+            style={{ background: "rgba(0,0,0,0.92)" }}
+            onClick={() => setImgView(null)}>
+            <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+              <X className="h-5 w-5" />
+            </button>
+            <img src={imgView} alt="Document" className="max-w-full max-h-full rounded-2xl object-contain shadow-2xl" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          className="w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+          style={{ background: "#0b1929", border: "1px solid rgba(255,255,255,0.10)" }}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                <IdCard className="h-3.5 w-3.5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white text-sm">Rider Application Review</h2>
+                <p className="text-[11px] text-white/40">Rider #{rider.id}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-5 py-5 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Camera className="h-3 w-3" /> Passport
+                </p>
+                {passportUrl ? (
+                  <div className="relative group cursor-pointer rounded-xl overflow-hidden"
+                    onClick={() => setImgView(passportUrl)}>
+                    <img src={passportUrl} alt="Passport"
+                      className="w-full h-44 object-cover rounded-xl transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-xl">
+                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white/70">
+                      Tap to enlarge
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-44 rounded-xl flex flex-col items-center justify-center gap-2"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.1)" }}>
+                    <Camera className="h-7 w-7 text-white/15" />
+                    <span className="text-xs text-white/25">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <FileText className="h-3 w-3" /> NIN Slip
+                </p>
+                {ninSlipUrl ? (
+                  <div className="relative group cursor-pointer rounded-xl overflow-hidden"
+                    onClick={() => setImgView(ninSlipUrl)}>
+                    <img src={ninSlipUrl} alt="NIN Slip"
+                      className="w-full h-44 object-cover rounded-xl transition-transform group-hover:scale-105" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-xl">
+                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white/70">
+                      Tap to enlarge
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full h-44 rounded-xl flex flex-col items-center justify-center gap-2"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.1)" }}>
+                    <FileText className="h-7 w-7 text-white/15" />
+                    <span className="text-xs text-white/25">Not uploaded</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <InfoSection title="Personal Information" icon={User} rows={infoRows} />
+            <InfoSection title="Identity Verification" icon={ShieldCheck} rows={idRows} />
+          </div>
+
+          <div className="px-5 py-4 border-t border-white/10 flex-shrink-0"
+            style={{ background: "rgba(0,0,0,0.2)" }}>
+            <p className="text-xs text-white/40 mb-3 text-center">
+              Review the documents above before approving this rider.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={onReject} disabled={approving}
+                className="flex-1 h-10 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
+                <XCircle className="h-4 w-4" /> Reject
+              </button>
+              <button onClick={onApprove} disabled={approving}
+                className="flex-1 h-10 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white transition-colors disabled:opacity-50">
+                {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                Approve Rider
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </>
+  );
+}
+
 /* ── Edit User Modal ── */
 function EditUserModal({ user, onClose, onSaved }: {
   user: { id: number; name: string; email: string; role: string; createdAt: string };
@@ -1360,6 +1519,7 @@ export default function AdminPage() {
   const [itemsBusiness, setItemsBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
   const [reviewAgent, setReviewAgent] = useState<(typeof allAgents extends Array<infer T> ? T : never) | null>(null);
+  const [reviewRider, setReviewRider] = useState<PendingRider | null>(null);
   const [bizSearch, setBizSearch] = useState("");
   const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
   const [featuredSaved, setFeaturedSaved] = useState(false);
@@ -1519,6 +1679,21 @@ export default function AdminPage() {
             onReject={() => {
               handleAgentApproval(reviewAgent.id, false);
               setReviewAgent(null);
+            }}
+          />
+        )}
+        {reviewRider && (
+          <RiderReviewModal
+            rider={reviewRider}
+            onClose={() => setReviewRider(null)}
+            approving={approveRider.isPending}
+            onApprove={() => {
+              handleRiderApproval(reviewRider.id, true);
+              setReviewRider(null);
+            }}
+            onReject={() => {
+              handleRiderApproval(reviewRider.id, false);
+              setReviewRider(null);
             }}
           />
         )}
@@ -1944,11 +2119,16 @@ export default function AdminPage() {
                       <p className="text-xs text-muted-foreground">Vehicle: {rider.vehicleType ?? "—"} · ID: {rider.idType ?? "—"} {rider.idNumber ?? ""}</p>
                       <p className="text-xs text-muted-foreground">Applied: {new Date(rider.createdAt).toLocaleDateString()}</p>
                     </div>
-                    <ApproveRejectButtons
-                      onApprove={() => handleRiderApproval(rider.id, true)}
-                      onReject={() => handleRiderApproval(rider.id, false)}
-                      loading={approveRider.isPending}
-                    />
+                    <div className="flex gap-2 flex-shrink-0 items-center">
+                      <Button size="sm" variant="outline" onClick={() => setReviewRider(rider)} className="gap-1">
+                        <Eye className="h-3.5 w-3.5" /> View Profile
+                      </Button>
+                      <ApproveRejectButtons
+                        onApprove={() => handleRiderApproval(rider.id, true)}
+                        onReject={() => handleRiderApproval(rider.id, false)}
+                        loading={approveRider.isPending}
+                      />
+                    </div>
                   </AdminCard>
                 ))}
               </div>

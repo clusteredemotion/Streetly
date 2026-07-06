@@ -34,9 +34,9 @@ router.get("/by-user", async (req, res) => {
 
 // POST /riders/apply
 router.post("/apply", async (req, res) => {
-  const { fullName, phone, vehicleType, idType, idNumber } = req.body;
-  if (!fullName || !phone || !vehicleType) {
-    return res.status(400).json({ error: "Full name, phone, and vehicle type are required" });
+  const { fullName, phone, vehicleType, idType, idNumber, dateOfBirth, address, passportObjectPath, ninSlipObjectPath } = req.body;
+  if (!fullName || !phone || !vehicleType || !dateOfBirth || !address || !passportObjectPath || !ninSlipObjectPath) {
+    return res.status(400).json({ error: "Full name, phone, vehicle type, date of birth, address, passport upload, and NIN slip upload are required" });
   }
 
   const userId = getUserIdFromReq(req);
@@ -54,6 +54,10 @@ router.post("/apply", async (req, res) => {
     vehicleType,
     idType: idType ?? null,
     idNumber: idNumber ?? null,
+    dateOfBirth,
+    address,
+    passportObjectPath,
+    ninSlipObjectPath,
   }).returning();
 
   await db.update(usersTable).set({ role: "delivery_rider" }).where(eq(usersTable.id, userId));

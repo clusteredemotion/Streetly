@@ -23,6 +23,14 @@ export interface Rider {
   idType?: string | null;
   /** @nullable */
   idNumber?: string | null;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  passportObjectPath?: string | null;
+  /** @nullable */
+  ninSlipObjectPath?: string | null;
   isOnline?: boolean;
   /** @nullable */
   currentLatitude?: number | null;

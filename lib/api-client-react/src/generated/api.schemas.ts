@@ -409,6 +409,14 @@ export interface Rider {
   idType?: string | null;
   /** @nullable */
   idNumber?: string | null;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  passportObjectPath?: string | null;
+  /** @nullable */
+  ninSlipObjectPath?: string | null;
   isOnline?: boolean;
   /** @nullable */
   currentLatitude?: number | null;
@@ -435,6 +443,14 @@ export interface RiderApplicationInput {
   vehicleType: string;
   idType?: string;
   idNumber?: string;
+  /** Date of birth (YYYY-MM-DD). */
+  dateOfBirth: string;
+  /** Full residential address. */
+  address: string;
+  /** Object storage path for the uploaded passport photo/document. */
+  passportObjectPath: string;
+  /** Object storage path for the uploaded NIN slip document. */
+  ninSlipObjectPath: string;
 }
 
 export interface NearbyRider {
@@ -658,6 +674,36 @@ export interface MarketplaceOrderInput {
 export interface ApprovalInput {
   approved: boolean;
   reason?: string;
+}
+
+export interface UploadUrlRequest {
+  /**
+     * Original file name.
+     * @minLength 1
+     */
+  name: string;
+  /**
+     * File size in bytes.
+     * @minimum 1
+     */
+  size: number;
+  /**
+     * MIME type of the file (e.g. `image/jpeg`).
+     * @minLength 1
+     */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  /** Presigned GCS URL for PUT upload. */
+  uploadURL: string;
+  /** Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database. */
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export interface ErrorEnvelope {
+  error: string;
 }
 
 export type ListBusinessesParams = {

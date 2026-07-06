@@ -16,10 +16,12 @@ import supportTicketsRouter from "./support-tickets";
 import ridersRouter from "./riders";
 import deliveriesRouter, { standaloneDeliveriesRouter, businessMarketRouter } from "./deliveries";
 import marketplaceItemsRouter, { standaloneMarketplaceItemsRouter } from "./marketplace-items";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(storageRouter);
 router.use("/auth", authRouter);
 router.use("/stats", statsRouter);
 router.use("/geo", geoRouter);

@@ -12,4 +12,12 @@ export interface RiderApplicationInput {
   vehicleType: string;
   idType?: string;
   idNumber?: string;
+  /** Date of birth (YYYY-MM-DD). */
+  dateOfBirth: string;
+  /** Full residential address. */
+  address: string;
+  /** Object storage path for the uploaded passport photo/document. */
+  passportObjectPath: string;
+  /** Object storage path for the uploaded NIN slip document. */
+  ninSlipObjectPath: string;
 }
