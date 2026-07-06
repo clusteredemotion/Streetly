@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
@@ -8,13 +8,33 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Building2, Plus, X, Loader2, CheckCircle, ArrowLeft, ImageIcon, Link as LinkIcon, Info, Phone } from "lucide-react";
+import { Building2, Plus, X, Loader2, CheckCircle, ArrowLeft, ImageIcon, Upload, Info, Phone } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}`,
 });
+
+function compressImage(file: File, maxW = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxW) { height = Math.round((height * maxW) / width); width = maxW; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas error"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 export default function PropertySubmitPage() {
   const [, navigate] = useLocation();
@@ -34,7 +54,8 @@ export default function PropertySubmitPage() {
   });
 
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,16 +90,24 @@ export default function PropertySubmitPage() {
     }
   };
 
-  const addPhoto = () => {
-    if (!newPhotoUrl.trim()) return;
-    if (!newPhotoUrl.startsWith("http")) {
-      setError("Please enter a valid image URL");
-      return;
-    }
-    setPhotoUrls([...photoUrls, newPhotoUrl.trim()]);
-    setNewPhotoUrl("");
+  const MAX_PHOTOS = 8;
+
+  const handleFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_PHOTOS - photoUrls.length;
+    if (remaining <= 0) return;
+    setUploadingPhotos(true);
     setError(null);
-  };
+    try {
+      const items = Array.from(files).slice(0, remaining);
+      const compressed = await Promise.all(items.map((f) => compressImage(f)));
+      setPhotoUrls((prev) => [...prev, ...compressed]);
+    } catch {
+      setError("Failed to process one or more photos. Please try again.");
+    } finally {
+      setUploadingPhotos(false);
+    }
+  }, [photoUrls.length]);
 
   const removePhoto = (idx: number) => {
     setPhotoUrls(photoUrls.filter((_, i) => i !== idx));
@@ -285,38 +314,36 @@ export default function PropertySubmitPage() {
                       </button>
                     </div>
                   ))}
-                  <div className="aspect-square rounded-2xl border-2 border-dashed border-muted flex flex-col items-center justify-center text-muted-foreground text-[10px] font-medium text-center p-2">
-                    {photoUrls.length === 0 ? "No photos added" : `${photoUrls.length} photo(s) added`}
-                  </div>
+                  {photoUrls.length < MAX_PHOTOS && (
+                    <div
+                      onClick={() => !uploadingPhotos && fileInputRef.current?.click()}
+                      className="aspect-square rounded-2xl border-2 border-dashed border-muted flex flex-col items-center justify-center text-muted-foreground text-[10px] font-medium text-center p-2 cursor-pointer hover:border-primary/60 hover:text-primary transition-colors"
+                    >
+                      {uploadingPhotos ? (
+                        <Loader2 className="h-5 w-5 animate-spin mb-1" />
+                      ) : (
+                        <Upload className="h-5 w-5 mb-1" />
+                      )}
+                      <span>{uploadingPhotos ? "Uploading…" : "Upload from device"}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-3">
-                  <Label className="text-xs text-muted-foreground">Add Photo by URL</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                      <Input 
-                        value={newPhotoUrl}
-                        onChange={(e) => setNewPhotoUrl(e.target.value)}
-                        placeholder="https://example.com/photo.jpg"
-                        className="rounded-xl h-11 pl-10"
-                        onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhoto())}
-                      />
-                    </div>
-                    <Button 
-                      type="button" 
-                      onClick={addPhoto}
-                      disabled={!newPhotoUrl.trim()}
-                      className="bg-secondary hover:bg-secondary/80 text-secondary-foreground h-11 rounded-xl px-6 font-bold"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Info className="h-3 w-3" />
-                    Upload images to a hosting service (like Imgur) and paste the direct link here.
-                  </p>
-                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+                />
+
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  {photoUrls.length === 0
+                    ? `Upload up to ${MAX_PHOTOS} photos directly from your device.`
+                    : `${photoUrls.length} of ${MAX_PHOTOS} photo(s) added.`}
+                </p>
               </div>
 
               <hr className="border-border/50" />
