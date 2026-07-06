@@ -59,6 +59,10 @@ export function RiderDirectoryPanel({ open, onClose }: RiderDirectoryPanelProps)
     );
   }, [open, coords]);
 
+  useEffect(() => {
+    if (!open) setProfileRider(null);
+  }, [open]);
+
   const { data: riders, isLoading } = useGetAvailableRidersDirectory(
     coords ? { lat: coords.lat, lon: coords.lon } : undefined,
     { query: { enabled: open } },

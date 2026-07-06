@@ -1426,7 +1426,7 @@ export function HomeMapView() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
         onClick={() => setShowRiderDirectory(true)}
-        className="absolute bottom-28 left-4 z-[1000] flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl glass-panel"
+        className="absolute bottom-60 left-4 z-[1000] flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl glass-panel"
       >
         <Bike className="h-4 w-4 text-[#4a9eff]" />
         <span className="text-xs font-bold text-white">See all riders</span>
