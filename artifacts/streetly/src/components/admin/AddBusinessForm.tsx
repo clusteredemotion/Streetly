@@ -9,6 +9,7 @@ import {
   Building2, MapPin, Phone, Globe, Clock, Camera, X,
   CheckCircle, Upload, AlertCircle, Star, ShieldCheck, Eye,
   ChevronDown, Loader2, Navigation, Image as ImageIcon,
+  Plus, Package,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -305,6 +306,97 @@ function PhotoPanel({ photos, onChange }: PhotoPanelProps) {
   );
 }
 
+// ── Products Panel ─────────────────────────────────────────────────────────
+
+interface ProductForm {
+  name: string;
+  description: string;
+  price: string;
+  imageUrl: string;
+}
+const EMPTY_PRODUCT: ProductForm = { name: "", description: "", price: "", imageUrl: "" };
+
+function ProductsPanel({ products, onChange }: {
+  products: ProductForm[];
+  onChange: (v: ProductForm[]) => void;
+}) {
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+
+  const addProduct = () => onChange([...products, { ...EMPTY_PRODUCT }]);
+  const removeProduct = (idx: number) => onChange(products.filter((_, i) => i !== idx));
+  const updateProduct = (idx: number, patch: Partial<ProductForm>) =>
+    onChange(products.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+
+  const handleImage = async (idx: number, file: File | undefined) => {
+    if (!file) return;
+    setUploadingIdx(idx);
+    try {
+      const dataUrl = await compressImage(file);
+      updateProduct(idx, { imageUrl: dataUrl });
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {products.map((p, idx) => (
+        <div key={idx} className="rounded-xl p-3 space-y-2.5 bg-white/4 border border-white/8">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-white/60">Product {idx + 1}</span>
+            <button type="button" onClick={() => removeProduct(idx)} className="text-white/40 hover:text-red-400">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex gap-3">
+            <label
+              className={`relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer border-2 border-dashed bg-white/5 ${p.imageUrl ? "border-transparent" : "border-white/20 hover:border-[#4a9eff]/60"}`}
+            >
+              {uploadingIdx === idx ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[#4a9eff]" />
+              ) : p.imageUrl ? (
+                <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <ImageIcon className="h-5 w-5 text-white/25" />
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImage(idx, e.target.files?.[0])} />
+            </label>
+            <div className="flex-1 space-y-2">
+              <InputField
+                value={p.name}
+                onChange={(v) => updateProduct(idx, { name: v })}
+                placeholder="Product name"
+              />
+              <div className="flex gap-2">
+                <InputField
+                  type="number"
+                  value={p.price}
+                  onChange={(v) => updateProduct(idx, { price: v })}
+                  placeholder="Price (₦)"
+                  className="w-28"
+                />
+                <InputField
+                  value={p.description}
+                  onChange={(v) => updateProduct(idx, { description: v })}
+                  placeholder="Description (optional)"
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addProduct}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-[#4a9eff] border border-dashed border-[#4a9eff]/30 hover:bg-[#4a9eff]/5 transition-colors"
+      >
+        <Plus className="h-4 w-4" /> Add Product
+      </button>
+    </div>
+  );
+}
+
 // ── Form field helpers ─────────────────────────────────────────────────────
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
@@ -448,6 +540,7 @@ interface FormState {
   featured: boolean;
   publish: boolean;
   photos: PhotoItem[];
+  products: ProductForm[];
 }
 
 const DEFAULT_FORM: FormState = {
@@ -475,6 +568,7 @@ const DEFAULT_FORM: FormState = {
   featured: false,
   publish: true,
   photos: [],
+  products: [],
 };
 
 interface AddBusinessFormProps {
@@ -558,6 +652,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
           featured: data.featured,
           publish: data.publish,
           photos: data.photos,
+          products: data.products,
         }),
       });
       if (!res.ok) {
@@ -897,7 +992,26 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
         />
       </div>
 
-      {/* 6 ── Options */}
+      {/* 6 ── Products */}
+      <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <SectionHeader icon={Package} title="Products (Optional)" />
+          {form.products.length > 0 && (
+            <Badge className="bg-white/10 text-white/60 hover:bg-white/10 text-xs">
+              {form.products.length} product{form.products.length === 1 ? "" : "s"}
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-white/50 mb-3">
+          Add products or menu items this business sells. Shown on the business page's marketplace section.
+        </p>
+        <ProductsPanel
+          products={form.products}
+          onChange={(products) => set("products", products)}
+        />
+      </div>
+
+      {/* 7 ── Options */}
       <div className="bg-white/3 border border-white/8 rounded-2xl p-5">
         <SectionHeader icon={ShieldCheck} title="Listing Options" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

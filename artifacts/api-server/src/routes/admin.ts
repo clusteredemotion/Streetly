@@ -6,6 +6,7 @@ import {
   businessClaimsTable, businessPhotosTable, categoriesTable,
   citiesTable, areasTable, streetsTable, messagesTable,
   supportTicketsTable, ridersTable, deliveryOrdersTable,
+  marketplaceItemsTable,
 } from "@workspace/db";
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
@@ -775,8 +776,10 @@ router.post("/businesses", async (req, res) => {
     name, description, categoryId,
     stateName, cityName, areaName, streetName,
     address, phone, whatsapp, website, registrationNumber,
+    instagramUrl, facebookUrl, tiktokUrl, youtubeUrl,
     latitude, longitude, openingHours,
     photos = [],
+    products = [],
     verified = false,
     featured = false,
     publish = false,
@@ -817,6 +820,10 @@ router.post("/businesses", async (req, res) => {
     categoryId: Number(categoryId),
     streetId: street.id,
     address, phone, whatsapp, website,
+    instagramUrl: instagramUrl || null,
+    facebookUrl: facebookUrl || null,
+    tiktokUrl: tiktokUrl || null,
+    youtubeUrl: youtubeUrl || null,
     latitude: latitude !== undefined && latitude !== "" ? Number(latitude) : undefined,
     longitude: longitude !== undefined && longitude !== "" ? Number(longitude) : undefined,
     openingHours,
@@ -832,6 +839,25 @@ router.post("/businesses", async (req, res) => {
         businessId: biz.id, url: p.url, caption: p.caption ?? null,
       }))
     );
+  }
+
+  if (Array.isArray(products) && products.length > 0) {
+    const validProducts = products.filter(
+      (p: { name?: string; price?: number | string }) =>
+        p && typeof p.name === "string" && p.name.trim().length > 0 &&
+        p.price !== undefined && p.price !== null && !isNaN(Number(p.price)) && Number(p.price) >= 0
+    );
+    if (validProducts.length > 0) {
+      await db.insert(marketplaceItemsTable).values(
+        validProducts.map((p: { name: string; description?: string; price: number | string; imageUrl?: string }) => ({
+          businessId: biz.id,
+          name: p.name.trim(),
+          description: p.description?.trim() || null,
+          price: Number(p.price),
+          imageUrl: p.imageUrl || null,
+        }))
+      );
+    }
   }
 
   return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });

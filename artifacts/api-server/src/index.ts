@@ -58,12 +58,19 @@ async function backfillSlugs() {
 
 async function ensureAdminUser() {
   try {
+    const existingAdmin = await db.execute(sql`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
+    if (existingAdmin.rows.length > 0) {
+      // An admin account already exists — never overwrite its credentials on restart,
+      // otherwise any password/email the admin set via Settings would be silently reverted.
+      logger.info("Admin user already exists; skipping seed");
+      return;
+    }
     const email = "admin@mystreetly.app";
     const hash = crypto.createHash("sha256").update("Melavies1537@" + "streetly_salt").digest("hex");
     await db.execute(
       sql`INSERT INTO users (name, email, password_hash, role, created_at)
           VALUES ('Admin', ${email}, ${hash}, 'admin', NOW())
-          ON CONFLICT (email) DO UPDATE SET password_hash = ${hash}, role = 'admin'`
+          ON CONFLICT (email) DO UPDATE SET role = 'admin'`
     );
     logger.info("Admin user ensured");
   } catch (err) {
