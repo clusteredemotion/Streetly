@@ -1468,7 +1468,11 @@ function EditUserModal({ user, onClose, onSaved }: {
 
 /* ── Create User Modal ── */
 function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const STAFF_ROLES = ["moderator", "scout_manager"] as const;
+  const STAFF_ROLES = [
+    { value: "moderator", label: "Moderator" },
+    { value: "scout_manager", label: "Scout Manager" },
+    { value: "regional_manager", label: "Regional Manager" },
+  ] as const;
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "moderator" });
   const [err, setErr] = useState<string | null>(null);
   const createUser = useCreateUser();
@@ -1516,7 +1520,7 @@ function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
                 className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}>
                 {STAFF_ROLES.map(r => (
-                  <option key={r} value={r} style={{ background: "#0d1b2e" }}>{r}</option>
+                  <option key={r.value} value={r.value} style={{ background: "#0d1b2e" }}>{r.label}</option>
                 ))}
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40 pointer-events-none" />
