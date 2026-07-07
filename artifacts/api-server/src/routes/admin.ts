@@ -43,14 +43,31 @@ function requireAnyRole(...roles: string[]) {
   };
 }
 
-router.use("/riders", requireAnyRole("admin"));
-router.use("/deliveries", requireAnyRole("admin"));
-router.use("/businesses", requireAnyRole("admin", "moderator"));
+const adminOnly = requireAnyRole("admin");
+
+/* ── All admin routes require at least one staff role ── */
+router.use(requireAnyRole("admin", "moderator", "scout_manager"));
+
+/* ── Admin-only sections (no sub-admin access) ── */
+router.use("/users", adminOnly);
+router.use("/analytics", adminOnly);
+router.use("/messages", adminOnly);
+router.use("/settings", adminOnly);
+router.use("/export", adminOnly);
+router.use("/claims", adminOnly);
+router.use("/kyc", adminOnly);
+router.use("/impersonate", adminOnly);
+router.use("/riders", adminOnly);
+router.use("/deliveries", adminOnly);
+router.use("/stats", adminOnly);
+
+/* ── Sub-admin scoped sections ── */
+router.use("/withdrawals", requireAnyRole("admin", "scout_manager"));
 router.use("/support-tickets", requireAnyRole("admin", "moderator"));
-router.use("/agents", requireAnyRole("admin", "scout_manager"));
 router.use("/categories", requireAnyRole("admin", "scout_manager"));
 router.use("/properties", requireAnyRole("admin", "scout_manager"));
-router.use("/withdrawals", requireAnyRole("admin", "scout_manager"));
+router.use("/agents", requireAnyRole("admin", "scout_manager"));
+router.use("/businesses", requireAnyRole("admin", "moderator"));
 
 // GET /admin/stats
 router.get("/stats", async (_req, res) => {
@@ -176,8 +193,8 @@ router.put("/businesses/featured-order", async (req, res) => {
   return res.json({ ok: true });
 });
 
-// PUT /admin/businesses/:id — edit any business
-router.put("/businesses/:id", async (req, res) => {
+// PUT /admin/businesses/:id — edit any business (admin only)
+router.put("/businesses/:id", adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
@@ -207,8 +224,8 @@ router.put("/businesses/:id", async (req, res) => {
   return res.json(biz);
 });
 
-// PATCH /admin/businesses/:id/suspend — toggle suspension
-router.patch("/businesses/:id/suspend", async (req, res) => {
+// PATCH /admin/businesses/:id/suspend — toggle suspension (admin only)
+router.patch("/businesses/:id/suspend", adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   const { suspend } = req.body;
@@ -220,8 +237,8 @@ router.patch("/businesses/:id/suspend", async (req, res) => {
   return res.json(biz);
 });
 
-// DELETE /admin/businesses/:id
-router.delete("/businesses/:id", async (req, res) => {
+// DELETE /admin/businesses/:id (admin only)
+router.delete("/businesses/:id", adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   await db.delete(businessPhotosTable).where(eq(businessPhotosTable.businessId, id));
@@ -288,8 +305,8 @@ router.get("/properties/:id", async (req, res) => {
   return res.json(enriched);
 });
 
-// POST /admin/properties — admin directly adds a new property (auto-approved)
-router.post("/properties", async (req, res) => {
+// POST /admin/properties — admin directly adds a new property (admin only)
+router.post("/properties", adminOnly, async (req, res) => {
   const {
     title, description, address, streetId,
     stateName, cityName, areaName, streetName,
@@ -355,8 +372,8 @@ router.post("/properties", async (req, res) => {
   return res.status(201).json(enriched);
 });
 
-// PUT /admin/properties/:id — edit any property
-router.put("/properties/:id", async (req, res) => {
+// PUT /admin/properties/:id — edit any property (admin only)
+router.put("/properties/:id", adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
@@ -405,8 +422,8 @@ router.patch("/properties/:id/approve", async (req, res) => {
   return res.json(prop);
 });
 
-// DELETE /admin/properties/:id
-router.delete("/properties/:id", async (req, res) => {
+// DELETE /admin/properties/:id (admin only)
+router.delete("/properties/:id", adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   await db.delete(propertyPhotosTable).where(eq(propertyPhotosTable.propertyId, id));
@@ -481,8 +498,8 @@ router.patch("/agents/:id/suspend", async (req, res) => {
   return res.json(agent);
 });
 
-// DELETE /admin/agents/:id
-router.delete("/agents/:id", async (req, res) => {
+// DELETE /admin/agents/:id (admin only)
+router.delete("/agents/:id", adminOnly, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, id)).limit(1);
@@ -924,8 +941,8 @@ router.post("/messages", async (req, res) => {
   return res.status(201).json(msg);
 });
 
-// POST /admin/businesses — admin creates a fully-specified business
-router.post("/businesses", async (req, res) => {
+// POST /admin/businesses — admin creates a fully-specified business (admin only)
+router.post("/businesses", adminOnly, async (req, res) => {
   const {
     name, description, categoryId,
     stateName, cityName, areaName, streetName,

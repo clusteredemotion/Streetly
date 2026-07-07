@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle, Users, CreditCard, Tag, Building2, LogOut, Menu, X, Ban, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Users, CreditCard, Tag, Building2, LogOut, Menu, X, Ban } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import AdminCategories from "@/components/admin/AdminCategories";
@@ -119,7 +119,7 @@ function useApproveProperty() {
   });
 }
 
-/* ── Status badge ── */
+/* ── Status pill ── */
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
     approved: "bg-green-500/15 text-green-400",
@@ -333,9 +333,35 @@ function PropertiesSection() {
 
 /* ── Main page ── */
 export default function ScoutManagerDashboardPage() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("streetly_token"));
+  const [token, setToken] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
   const [activeSection, setActiveSection] = useState<Section>("agents");
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const t = localStorage.getItem("streetly_token");
+    if (!t) { setChecking(false); return; }
+    fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.role === "scout_manager") {
+          setToken(t);
+        } else {
+          localStorage.removeItem("streetly_token");
+        }
+      })
+      .catch(() => { localStorage.removeItem("streetly_token"); })
+      .finally(() => setChecking(false));
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+      </div>
+    );
+  }
 
   if (!token) {
     return (
@@ -354,7 +380,6 @@ export default function ScoutManagerDashboardPage() {
 
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
-      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex-col transition-transform duration-300 md:relative md:flex md:translate-x-0 ${mobileOpen ? "flex translate-x-0" : "-translate-x-full md:flex"}`}
         style={{ background: "rgba(255,255,255,0.03)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
@@ -381,12 +406,11 @@ export default function ScoutManagerDashboardPage() {
         </div>
       </aside>
 
-      {/* Mobile overlay */}
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setMobileOpen(false)} />}
 
-      {/* Main */}
       <main className="flex-1 min-w-0 overflow-y-auto">
-        <header className="flex items-center gap-3 px-6 py-4 border-b border-white/8 sticky top-0 z-20" style={{ background: "rgba(6,12,26,0.8)", backdropFilter: "blur(12px)" }}>
+        <header className="flex items-center gap-3 px-6 py-4 border-b border-white/8 sticky top-0 z-20"
+          style={{ background: "rgba(6,12,26,0.8)", backdropFilter: "blur(12px)" }}>
           <button className="md:hidden text-white/50 hover:text-white" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
