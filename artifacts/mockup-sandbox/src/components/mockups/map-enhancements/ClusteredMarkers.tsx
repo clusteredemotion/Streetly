@@ -105,6 +105,18 @@ export function ClusteredMarkers() {
           onMouseLeave={() => setHovered(null)}
           onClick={() => setSelected(p)}
         >
+          {/* Blink ring — always visible on each pin */}
+          <div style={{
+            position: "absolute",
+            top: "50%", left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 50, height: 50,
+            borderRadius: "50%",
+            border: `2px solid ${p.color}`,
+            animation: `pinBlink 1.4s ease-in-out ${p.id * 0.28}s infinite`,
+            pointerEvents: "none",
+          }}/>
+
           {/* Pin body */}
           <div style={{
             width: hovered === p.id ? 42 : 34, height: hovered === p.id ? 42 : 34,
@@ -280,6 +292,10 @@ export function ClusteredMarkers() {
         @keyframes pinPulse {
           0% { opacity: 0.8; transform: scale(1); }
           100% { opacity: 0; transform: scale(2); }
+        }
+        @keyframes pinBlink {
+          0%, 100% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+          50% { opacity: 0; transform: translate(-50%,-50%) scale(1.6); }
         }
         @keyframes cardPop {
           from { opacity: 0; transform: translateX(-50%) scale(0.92) translateY(4px); }
