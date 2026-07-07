@@ -111,8 +111,8 @@ const LIVE_ACTIVITY = [
   "Sunrise Pharmacy — 5 check-ins",
 ];
 
-function makeMarkerHtml(color: string, size = 34, featured = false, name = "") {
-  const ringSize = size + 12;
+function makeMarkerHtml(color: string, size = 34, featured = false, name = "", blinkDelay = 0) {
+  const ringSize = size + 16;
   const label = name
     ? `<div class="biz-name-label" style="
         position:absolute;top:-22px;left:50%;transform:translateX(-50%);
@@ -128,6 +128,14 @@ function makeMarkerHtml(color: string, size = 34, featured = false, name = "") {
     <div style="position:relative;width:${ringSize}px;height:${ringSize}px;display:flex;align-items:center;justify-content:center;">
       ${label}
       <div class="marker-ring" style="position:absolute;width:${size}px;height:${size}px;border-radius:50% 50% 50% 4px;background:${color};opacity:0.35;"></div>
+      <div style="
+        position:absolute;
+        width:${size + 6}px;height:${size + 6}px;
+        border-radius:50%;
+        border:2px solid ${color};
+        animation:pin-blink-ring 1.4s ease-in-out ${blinkDelay}s infinite;
+        pointer-events:none;
+      "></div>
       ${featured ? `<div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle,${color}55,transparent);animation:location-pulse-ring 2s ease-out infinite;"></div>` : ""}
       <div class="marker-blink" style="
         position:relative;z-index:2;
@@ -554,15 +562,16 @@ export function HomeMapView() {
     const mappable = businesses.filter(b => b.latitude && b.longitude);
     if (!mappable.length) return;
 
-    mappable.forEach((biz) => {
+    mappable.forEach((biz, idx) => {
       const color = CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR;
       const size = biz.featured ? 38 : 30;
+      const blinkDelay = parseFloat(((idx % 10) * 0.2).toFixed(1));
       const icon = L.divIcon({
         className: "",
-        html: makeMarkerHtml(color, size, !!biz.featured, biz.name),
-        iconSize: [size + 12, size + 12],
-        iconAnchor: [(size + 12) / 2, size + 12],
-        popupAnchor: [0, -(size + 12)],
+        html: makeMarkerHtml(color, size, !!biz.featured, biz.name, blinkDelay),
+        iconSize: [size + 16, size + 16],
+        iconAnchor: [(size + 16) / 2, size + 16],
+        popupAnchor: [0, -(size + 16)],
       });
 
       const marker = L.marker([biz.latitude, biz.longitude], { icon }).addTo(map);
