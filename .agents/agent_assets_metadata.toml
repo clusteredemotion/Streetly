@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "B__Ez71PxHST-eB2ngQb1"
+uri = "file://Streetly_Documentation.pdf"
+type = "pdf"
+title = "Streetly Platform — Full Documentation"
