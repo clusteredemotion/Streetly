@@ -1790,6 +1790,7 @@ export default function AdminPage() {
       if (adminUser.role === "moderator") navigate("/moderator");
       else if (adminUser.role === "scout_manager") navigate("/scout-manager");
       else if (adminUser.role === "regional_manager") navigate("/regional-manager");
+      else if (adminUser.role === "delivery_rider") navigate("/rider-dashboard");
       else {
         localStorage.removeItem("streetly_token");
         setAdminToken(null);
