@@ -1467,7 +1467,7 @@ function EditUserModal({ user, onClose, onSaved }: {
 
 /* ── Create User Modal ── */
 function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const STAFF_ROLES = ["moderator", "scout_manager", "delivery_rider", "admin", "business_owner", "visitor"] as const;
+  const STAFF_ROLES = ["moderator", "scout_manager"] as const;
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "moderator" });
   const [err, setErr] = useState<string | null>(null);
   const createUser = useCreateUser();
