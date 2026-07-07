@@ -290,6 +290,8 @@ export default function RegionalManagerDashboardPage() {
     );
   }
 
+  const { data: agents = [], isLoading } = useMyAgents();
+
   if (!token) {
     return (
       <AdminLoginGate
@@ -304,8 +306,6 @@ export default function RegionalManagerDashboardPage() {
     localStorage.removeItem("streetly_token");
     setToken(null);
   };
-
-  const { data: agents = [], isLoading } = useMyAgents();
   const activeLabel = selectedAgent ? (selectedAgent.fullName ?? selectedAgent.userName ?? `Agent #${selectedAgent.id}`) : "My Agents";
 
   return (

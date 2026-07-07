@@ -377,6 +377,11 @@ export default function ScoutManagerDashboardPage() {
       .finally(() => setChecking(false));
   }, []);
 
+  const { data: agentList = [] } = useAllAgents();
+  const { data: propertyList = [] } = useAllProperties();
+  const pendingAgentsCount = Array.isArray(agentList) ? agentList.filter((a: any) => a.status === "pending").length : 0;
+  const pendingPropertiesCount = Array.isArray(propertyList) ? propertyList.filter((p: any) => p.status === "pending").length : 0;
+
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center"
@@ -400,11 +405,6 @@ export default function ScoutManagerDashboardPage() {
     localStorage.removeItem("streetly_token");
     setToken(null);
   };
-
-  const { data: agentList = [] } = useAllAgents();
-  const { data: propertyList = [] } = useAllProperties();
-  const pendingAgentsCount = (agentList as any[]).filter((a: any) => a.status === "pending").length;
-  const pendingPropertiesCount = (propertyList as any[]).filter((p: any) => p.status === "pending").length;
 
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>

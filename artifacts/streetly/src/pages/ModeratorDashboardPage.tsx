@@ -333,6 +333,11 @@ export default function ModeratorDashboardPage() {
     );
   }
 
+  const { data: pendingBizList = [] } = usePendingBusinesses();
+  const { data: allTickets = [] } = useListAllSupportTickets();
+  const pendingCount = Array.isArray(pendingBizList) ? pendingBizList.length : 0;
+  const openTicketsCount = Array.isArray(allTickets) ? allTickets.filter((t: any) => t.status === "open").length : 0;
+
   if (!token) {
     return (
       <AdminLoginGate
@@ -347,11 +352,6 @@ export default function ModeratorDashboardPage() {
     localStorage.removeItem("streetly_token");
     setToken(null);
   };
-
-  const { data: pendingBizList = [] } = usePendingBusinesses();
-  const { data: allTickets = [] } = useListAllSupportTickets();
-  const pendingCount = (pendingBizList as any[]).length;
-  const openTicketsCount = (allTickets as any[]).filter((t: any) => t.status === "open").length;
 
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
