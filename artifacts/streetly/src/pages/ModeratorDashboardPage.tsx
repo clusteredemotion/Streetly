@@ -312,6 +312,8 @@ export default function ModeratorDashboardPage() {
           navigate("/admin");
         } else if (data?.role === "scout_manager") {
           navigate("/scout-manager");
+        } else if (data?.role === "regional_manager") {
+          navigate("/regional-manager");
         } else {
           localStorage.removeItem("streetly_token");
         }

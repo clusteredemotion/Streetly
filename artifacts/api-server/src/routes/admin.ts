@@ -444,6 +444,7 @@ router.get("/agents/all", async (_req, res) => {
     .select({
       id: agentsTable.id,
       userId: agentsTable.userId,
+      managerId: agentsTable.managerId,
       status: agentsTable.status,
       fullName: agentsTable.fullName,
       age: agentsTable.age,
@@ -496,6 +497,23 @@ router.patch("/agents/:id/suspend", async (req, res) => {
     .where(eq(agentsTable.id, id))
     .returning();
   if (!agent) return res.status(404).json({ error: "Not found" });
+  return res.json(agent);
+});
+
+// PATCH /admin/agents/:id/assign-manager — assign agent to a regional manager (admin only)
+router.patch("/agents/:id/assign-manager", adminOnly, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const { managerId } = req.body;
+  if (managerId !== null && managerId !== undefined) {
+    const [mgr] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, Number(managerId))).limit(1);
+    if (!mgr || mgr.role !== "regional_manager") return res.status(400).json({ error: "User is not a regional manager" });
+  }
+  const [agent] = await db.update(agentsTable)
+    .set({ managerId: managerId !== null && managerId !== undefined ? Number(managerId) : null })
+    .where(eq(agentsTable.id, id))
+    .returning();
+  if (!agent) return res.status(404).json({ error: "Agent not found" });
   return res.json(agent);
 });
 
@@ -633,7 +651,7 @@ router.post("/users", async (req, res) => {
   const { name, email, password, role } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: "name, email and password are required" });
   if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
-  const allowedRoles = ["admin", "moderator", "scout_manager", "delivery_rider", "visitor", "business_owner", "field_agent"];
+  const allowedRoles = ["admin", "moderator", "scout_manager", "regional_manager", "delivery_rider", "visitor", "business_owner", "field_agent"];
   if (role && !allowedRoles.includes(role)) return res.status(400).json({ error: "Invalid role" });
   const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
   if (existing.length > 0) return res.status(409).json({ error: "Email already in use" });

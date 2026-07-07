@@ -365,6 +365,8 @@ export default function ScoutManagerDashboardPage() {
           navigate("/admin");
         } else if (data?.role === "moderator") {
           navigate("/moderator");
+        } else if (data?.role === "regional_manager") {
+          navigate("/regional-manager");
         } else {
           localStorage.removeItem("streetly_token");
         }

@@ -9,6 +9,7 @@ export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "pro
 export const agentsTable = pgTable("agents", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  managerId: integer("manager_id").references(() => usersTable.id, { onDelete: "set null" }),
   status: agentStatusEnum("status").notNull().default("pending"),
   bankName: text("bank_name"),
   accountNumber: text("account_number"),

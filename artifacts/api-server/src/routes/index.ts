@@ -21,6 +21,7 @@ import analyticsRouter from "./analytics";
 import referralsRouter from "./referrals";
 import chatRouter from "./chat";
 import propertiesRouter from "./properties";
+import regionalManagerRouter from "./regional-manager";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use("/analytics", analyticsRouter);
 router.use("/users", referralsRouter);
 router.use("/conversations", chatRouter);
 router.use("/properties", propertiesRouter);
+router.use("/regional-manager", regionalManagerRouter);
 
 export default router;

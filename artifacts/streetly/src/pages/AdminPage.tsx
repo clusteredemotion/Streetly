@@ -1760,6 +1760,7 @@ export default function AdminPage() {
     if (!adminUserLoading && adminUser && adminUser.role !== "admin") {
       if (adminUser.role === "moderator") navigate("/moderator");
       else if (adminUser.role === "scout_manager") navigate("/scout-manager");
+      else if (adminUser.role === "regional_manager") navigate("/regional-manager");
       else {
         localStorage.removeItem("streetly_token");
         setAdminToken(null);
@@ -1835,6 +1836,11 @@ export default function AdminPage() {
   const [reassignError, setReassignError] = useState<string | null>(null);
   const [reassignSaving, setReassignSaving] = useState(false);
 
+  const [assignMgrAgent, setAssignMgrAgent] = useState<{ id: number; name: string; managerId: number | null } | null>(null);
+  const [assignMgrSelected, setAssignMgrSelected] = useState<string>("");
+  const [assignMgrSaving, setAssignMgrSaving] = useState(false);
+  const [assignMgrError, setAssignMgrError] = useState<string | null>(null);
+
   const handleReassignMsaId = async () => {
     if (!reassignId || !newMsaId.trim()) return;
     setReassignSaving(true);
@@ -1855,6 +1861,28 @@ export default function AdminPage() {
       setReassignError(e.message);
     } finally {
       setReassignSaving(false);
+    }
+  };
+
+  const handleAssignManager = async () => {
+    if (!assignMgrAgent) return;
+    setAssignMgrSaving(true);
+    setAssignMgrError(null);
+    try {
+      const res = await fetch(`${BASE}/api/admin/agents/${assignMgrAgent.id}/assign-manager`, {
+        method: "PATCH",
+        headers: authHeader(),
+        body: JSON.stringify({ managerId: assignMgrSelected === "" ? null : Number(assignMgrSelected) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to assign manager");
+      setAssignMgrAgent(null);
+      setAssignMgrSelected("");
+      refetchAgents();
+    } catch (e: any) {
+      setAssignMgrError(e.message);
+    } finally {
+      setAssignMgrSaving(false);
     }
   };
 
@@ -2076,6 +2104,46 @@ export default function AdminPage() {
                 {reassignSaving ? "Saving…" : "Assign ID"}
               </Button>
               <Button size="sm" variant="outline" onClick={() => { setReassignId(null); setNewMsaId(""); setReassignError(null); }}
+                className="border-white/20 text-white/60 hover:bg-white/10">
+                Cancel
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {assignMgrAgent && (
+        <div className="fixed inset-0 z-[99990] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm rounded-2xl p-6 border border-white/10"
+            style={{ background: "#0d1f3c" }}>
+            <h3 className="text-base font-bold text-white mb-1">Assign Regional Manager</h3>
+            <p className="text-sm text-white/50 mb-4">
+              Assigning a manager to <strong className="text-white">{assignMgrAgent.name}</strong>.
+            </p>
+            <div className="mb-3">
+              <label className="text-xs text-white/40 mb-1 block">Regional Manager</label>
+              <select
+                value={assignMgrSelected}
+                onChange={(e) => setAssignMgrSelected(e.target.value)}
+                className="w-full rounded-lg bg-white/5 border border-white/10 text-white text-sm px-3 py-2 focus:outline-none focus:border-[#4a9eff]/50">
+                <option value="">— None (unassign) —</option>
+                {(allUsers ?? []).filter((u: any) => u.role === "regional_manager").map((u: any) => (
+                  <option key={u.id} value={String(u.id)}>{u.name} ({u.email})</option>
+                ))}
+              </select>
+              {(allUsers ?? []).filter((u: any) => u.role === "regional_manager").length === 0 && (
+                <p className="text-[11px] text-amber-400/70 mt-1">No regional managers found. Create one first under Staff Accounts.</p>
+              )}
+            </div>
+            {assignMgrError && <p className="text-xs text-red-400 mb-3">{assignMgrError}</p>}
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleAssignManager} disabled={assignMgrSaving}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white gap-1">
+                {assignMgrSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                {assignMgrSaving ? "Saving…" : "Assign"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setAssignMgrAgent(null); setAssignMgrSelected(""); setAssignMgrError(null); }}
                 className="border-white/20 text-white/60 hover:bg-white/10">
                 Cancel
               </Button>
@@ -2539,6 +2607,11 @@ export default function AdminPage() {
                         className="gap-1 text-purple-400 border-purple-400/30 hover:bg-purple-400/10">
                         <Key className="h-3.5 w-3.5" /> MSA ID
                       </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => { setAssignMgrAgent({ id: agent.id, name: agent.fullName ?? agent.userName ?? `Agent #${agent.id}`, managerId: agent.managerId ?? null }); setAssignMgrSelected(agent.managerId ? String(agent.managerId) : ""); setAssignMgrError(null); }}
+                        className="gap-1 text-orange-400 border-orange-400/30 hover:bg-orange-400/10">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Manager
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => handleImpersonate(agent.userId, agent.fullName ?? agent.userName ?? `Agent #${agent.id}`)}
                         className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">
                         <LogIn className="h-3.5 w-3.5" /> Login As
@@ -2746,31 +2819,31 @@ export default function AdminPage() {
 
           {/* ── Staff Accounts ── */}
           {activeSection === "staff-accounts" && (() => {
-            const staffRoles = ["moderator", "scout_manager"];
+            const staffRoles = ["moderator", "scout_manager", "regional_manager"];
             const staffUsers = (allUsers ?? []).filter((u: any) => staffRoles.includes(u.role));
             return (
               <>
               <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
-                <SectionHeader title="Staff Accounts" sub="All moderators and scout managers. Edit a user to reassign their role." />
+                <SectionHeader title="Staff Accounts" sub="All moderators, scout managers, and regional managers. Edit a user to reassign their role." />
                 <Button size="sm" onClick={() => setShowCreateUser(true)}
                   className="gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] text-white flex-shrink-0">
                   <UserPlus className="h-3.5 w-3.5" /> Add Staff
                 </Button>
               </div>
               {staffUsers.length === 0 ? (
-                <EmptyState icon={<ShieldCheck className="h-10 w-10 text-white/20" />} title="No staff accounts yet" sub="Use 'Add Staff' to create a moderator or scout manager account." />
+                <EmptyState icon={<ShieldCheck className="h-10 w-10 text-white/20" />} title="No staff accounts yet" sub="Use 'Add Staff' to create a moderator, scout manager, or regional manager account." />
               ) : (
                 <div className="space-y-3">
                   {staffUsers.map((user: any) => (
                     <AdminCard key={user.id}>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${user.role === "moderator" ? "bg-purple-500/15" : "bg-emerald-500/15"}`}>
-                        <ShieldCheck className={`h-5 w-5 ${user.role === "moderator" ? "text-purple-400" : "text-emerald-400"}`} />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${user.role === "moderator" ? "bg-purple-500/15" : user.role === "regional_manager" ? "bg-orange-500/15" : "bg-emerald-500/15"}`}>
+                        <ShieldCheck className={`h-5 w-5 ${user.role === "moderator" ? "text-purple-400" : user.role === "regional_manager" ? "text-orange-400" : "text-emerald-400"}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
                           <h3 className="font-semibold text-foreground">{user.name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.role === "moderator" ? "bg-purple-500/15 text-purple-400" : "bg-emerald-500/15 text-emerald-400"}`}>
-                            {user.role === "moderator" ? "Moderator" : "Scout Manager"}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.role === "moderator" ? "bg-purple-500/15 text-purple-400" : user.role === "regional_manager" ? "bg-orange-500/15 text-orange-400" : "bg-emerald-500/15 text-emerald-400"}`}>
+                            {user.role === "moderator" ? "Moderator" : user.role === "regional_manager" ? "Regional Manager" : "Scout Manager"}
                           </span>
                           {(user as any).status === "suspended" && <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/40">suspended</span>}
                         </div>
