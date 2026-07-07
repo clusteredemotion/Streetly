@@ -1722,6 +1722,7 @@ const SECTION_LABELS: Record<string, string> = {
   "add-property": "Add Property", "all-businesses": "All Businesses",
   "featured-order": "Featured Order", claims: "Ownership Claims",
   "all-users": "All Users", "all-agents": "All Agents",
+  "staff-accounts": "Staff Accounts",
   "pending-agents": "Pending Agents", kyc: "KYC Documents",
   categories: "Categories", commissions: "Commissions",
   messages: "Messages", "support-tickets": "Support Tickets",
@@ -2185,6 +2186,7 @@ export default function AdminPage() {
 
             <NavGroup label="People" />
             <NavItem section="all-users" active={activeSection} label="All Users" icon={<Users className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="staff-accounts" active={activeSection} label="Staff Accounts" icon={<ShieldCheck className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="all-agents" active={activeSection} label="All Agents" icon={<User className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={handleNavSelect} />
             <NavItem section="kyc" active={activeSection} label="KYC Documents" icon={<FileText className="h-4 w-4" />} onSelect={handleNavSelect} />
@@ -2741,6 +2743,62 @@ export default function AdminPage() {
             )}
             </>
           )}
+
+          {/* ── Staff Accounts ── */}
+          {activeSection === "staff-accounts" && (() => {
+            const staffRoles = ["moderator", "scout_manager"];
+            const staffUsers = (allUsers ?? []).filter((u: any) => staffRoles.includes(u.role));
+            return (
+              <>
+              <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+                <SectionHeader title="Staff Accounts" sub="All moderators and scout managers. Edit a user to reassign their role." />
+                <Button size="sm" onClick={() => setShowCreateUser(true)}
+                  className="gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] text-white flex-shrink-0">
+                  <UserPlus className="h-3.5 w-3.5" /> Add Staff
+                </Button>
+              </div>
+              {staffUsers.length === 0 ? (
+                <EmptyState icon={<ShieldCheck className="h-10 w-10 text-white/20" />} title="No staff accounts yet" sub="Use 'Add Staff' to create a moderator or scout manager account." />
+              ) : (
+                <div className="space-y-3">
+                  {staffUsers.map((user: any) => (
+                    <AdminCard key={user.id}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${user.role === "moderator" ? "bg-purple-500/15" : "bg-emerald-500/15"}`}>
+                        <ShieldCheck className={`h-5 w-5 ${user.role === "moderator" ? "text-purple-400" : "text-emerald-400"}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <h3 className="font-semibold text-foreground">{user.name}</h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.role === "moderator" ? "bg-purple-500/15 text-purple-400" : "bg-emerald-500/15 text-emerald-400"}`}>
+                            {user.role === "moderator" ? "Moderator" : "Scout Manager"}
+                          </span>
+                          {(user as any).status === "suspended" && <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/40">suspended</span>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">Since {new Date(user.createdAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}</p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => setEditUser(user)}
+                          className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                          <Edit2 className="h-3.5 w-3.5" /> Edit / Reassign
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setResetPwUser(user)}
+                          className="gap-1 text-amber-400 border-amber-400/30 hover:bg-amber-400/10">
+                          <Key className="h-3.5 w-3.5" /> Reset PW
+                        </Button>
+                        <Button size="sm" variant="outline"
+                          onClick={async () => { await suspendUser.mutateAsync({ id: user.id, suspend: user.status !== "suspended" }); refetchUsers(); }}
+                          className={`gap-1 ${user.status === "suspended" ? "text-green-400 border-green-400/30 hover:bg-green-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                          <Ban className="h-3.5 w-3.5" /> {user.status === "suspended" ? "Unsuspend" : "Suspend"}
+                        </Button>
+                      </div>
+                    </AdminCard>
+                  ))}
+                </div>
+              )}
+              </>
+            );
+          })()}
 
           {/* ── Commissions ── */}
           {activeSection === "commissions" && (

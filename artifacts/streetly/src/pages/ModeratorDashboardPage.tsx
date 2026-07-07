@@ -333,7 +333,7 @@ export default function ModeratorDashboardPage() {
 
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
-      <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex-col transition-transform duration-300 md:relative md:flex md:translate-x-0 ${mobileOpen ? "flex translate-x-0" : "-translate-x-full md:flex"}`}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex-col md:static md:translate-x-0 ${mobileOpen ? "flex" : "hidden md:flex"}`}
         style={{ background: "rgba(255,255,255,0.03)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
           <div>
