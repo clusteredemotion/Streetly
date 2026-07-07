@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, Users, CreditCard, Tag, Building2, LogOut, Menu, X, Ban } from "lucide-react";
@@ -333,6 +334,7 @@ function PropertiesSection() {
 
 /* ── Main page ── */
 export default function ScoutManagerDashboardPage() {
+  const [, navigate] = useLocation();
   const [token, setToken] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [activeSection, setActiveSection] = useState<Section>("agents");
@@ -346,6 +348,10 @@ export default function ScoutManagerDashboardPage() {
       .then(data => {
         if (data?.role === "scout_manager") {
           setToken(t);
+        } else if (data?.role === "admin") {
+          navigate("/admin");
+        } else if (data?.role === "moderator") {
+          navigate("/moderator");
         } else {
           localStorage.removeItem("streetly_token");
         }

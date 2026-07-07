@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -1740,6 +1741,8 @@ export default function AdminPage() {
     qc.invalidateQueries({ queryKey: ["admin-me"] });
   };
 
+  const [, navigate] = useLocation();
+
   const token = adminToken;
   const { data: adminUser, isLoading: adminUserLoading } = useQuery<{ id: number; name: string; email: string; role: string; msaId?: string }>({
     queryKey: ["admin-me"],
@@ -1751,6 +1754,17 @@ export default function AdminPage() {
     enabled: !!token,
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    if (!adminUserLoading && adminUser && adminUser.role !== "admin") {
+      if (adminUser.role === "moderator") navigate("/moderator");
+      else if (adminUser.role === "scout_manager") navigate("/scout-manager");
+      else {
+        localStorage.removeItem("streetly_token");
+        setAdminToken(null);
+      }
+    }
+  }, [adminUser, adminUserLoading]);
 
   const adminGreeting = (() => {
     const h = new Date().getHours();
@@ -1903,6 +1917,17 @@ export default function AdminPage() {
 
   const isAdminAuth = !!token && (adminUserLoading || adminUser?.role === "admin");
   if (!isAdminAuth && !adminUserLoading) {
+    if (adminUser && adminUser.role !== "admin") {
+      return (
+        <div className="min-h-screen flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
+          <div className="text-center">
+            <p className="text-red-400 font-semibold text-lg mb-1">Access Denied</p>
+            <p className="text-white/40 text-sm">Redirecting you to your portal…</p>
+          </div>
+        </div>
+      );
+    }
     return <AdminLoginGate onUnlock={handleUnlock} />;
   }
 

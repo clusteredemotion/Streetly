@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, XCircle, Building2, ImageIcon, Star, LifeBuoy, LogOut, Menu, X } from "lucide-react";
@@ -280,6 +281,7 @@ function FeaturedSection() {
 
 /* ── Main page ── */
 export default function ModeratorDashboardPage() {
+  const [, navigate] = useLocation();
   const [token, setToken] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [activeSection, setActiveSection] = useState<Section>("pending");
@@ -293,6 +295,10 @@ export default function ModeratorDashboardPage() {
       .then(data => {
         if (data?.role === "moderator") {
           setToken(t);
+        } else if (data?.role === "admin") {
+          navigate("/admin");
+        } else if (data?.role === "scout_manager") {
+          navigate("/scout-manager");
         } else {
           localStorage.removeItem("streetly_token");
         }
