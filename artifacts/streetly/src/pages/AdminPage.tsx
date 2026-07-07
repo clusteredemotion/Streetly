@@ -391,6 +391,20 @@ function useAllKYC() {
   });
 }
 
+function useAdminGallery() {
+  return useQuery({
+    queryKey: ["admin", "gallery"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/gallery`, { headers: authHeader() });
+      return res.json() as Promise<{
+        agentPassports: Array<{ url: string; agentId: number; agentName: string; createdAt: string }>;
+        agentNIN: Array<{ url: string; agentId: number; agentName: string; createdAt: string }>;
+        businessPhotos: Array<{ id: number; url: string; caption: string | null; createdAt: string; businessId: number; businessName: string | null }>;
+      }>;
+    },
+  });
+}
+
 function useAdminBusinessPhotos(bizId: number | null) {
   return useQuery({
     queryKey: ["admin", "business-photos", bizId],
@@ -1666,12 +1680,22 @@ function useDeleteProperty() {
 }
 
 /* ── Impersonate banner ── */
-function ImpersonateBanner({ name, token, onClear }: { name: string; token: string; onClear: () => void }) {
-  const [copied, setCopied] = useState(false);
+function roleToPortal(role: string): string {
+  if (role === "admin") return "/admin";
+  if (role === "moderator") return "/moderator";
+  if (role === "scout_manager") return "/scout-manager";
+  if (role === "regional_manager") return "/regional-manager";
+  if (role === "field_agent") return "/agent-dashboard";
+  if (role === "business_owner") return "/owner-dashboard";
+  if (role === "delivery_rider") return "/rider-dashboard";
+  return "/";
+}
+
+function ImpersonateBanner({ name, token, role, onClear }: { name: string; token: string; role: string; onClear: () => void }) {
   const login = () => {
     localStorage.setItem("streetly_token", token);
     localStorage.setItem("streetly_user", JSON.stringify({ name }));
-    window.location.href = "/";
+    window.location.href = roleToPortal(role);
   };
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
@@ -1731,6 +1755,7 @@ const SECTION_LABELS: Record<string, string> = {
   categories: "Categories", commissions: "Commissions",
   messages: "Messages", "support-tickets": "Support Tickets",
   export: "Export Data", "email-settings": "Email & Account",
+  gallery: "Gallery",
 };
 
 /* ══════════════════════════════════════════
@@ -1831,7 +1856,7 @@ export default function AdminPage() {
   const [featuredList, setFeaturedList] = useState<FeaturedBiz[]>([]);
   const [featuredSaved, setFeaturedSaved] = useState(false);
   const saveFeaturedOrder = useSaveFeaturedOrder();
-  const [impersonateData, setImpersonateData] = useState<{ name: string; token: string } | null>(null);
+  const [impersonateData, setImpersonateData] = useState<{ name: string; token: string; role: string } | null>(null);
   const [showPassport, setShowPassport] = useState<number | null>(null);
   const [kycImgView, setKycImgView] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ label: string; onConfirm: () => Promise<void> } | null>(null);
@@ -1841,6 +1866,12 @@ export default function AdminPage() {
   const [reassignSaving, setReassignSaving] = useState(false);
 
   const [assignMgrAgent, setAssignMgrAgent] = useState<{ id: number; name: string; managerId: number | null } | null>(null);
+  const [galleryUnlocked, setGalleryUnlocked] = useState(false);
+  const [galleryPin, setGalleryPin] = useState("");
+  const [galleryPinError, setGalleryPinError] = useState(false);
+  const [galleryFolder, setGalleryFolder] = useState<"passports" | "nin" | "business">("passports");
+  const [galleryLightbox, setGalleryLightbox] = useState<string | null>(null);
+  const { data: galleryData, isLoading: galleryLoading } = useAdminGallery();
   const [assignMgrSelected, setAssignMgrSelected] = useState<string>("");
   const [assignMgrSaving, setAssignMgrSaving] = useState(false);
   const [assignMgrError, setAssignMgrError] = useState<string | null>(null);
@@ -1943,7 +1974,7 @@ export default function AdminPage() {
   const handleImpersonate = async (userId: number, name: string) => {
     const res = await fetch(`${BASE}/api/admin/impersonate/${userId}`, { method: "POST", headers: authHeader() });
     const data = await res.json();
-    if (data.token) setImpersonateData({ name, token: data.token });
+    if (data.token) setImpersonateData({ name, token: data.token, role: data.user?.role ?? "visitor" });
   };
 
   const totalPending = (stats?.pendingBusinesses ?? 0) + (stats?.pendingAgents ?? 0) + (pendingClaims?.length ?? 0) + (withdrawals?.length ?? 0);
@@ -2166,11 +2197,23 @@ export default function AdminPage() {
           <img src={kycImgView} alt="KYC Document" className="max-w-full max-h-full rounded-2xl object-contain shadow-2xl" />
         </motion.div>
       )}
+      {galleryLightbox && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[99999] flex items-center justify-center p-6"
+          style={{ background: "rgba(0,0,0,0.95)" }}
+          onClick={() => setGalleryLightbox(null)}>
+          <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white" onClick={() => setGalleryLightbox(null)}>
+            <X className="h-5 w-5" />
+          </button>
+          <img src={galleryLightbox} alt="Gallery" className="max-w-full max-h-full rounded-2xl object-contain shadow-2xl" />
+        </motion.div>
+      )}
 
       {impersonateData && (
         <ImpersonateBanner
           name={impersonateData.name}
           token={impersonateData.token}
+          role={impersonateData.role}
           onClear={() => setImpersonateData(null)}
         />
       )}
@@ -2280,6 +2323,7 @@ export default function AdminPage() {
 
             <NavGroup label="Data" />
             <NavItem section="export" active={activeSection} label="Export Data" icon={<Download className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="gallery" active={activeSection} label="Gallery" icon={<ImageIcon className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Configuration" />
             <NavItem section="email-settings" active={activeSection} label="Email &amp; Account" icon={<Settings className="h-4 w-4" />} onSelect={handleNavSelect} />
@@ -2334,6 +2378,143 @@ export default function AdminPage() {
           {activeSection === "support-tickets" && <AdminSupportTickets />}
           {activeSection === "export" && <AdminExport />}
           {activeSection === "email-settings" && <AdminEmailSettings />}
+
+          {/* ── Gallery ── */}
+          {activeSection === "gallery" && (
+            <>
+            <SectionHeader title="Gallery" sub="All photos uploaded across the platform — agent passports, NIN slips, and business photos." />
+            {!galleryUnlocked ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                  style={{ background: "rgba(74,158,255,0.1)", border: "1px solid rgba(74,158,255,0.2)" }}>
+                  <Key className="h-8 w-8 text-[#4a9eff]/60" />
+                </div>
+                <h3 className="font-bold text-white text-base mb-1">Gallery Locked</h3>
+                <p className="text-sm text-white/40 mb-6">Enter the 4-digit PIN to access the gallery</p>
+                <div className="flex gap-3 items-center">
+                  <input
+                    type="password"
+                    maxLength={4}
+                    value={galleryPin}
+                    onChange={(e) => { setGalleryPin(e.target.value.replace(/\D/g, "")); setGalleryPinError(false); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (galleryPin === "1537") { setGalleryUnlocked(true); setGalleryPin(""); }
+                        else { setGalleryPinError(true); setGalleryPin(""); }
+                      }
+                    }}
+                    placeholder="••••"
+                    className="w-24 text-center text-lg tracking-[0.5em] font-bold rounded-xl px-3 py-2.5 text-white outline-none"
+                    style={{ background: "rgba(255,255,255,0.07)", border: `1px solid ${galleryPinError ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.12)"}`, caretColor: "#4a9eff" }}
+                    autoFocus
+                  />
+                  <Button size="sm"
+                    onClick={() => {
+                      if (galleryPin === "1537") { setGalleryUnlocked(true); setGalleryPin(""); }
+                      else { setGalleryPinError(true); setGalleryPin(""); }
+                    }}
+                    className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white h-10 px-4">
+                    Unlock
+                  </Button>
+                </div>
+                {galleryPinError && <p className="text-xs text-red-400 mt-3">Incorrect PIN. Please try again.</p>}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <div className="flex gap-1.5">
+                    {([
+                      { key: "passports", label: `Passports`, count: galleryData?.agentPassports.length ?? 0 },
+                      { key: "nin", label: `NIN Slips`, count: galleryData?.agentNIN.length ?? 0 },
+                      { key: "business", label: `Business`, count: galleryData?.businessPhotos.length ?? 0 },
+                    ] as const).map(({ key, label, count }) => (
+                      <button key={key} onClick={() => setGalleryFolder(key)}
+                        className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all flex items-center gap-1.5 ${galleryFolder === key ? "bg-[#4a9eff]/20 text-[#4a9eff]" : "text-white/40 hover:text-white/70"}`}
+                        style={galleryFolder !== key ? { background: "rgba(255,255,255,0.05)" } : {}}>
+                        {label}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                          style={{ background: galleryFolder === key ? "rgba(74,158,255,0.25)" : "rgba(255,255,255,0.1)" }}>
+                          {count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setGalleryUnlocked(false)}
+                    className="text-white/30 hover:text-white/60 gap-1 text-xs">
+                    <Key className="h-3.5 w-3.5" /> Lock
+                  </Button>
+                </div>
+
+                {galleryLoading ? (
+                  <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-white/30" /></div>
+                ) : (
+                  <>
+                    {galleryFolder === "passports" && (
+                      <div>
+                        <p className="text-xs text-white/30 mb-3 font-medium uppercase tracking-widest">Agent Passport Photos — {galleryData?.agentPassports.length ?? 0} images</p>
+                        {!galleryData?.agentPassports.length ? (
+                          <div className="text-center py-12 text-white/30 text-sm rounded-2xl" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>No passport photos uploaded yet</div>
+                        ) : (
+                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                            {galleryData.agentPassports.map((img, i) => (
+                              <div key={i} className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-white/5"
+                                onClick={() => setGalleryLightbox(img.url)}>
+                                <img src={img.url} alt={img.agentName} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-end p-1.5 opacity-0 group-hover:opacity-100">
+                                  <p className="text-[9px] text-white font-medium truncate leading-tight">{img.agentName}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {galleryFolder === "nin" && (
+                      <div>
+                        <p className="text-xs text-white/30 mb-3 font-medium uppercase tracking-widest">Agent NIN Slips — {galleryData?.agentNIN.length ?? 0} images</p>
+                        {!galleryData?.agentNIN.length ? (
+                          <div className="text-center py-12 text-white/30 text-sm rounded-2xl" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>No NIN slips uploaded yet</div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {galleryData.agentNIN.map((img, i) => (
+                              <div key={i} className="group relative rounded-xl overflow-hidden cursor-pointer bg-white/5"
+                                onClick={() => setGalleryLightbox(img.url)}>
+                                <img src={img.url} alt={img.agentName} className="w-full object-cover aspect-[4/3] transition-transform group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-end p-2 opacity-0 group-hover:opacity-100">
+                                  <p className="text-[10px] text-white font-medium truncate">{img.agentName}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {galleryFolder === "business" && (
+                      <div>
+                        <p className="text-xs text-white/30 mb-3 font-medium uppercase tracking-widest">Business Photos — {galleryData?.businessPhotos.length ?? 0} images</p>
+                        {!galleryData?.businessPhotos.length ? (
+                          <div className="text-center py-12 text-white/30 text-sm rounded-2xl" style={{ border: "1px dashed rgba(255,255,255,0.08)" }}>No business photos uploaded yet</div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                            {galleryData.businessPhotos.map((img) => (
+                              <div key={img.id} className="group relative rounded-xl overflow-hidden cursor-pointer bg-white/5"
+                                onClick={() => setGalleryLightbox(img.url)}>
+                                <img src={img.url} alt={img.caption ?? img.businessName ?? "Business photo"} className="w-full object-cover aspect-square transition-transform group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-end p-2 opacity-0 group-hover:opacity-100">
+                                  <p className="text-[10px] text-white font-medium truncate">{img.businessName ?? "Business"}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+            </>
+          )}
 
           {/* ── Categories ── */}
           {activeSection === "categories" && <AdminCategories />}
@@ -2862,6 +3043,10 @@ export default function AdminPage() {
                         <Button size="sm" variant="outline" onClick={() => setResetPwUser(user)}
                           className="gap-1 text-amber-400 border-amber-400/30 hover:bg-amber-400/10">
                           <Key className="h-3.5 w-3.5" /> Reset PW
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleImpersonate(user.id, user.name)}
+                          className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">
+                          <LogIn className="h-3.5 w-3.5" /> Login As
                         </Button>
                         <Button size="sm" variant="outline"
                           onClick={async () => { await suspendUser.mutateAsync({ id: user.id, suspend: user.status !== "suspended" }); refetchUsers(); }}

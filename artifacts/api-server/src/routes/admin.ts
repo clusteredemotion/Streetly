@@ -1332,4 +1332,38 @@ router.get("/support-tickets", async (_req, res) => {
   return res.json(tickets);
 });
 
+// GET /admin/gallery — all uploaded images organized by source folder
+router.get("/gallery", async (_req, res) => {
+  const agents = await db.select({
+    id: agentsTable.id,
+    fullName: agentsTable.fullName,
+    passportPhotoUrl: agentsTable.passportPhotoUrl,
+    ninSlipUrl: agentsTable.ninSlipUrl,
+    createdAt: agentsTable.createdAt,
+    userName: usersTable.name,
+  }).from(agentsTable)
+    .leftJoin(usersTable, eq(agentsTable.userId, usersTable.id));
+
+  const agentPassports = agents
+    .filter(a => a.passportPhotoUrl)
+    .map(a => ({ url: a.passportPhotoUrl!, agentId: a.id, agentName: a.fullName ?? a.userName ?? `Agent #${a.id}`, createdAt: a.createdAt }));
+
+  const agentNIN = agents
+    .filter(a => a.ninSlipUrl)
+    .map(a => ({ url: a.ninSlipUrl!, agentId: a.id, agentName: a.fullName ?? a.userName ?? `Agent #${a.id}`, createdAt: a.createdAt }));
+
+  const bizPhotos = await db.select({
+    id: businessPhotosTable.id,
+    url: businessPhotosTable.url,
+    caption: businessPhotosTable.caption,
+    createdAt: businessPhotosTable.createdAt,
+    businessId: businessPhotosTable.businessId,
+    businessName: businessesTable.name,
+  }).from(businessPhotosTable)
+    .leftJoin(businessesTable, eq(businessPhotosTable.businessId, businessesTable.id))
+    .orderBy(desc(businessPhotosTable.createdAt));
+
+  return res.json({ agentPassports, agentNIN, businessPhotos: bizPhotos });
+});
+
 export default router;
