@@ -57,6 +57,8 @@ export function Navbar() {
     : role === "delivery_rider" ? "/rider-dashboard"
     : role === "business_owner" ? "/owner-dashboard"
     : role === "admin" ? "/admin"
+    : role === "moderator" ? "/moderator"
+    : role === "scout_manager" ? "/scout-manager"
     : "/account";
 
   /* onMap = sitting at the top of the home page (map is fully visible behind us)

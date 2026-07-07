@@ -27,6 +27,8 @@ export default function LoginPage() {
       if (role === "field_agent") navigate("/agent-dashboard");
       else if (role === "business_owner") navigate("/owner-dashboard");
       else if (role === "admin") navigate("/admin");
+      else if (role === "moderator") navigate("/moderator");
+      else if (role === "scout_manager") navigate("/scout-manager");
       else navigate("/");
     } catch (err: any) {
       setError(err?.data?.error ?? "Invalid email or password");

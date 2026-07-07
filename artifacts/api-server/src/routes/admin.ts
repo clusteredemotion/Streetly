@@ -33,21 +33,24 @@ function getUserIdFromAuthHeader(req: { headers: { authorization?: string } }): 
   }
 }
 
-router.use("/riders", async (req, res, next) => {
-  const userId = getUserIdFromAuthHeader(req);
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (user?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
-  next();
-});
+function requireAnyRole(...roles: string[]) {
+  return async (req: any, res: any, next: any) => {
+    const userId = getUserIdFromAuthHeader(req);
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user || !roles.includes(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
+    next();
+  };
+}
 
-router.use("/deliveries", async (req, res, next) => {
-  const userId = getUserIdFromAuthHeader(req);
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (user?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
-  next();
-});
+router.use("/riders", requireAnyRole("admin"));
+router.use("/deliveries", requireAnyRole("admin"));
+router.use("/businesses", requireAnyRole("admin", "moderator"));
+router.use("/support-tickets", requireAnyRole("admin", "moderator"));
+router.use("/agents", requireAnyRole("admin", "scout_manager"));
+router.use("/categories", requireAnyRole("admin", "scout_manager"));
+router.use("/properties", requireAnyRole("admin", "scout_manager"));
+router.use("/withdrawals", requireAnyRole("admin", "scout_manager"));
 
 // GET /admin/stats
 router.get("/stats", async (_req, res) => {

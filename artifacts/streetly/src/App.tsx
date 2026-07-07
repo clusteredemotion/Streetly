@@ -21,6 +21,8 @@ import DeliveryTrackingPage from "@/pages/DeliveryTrackingPage";
 import OwnerDashboardPage from "@/pages/OwnerDashboardPage";
 import BusinessOnboardingPage from "@/pages/BusinessOnboardingPage";
 import AdminPage from "@/pages/AdminPage";
+import ModeratorDashboardPage from "@/pages/ModeratorDashboardPage";
+import ScoutManagerDashboardPage from "@/pages/ScoutManagerDashboardPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import AboutPage from "@/pages/AboutPage";
@@ -60,6 +62,8 @@ function Router() {
       <Route path="/business/onboard" component={BusinessOnboardingPage} />
       <Route path="/owner-dashboard" component={OwnerDashboardPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/moderator" component={ModeratorDashboardPage} />
+      <Route path="/scout-manager" component={ScoutManagerDashboardPage} />
       <Route path="/auth/login" component={LoginPage} />
       <Route path="/auth/register" component={RegisterPage} />
       <Route path="/account">

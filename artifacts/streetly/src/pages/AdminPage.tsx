@@ -1431,7 +1431,7 @@ function EditUserModal({ user, onClose, onSaved }: {
               <select value={form.role} onChange={(e) => setForm(f => ({ ...f, role: e.target.value }))}
                 className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}>
-                {["visitor", "business_owner", "field_agent", "admin"].map(r => (
+                {["visitor", "business_owner", "field_agent", "admin", "moderator", "scout_manager", "delivery_rider"].map(r => (
                   <option key={r} value={r} style={{ background: "#0d1b2e" }}>{r}</option>
                 ))}
               </select>

@@ -8,9 +8,11 @@ const RESET_DESTINATION = "madebayo68@gmail.com";
 
 interface Props {
   onUnlock: (token: string) => void;
+  allowedRoles?: string[];
+  portalLabel?: string;
 }
 
-export default function AdminLoginGate({ onUnlock }: Props) {
+export default function AdminLoginGate({ onUnlock, allowedRoles = ["admin"], portalLabel = "Admin Portal" }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -38,8 +40,8 @@ export default function AdminLoginGate({ onUnlock }: Props) {
         setError("Invalid username or password.");
         return;
       }
-      if (data.user?.role !== "admin") {
-        setError("Access denied. Admin credentials required.");
+      if (!allowedRoles.includes(data.user?.role ?? "")) {
+        setError("Access denied. You don't have permission for this portal.");
         return;
       }
       localStorage.setItem("streetly_token", data.token);
@@ -87,7 +89,7 @@ export default function AdminLoginGate({ onUnlock }: Props) {
             <ShieldCheck className="h-7 w-7 text-[#4a9eff]" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-wide">STREETLY</h1>
-          <p className="text-xs text-white/30 mt-1">Admin Portal</p>
+          <p className="text-xs text-white/30 mt-1">{portalLabel}</p>
         </div>
 
         {/* Card */}
