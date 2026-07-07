@@ -182,8 +182,10 @@ export default function HomePage() {
             >
               <p className="text-xs font-bold text-[#4a9eff] uppercase tracking-widest mb-3">Platform Stats</p>
               <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-                The World's Most Complete{" "}
-                <TypingText words={["Business Map", "Street Directory", "Discovery Platform"]} />
+                The World's Most Complete
+                <span className="block" style={{ minHeight: "1.25em" }}>
+                  <TypingText words={["Business Map", "Street Directory", "Discovery Platform"]} />
+                </span>
               </h2>
             </motion.div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
