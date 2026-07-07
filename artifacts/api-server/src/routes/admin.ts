@@ -11,6 +11,7 @@ import {
 import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
 import { enrichProperty } from "./properties";
+import { sendMail } from "../lib/mailer";
 
 const router = Router();
 
@@ -644,6 +645,40 @@ router.post("/users", async (req, res) => {
     role: (role ?? "visitor") as any,
     status: "active",
   }).returning();
+
+  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "streetly.app"}`;
+  const roleName = user.role.replace(/_/g, " ");
+  await sendMail({
+    to: user.email,
+    subject: "Welcome to Streetly — your account details",
+    text: [
+      `Hi ${user.name},`,
+      "",
+      `Your Streetly staff account has been created. Here are your login details:`,
+      "",
+      `  Login URL : ${appUrl}`,
+      `  Email     : ${user.email}`,
+      `  Password  : ${password}`,
+      `  Role      : ${roleName}`,
+      "",
+      "Please sign in and change your password as soon as possible.",
+      "",
+      "— The Streetly Team",
+    ].join("\n"),
+    html: `
+      <p>Hi ${user.name},</p>
+      <p>Your Streetly staff account has been created. Here are your login details:</p>
+      <table cellpadding="4" style="border-collapse:collapse">
+        <tr><td><strong>Login URL</strong></td><td><a href="${appUrl}">${appUrl}</a></td></tr>
+        <tr><td><strong>Email</strong></td><td>${user.email}</td></tr>
+        <tr><td><strong>Password</strong></td><td><code>${password}</code></td></tr>
+        <tr><td><strong>Role</strong></td><td>${roleName}</td></tr>
+      </table>
+      <p>Please sign in and change your password as soon as possible.</p>
+      <p>— The Streetly Team</p>
+    `,
+  });
+
   return res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
 });
 
