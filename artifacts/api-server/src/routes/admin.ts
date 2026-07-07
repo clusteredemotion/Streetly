@@ -627,6 +627,26 @@ router.get("/deliveries/all", async (_req, res) => {
   return res.json(rows);
 });
 
+// POST /admin/users — admin creates a new staff account directly
+router.post("/users", async (req, res) => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ error: "name, email and password are required" });
+  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+  const allowedRoles = ["admin", "moderator", "scout_manager", "delivery_rider", "visitor", "business_owner", "field_agent"];
+  if (role && !allowedRoles.includes(role)) return res.status(400).json({ error: "Invalid role" });
+  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
+  if (existing.length > 0) return res.status(409).json({ error: "Email already in use" });
+  const hash = crypto.createHash("sha256").update(password + "streetly_salt").digest("hex");
+  const [user] = await db.insert(usersTable).values({
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
+    passwordHash: hash,
+    role: (role ?? "visitor") as any,
+    status: "active",
+  }).returning();
+  return res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
+});
+
 // GET /admin/users/all
 router.get("/users/all", async (_req, res) => {
   const users = await db

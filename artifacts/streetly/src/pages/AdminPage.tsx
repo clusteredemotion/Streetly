@@ -23,7 +23,7 @@ import {
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
   MessageSquare, LifeBuoy, Star, BarChart2, ChevronRight, Download, Settings, Menu,
-  Calendar, IdCard,
+  Calendar, IdCard, UserPlus,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -225,6 +225,19 @@ function useUpdateUser() {
         method: "PUT", headers: authHeader(), body: JSON.stringify(data),
       });
       return res.json();
+    },
+  });
+}
+
+function useCreateUser() {
+  return useMutation({
+    mutationFn: async (data: { name: string; email: string; password: string; role: string }) => {
+      const res = await fetch(`${BASE}/api/admin/users`, {
+        method: "POST", headers: authHeader(), body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to create user");
+      return json;
     },
   });
 }
@@ -1452,6 +1465,77 @@ function EditUserModal({ user, onClose, onSaved }: {
   );
 }
 
+/* ── Create User Modal ── */
+function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const STAFF_ROLES = ["moderator", "scout_manager", "delivery_rider", "admin", "business_owner", "visitor"] as const;
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "moderator" });
+  const [err, setErr] = useState<string | null>(null);
+  const createUser = useCreateUser();
+
+  const handleSubmit = async () => {
+    setErr(null);
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) { setErr("All fields are required"); return; }
+    if (form.password.length < 6) { setErr("Password must be at least 6 characters"); return; }
+    try {
+      await createUser.mutateAsync(form);
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      setErr(e.message ?? "Failed to create account");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
+        style={{ background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-[#4a9eff]" />
+            <h2 className="font-bold text-white text-sm">Create Staff Account</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-white/40 hover:text-white"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {[{ label: "Full Name", key: "name", type: "text" }, { label: "Email Address", key: "email", type: "email" }, { label: "Password", key: "password", type: "password" }].map(({ label, key, type }) => (
+            <div key={key}>
+              <label className="block text-xs font-medium text-white/50 mb-1">{label}</label>
+              <input type={type} value={form[key as "name" | "email" | "password"]}
+                onChange={(e) => setForm(f => ({ ...f, [key]: e.target.value }))}
+                placeholder={key === "password" ? "Min. 6 characters" : ""}
+                className="w-full px-3 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }} />
+            </div>
+          ))}
+          <div>
+            <label className="block text-xs font-medium text-white/50 mb-1">Role</label>
+            <div className="relative">
+              <select value={form.role} onChange={(e) => setForm(f => ({ ...f, role: e.target.value }))}
+                className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl text-sm text-white outline-none focus:ring-2 focus:ring-[#4a9eff]/40"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                {STAFF_ROLES.map(r => (
+                  <option key={r} value={r} style={{ background: "#0d1b2e" }}>{r}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40 pointer-events-none" />
+            </div>
+          </div>
+          {err && <p className="text-xs text-red-400 rounded-lg px-3 py-2" style={{ background: "rgba(239,68,68,0.1)" }}>{err}</p>}
+        </div>
+        <div className="px-5 py-3 border-t border-white/10 flex gap-2 justify-end">
+          <Button size="sm" variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">Cancel</Button>
+          <Button size="sm" onClick={handleSubmit} disabled={createUser.isPending}
+            className="bg-[#4a9eff] hover:bg-[#3a8ef0] text-white gap-1.5">
+            {createUser.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+            Create Account
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Reset Password Modal ── */
 function ResetPasswordModal({ user, onClose }: {
   user: { id: number; name: string };
@@ -1715,6 +1799,7 @@ export default function AdminPage() {
   const [editAgent, setEditAgent] = useState<any>(null);
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [resetPwUser, setResetPwUser] = useState<{ id: number; name: string } | null>(null);
+  const [showCreateUser, setShowCreateUser] = useState(false);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
   const [itemsBusiness, setItemsBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
@@ -1836,6 +1921,12 @@ export default function AdminPage() {
           <EditUserModal
             user={editUser}
             onClose={() => setEditUser(null)}
+            onSaved={() => refetchUsers()}
+          />
+        )}
+        {showCreateUser && (
+          <CreateUserModal
+            onClose={() => setShowCreateUser(false)}
             onSaved={() => refetchUsers()}
           />
         )}
@@ -2548,7 +2639,13 @@ export default function AdminPage() {
           {/* ── All Users ── */}
           {activeSection === "all-users" && (
             <>
-            <SectionHeader title="All Users" sub="Manage all registered users. Field agents are listed under All Agents." />
+            <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+              <SectionHeader title="All Users" sub="Manage all registered users. Field agents are listed under All Agents." />
+              <Button size="sm" onClick={() => setShowCreateUser(true)}
+                className="gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] text-white flex-shrink-0">
+                <UserPlus className="h-3.5 w-3.5" /> Create Staff Account
+              </Button>
+            </div>
             {!allUsers?.length ? (
               <EmptyState icon={<Users className="h-10 w-10 text-white/20" />} title="No users yet" sub="" />
             ) : (
