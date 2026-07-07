@@ -65,7 +65,8 @@ router.get("/:id", async (req, res) => {
   if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
   const [requester] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
-  if (ticket.userId !== auth.userId && requester?.role !== "admin") {
+  const isStaff = requester?.role === "admin" || requester?.role === "moderator";
+  if (ticket.userId !== auth.userId && !isStaff) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -100,22 +101,22 @@ router.post("/:id/replies", async (req, res) => {
   if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
   const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
-  const isAdmin = sender?.role === "admin";
-  if (ticket.userId !== auth.userId && !isAdmin) {
+  const isStaff = sender?.role === "admin" || sender?.role === "moderator";
+  if (ticket.userId !== auth.userId && !isStaff) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
   const [reply] = await db
     .insert(supportTicketRepliesTable)
-    .values({ ticketId, senderId: auth.userId, senderRole: isAdmin ? "admin" : "user", message })
+    .values({ ticketId, senderId: auth.userId, senderRole: isStaff ? "admin" : "user", message })
     .returning();
 
   await db
     .update(supportTicketsTable)
-    .set({ updatedAt: new Date(), status: isAdmin ? "in_progress" : ticket.status })
+    .set({ updatedAt: new Date(), status: isStaff ? "in_progress" : ticket.status })
     .where(eq(supportTicketsTable.id, ticketId));
 
-  if (isAdmin) {
+  if (isStaff) {
     const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, ticket.userId)).limit(1);
     if (owner?.email) {
       sendMail({
@@ -144,7 +145,7 @@ router.put("/:id/status", async (req, res) => {
   if (!auth) return res.status(401).json({ error: "Unauthorized" });
 
   const [sender] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId)).limit(1);
-  if (sender?.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (sender?.role !== "admin" && sender?.role !== "moderator") return res.status(403).json({ error: "Forbidden" });
 
   const ticketId = parseInt(req.params.id ?? "0");
   const { status } = req.body ?? {};
