@@ -6,6 +6,7 @@ import { Loader2, CheckCircle, XCircle, Building2, ImageIcon, Star, LifeBuoy, Lo
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import AdminSupportTickets from "@/components/admin/AdminSupportTickets";
+import { useListAllSupportTickets } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -26,6 +27,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
 function usePendingBusinesses() {
   return useQuery({
     queryKey: ["mod", "businesses", "pending"],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/businesses/pending`, { headers: authHeader() });
       return res.json() as Promise<Array<{ id: number; name: string; phone: string | null; address: string | null; status: string; createdAt: string }>>;
@@ -279,6 +281,17 @@ function FeaturedSection() {
   );
 }
 
+/* ── Badge pill ── */
+function NavBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+      style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24" }}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 /* ── Main page ── */
 export default function ModeratorDashboardPage() {
   const [, navigate] = useLocation();
@@ -331,6 +344,11 @@ export default function ModeratorDashboardPage() {
     setToken(null);
   };
 
+  const { data: pendingBizList = [] } = usePendingBusinesses();
+  const { data: allTickets = [] } = useListAllSupportTickets();
+  const pendingCount = (pendingBizList as any[]).length;
+  const openTicketsCount = (allTickets as any[]).filter((t: any) => t.status === "open").length;
+
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
       <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex-col md:static md:translate-x-0 ${mobileOpen ? "flex" : "hidden md:flex"}`}
@@ -345,12 +363,16 @@ export default function ModeratorDashboardPage() {
           </button>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {NAV.map(({ id, label, icon }) => (
-            <button key={id} onClick={() => { setActiveSection(id); setMobileOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === id ? "text-white bg-[#4a9eff]/15" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
-              {icon} {label}
-            </button>
-          ))}
+          {NAV.map(({ id, label, icon }) => {
+            const badge = id === "pending" ? pendingCount : id === "tickets" ? openTicketsCount : 0;
+            return (
+              <button key={id} onClick={() => { setActiveSection(id); setMobileOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === id ? "text-white bg-[#4a9eff]/15" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+                {icon} <span className="flex-1 text-left">{label}</span>
+                <NavBadge count={badge} />
+              </button>
+            );
+          })}
         </nav>
         <div className="p-3 border-t border-white/8">
           <Button variant="ghost" size="sm" onClick={logout} className="w-full gap-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 justify-start">

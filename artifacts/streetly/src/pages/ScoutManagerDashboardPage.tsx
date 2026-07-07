@@ -27,6 +27,7 @@ const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
 function useAllAgents() {
   return useQuery({
     queryKey: ["scout", "agents", "all"],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/agents/all`, { headers: authHeader() });
       return res.json() as Promise<Array<{
@@ -96,6 +97,7 @@ function useApproveWithdrawal() {
 function useAllProperties() {
   return useQuery({
     queryKey: ["scout", "properties"],
+    refetchInterval: 30_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/properties/all`, { headers: authHeader() });
       return res.json() as Promise<Array<{
@@ -332,6 +334,17 @@ function PropertiesSection() {
   );
 }
 
+/* ── Badge pill ── */
+function NavBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+      style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24" }}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 /* ── Main page ── */
 export default function ScoutManagerDashboardPage() {
   const [, navigate] = useLocation();
@@ -384,6 +397,11 @@ export default function ScoutManagerDashboardPage() {
     setToken(null);
   };
 
+  const { data: agentList = [] } = useAllAgents();
+  const { data: propertyList = [] } = useAllProperties();
+  const pendingAgentsCount = (agentList as any[]).filter((a: any) => a.status === "pending").length;
+  const pendingPropertiesCount = (propertyList as any[]).filter((p: any) => p.status === "pending").length;
+
   return (
     <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
       <aside className={`fixed inset-y-0 left-0 z-40 w-60 flex-col md:static md:translate-x-0 ${mobileOpen ? "flex" : "hidden md:flex"}`}
@@ -398,12 +416,16 @@ export default function ScoutManagerDashboardPage() {
           </button>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {NAV.map(({ id, label, icon }) => (
-            <button key={id} onClick={() => { setActiveSection(id); setMobileOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === id ? "text-white bg-[#4a9eff]/15" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
-              {icon} {label}
-            </button>
-          ))}
+          {NAV.map(({ id, label, icon }) => {
+            const badge = id === "agents" ? pendingAgentsCount : id === "properties" ? pendingPropertiesCount : 0;
+            return (
+              <button key={id} onClick={() => { setActiveSection(id); setMobileOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === id ? "text-white bg-[#4a9eff]/15" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
+                {icon} <span className="flex-1 text-left">{label}</span>
+                <NavBadge count={badge} />
+              </button>
+            );
+          })}
         </nav>
         <div className="p-3 border-t border-white/8">
           <Button variant="ghost" size="sm" onClick={logout} className="w-full gap-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 justify-start">
