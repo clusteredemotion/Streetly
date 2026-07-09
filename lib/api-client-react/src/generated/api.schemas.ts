@@ -30,6 +30,11 @@ export interface LoginInput {
   password: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface ContactInput {
   name: string;
   email: string;
@@ -124,6 +129,7 @@ export interface User {
   email: string;
   role: string;
   createdAt: string;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {
@@ -705,6 +711,10 @@ export interface UploadUrlResponse {
 export interface ErrorEnvelope {
   error: string;
 }
+
+export type ChangePassword200 = {
+  success: boolean;
+};
 
 export type ListBusinessesParams = {
 q?: string;

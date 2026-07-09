@@ -7,6 +7,7 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import { verifyToken } from "./auth.js";
+import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 // Simple flat-fee-plus-distance pricing for rider delivery fees.
 const BASE_DELIVERY_FEE = 500;
@@ -65,6 +66,8 @@ function verifyGuestTrackingToken(
 
 const router = Router({ mergeParams: true });
 const standaloneRouter = Router();
+router.use(blockIfMustChangePassword);
+standaloneRouter.use(blockIfMustChangePassword);
 
 async function enrichDelivery(order: typeof deliveryOrdersTable.$inferSelect) {
   const [business] = await db.select({

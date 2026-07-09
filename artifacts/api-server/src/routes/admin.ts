@@ -38,8 +38,9 @@ function requireAnyRole(...roles: string[]) {
   return async (req: any, res: any, next: any) => {
     const userId = getUserIdFromAuthHeader(req);
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const [user] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const [user] = await db.select({ role: usersTable.role, mustChangePassword: usersTable.mustChangePassword }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user || !roles.includes(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
+    if (user.mustChangePassword) { res.status(403).json({ error: "You must change your password before continuing", code: "PASSWORD_CHANGE_REQUIRED" }); return; }
     next();
   };
 }
@@ -662,6 +663,7 @@ router.post("/users", async (req, res) => {
     passwordHash: hash,
     role: (role ?? "visitor") as any,
     status: "active",
+    mustChangePassword: true,
   }).returning();
 
   const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "streetly.app"}`;

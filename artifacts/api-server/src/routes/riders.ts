@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { ridersTable, usersTable, deliveryOrdersTable, businessesTable } from "@workspace/db";
 import { eq, desc, and, count, sql } from "drizzle-orm";
 import { verifyToken } from "./auth.js";
+import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
   const h = req.headers.authorization;
@@ -12,6 +13,7 @@ function getUserIdFromReq(req: { headers: { authorization?: string } }): number 
 }
 
 const router = Router();
+router.use(blockIfMustChangePassword);
 
 async function enrichRider(rider: typeof ridersTable.$inferSelect) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, rider.userId)).limit(1);

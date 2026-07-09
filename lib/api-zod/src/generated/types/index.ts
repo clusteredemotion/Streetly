@@ -25,6 +25,8 @@ export * from './businessPlan';
 export * from './businessStatus';
 export * from './businessUpdate';
 export * from './category';
+export * from './changePassword200';
+export * from './changePasswordInput';
 export * from './city';
 export * from './contactInput';
 export * from './contactSubmission';

@@ -24,6 +24,8 @@ async function requireRegionalManager(req: any, res: any, next: any) {
   const [user] = await db.select({ id: usersTable.id, role: usersTable.role })
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user || user.role !== "regional_manager") { res.status(403).json({ error: "Forbidden" }); return; }
+  const [flagRow] = await db.select({ mustChangePassword: usersTable.mustChangePassword }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (flagRow?.mustChangePassword) { res.status(403).json({ error: "You must change your password before continuing", code: "PASSWORD_CHANGE_REQUIRED" }); return; }
   req.managerId = userId;
   next();
 }

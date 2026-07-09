@@ -137,8 +137,38 @@ router.post("/login", async (req, res) => {
   const token = generateToken(user.id);
   return res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt, mustChangePassword: user.mustChangePassword },
   });
+});
+
+// POST /auth/change-password
+router.post("/change-password", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const payload = verifyToken(authHeader.slice(7));
+  if (!payload) return res.status(401).json({ error: "Invalid or expired token" });
+
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "currentPassword and newPassword are required" });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "New password must be at least 6 characters" });
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  if (user.passwordHash !== hashPassword(currentPassword)) {
+    return res.status(401).json({ error: "Current password is incorrect" });
+  }
+
+  await db.update(usersTable)
+    .set({ passwordHash: hashPassword(newPassword), mustChangePassword: false })
+    .where(eq(usersTable.id, user.id));
+
+  return res.json({ success: true });
 });
 
 // GET /auth/me
@@ -154,7 +184,7 @@ router.get("/me", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
   if (!user) return res.status(404).json({ error: "User not found" });
 
-  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, referralCode: user.referralCode, creditPoints: user.creditPoints, createdAt: user.createdAt });
+  return res.json({ id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, referralCode: user.referralCode, creditPoints: user.creditPoints, createdAt: user.createdAt, mustChangePassword: user.mustChangePassword });
 });
 
 export default router;

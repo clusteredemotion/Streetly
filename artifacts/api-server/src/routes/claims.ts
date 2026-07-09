@@ -3,8 +3,10 @@ import { db } from "@workspace/db";
 import { businessClaimsTable, businessesTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { verifyToken } from "./auth";
+import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 const router = Router({ mergeParams: true });
+router.use(blockIfMustChangePassword);
 
 function getUser(req: any): { userId: number } | null {
   const auth = req.headers.authorization;

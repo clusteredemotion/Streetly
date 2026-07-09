@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { marketplaceItemsTable, businessesTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { verifyToken } from "./auth.js";
+import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
   const h = req.headers.authorization;
@@ -24,6 +25,8 @@ async function requireOwnerOrAdmin(userId: number | null, businessId: number): P
 
 const router = Router({ mergeParams: true });
 const standaloneRouter = Router();
+router.use(blockIfMustChangePassword);
+standaloneRouter.use(blockIfMustChangePassword);
 
 // GET /businesses/:businessId/marketplace-items — public storefront view (available items only)
 router.get("/", async (req, res) => {

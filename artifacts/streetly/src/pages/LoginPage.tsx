@@ -22,6 +22,10 @@ export default function LoginPage() {
       const result = await loginMutation.mutateAsync({ data: { email, password } });
       localStorage.setItem("streetly_token", result.token);
       setAuthTokenGetter(() => localStorage.getItem("streetly_token"));
+      if (result.user.mustChangePassword) {
+        navigate("/change-password");
+        return;
+      }
       // Navigate based on role
       const role = result.user.role;
       if (role === "field_agent") navigate("/agent-dashboard");

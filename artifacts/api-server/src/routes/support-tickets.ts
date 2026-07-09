@@ -4,8 +4,10 @@ import { supportTicketsTable, supportTicketRepliesTable, usersTable } from "@wor
 import { eq, desc, and } from "drizzle-orm";
 import { verifyToken } from "./auth";
 import { sendMail, getAdminNotificationEmail } from "../lib/mailer";
+import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 const router = Router();
+router.use(blockIfMustChangePassword);
 
 function getUser(req: any): { userId: number } | null {
   const auth = req.headers.authorization;

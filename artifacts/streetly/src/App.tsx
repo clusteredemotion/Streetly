@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useEffect } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
+import { ApiError } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Preloader } from "@/components/Preloader";
@@ -33,6 +34,19 @@ import SupportTicketsPage from "@/pages/SupportTicketsPage";
 import MessagesPage from "@/pages/MessagesPage";
 import PropertiesPage from "@/pages/PropertiesPage";
 import PropertySubmitPage from "@/pages/PropertySubmitPage";
+import ChangePasswordPage from "@/pages/ChangePasswordPage";
+
+function handlePasswordChangeRequired(error: unknown) {
+  if (
+    error instanceof ApiError &&
+    error.status === 403 &&
+    (error.data as any)?.code === "PASSWORD_CHANGE_REQUIRED" &&
+    window.location.pathname.indexOf("/auth/") === -1 &&
+    !window.location.pathname.endsWith("/change-password")
+  ) {
+    window.location.href = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/change-password`;
+  }
+}
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -46,6 +60,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30000 },
   },
+  queryCache: new QueryCache({ onError: handlePasswordChangeRequired }),
+  mutationCache: new MutationCache({ onError: handlePasswordChangeRequired }),
 });
 
 function Router() {
@@ -68,6 +84,7 @@ function Router() {
       <Route path="/regional-manager" component={RegionalManagerDashboardPage} />
       <Route path="/auth/login" component={LoginPage} />
       <Route path="/auth/register" component={RegisterPage} />
+      <Route path="/change-password" component={ChangePasswordPage} />
       <Route path="/account">
         {() => localStorage.getItem("streetly_token") ? <AccountPage /> : <LoginPage />}
       </Route>

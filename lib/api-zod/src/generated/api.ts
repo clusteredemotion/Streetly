@@ -97,8 +97,22 @@ export const LoginResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "mustChangePassword": zod.boolean().optional()
 })
+})
+
+
+/**
+ * @summary Change the current user's password (also clears the must-change-password flag)
+ */
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string(),
+  "newPassword": zod.string()
+})
+
+export const ChangePasswordResponse = zod.object({
+  "success": zod.boolean()
 })
 
 
@@ -110,7 +124,8 @@ export const GetMeResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "mustChangePassword": zod.boolean().optional()
 })
 
 

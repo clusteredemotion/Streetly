@@ -12,4 +12,5 @@ export interface User {
   email: string;
   role: string;
   createdAt: string;
+  mustChangePassword?: boolean;
 }

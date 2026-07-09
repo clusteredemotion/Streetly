@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import { eq, desc, count, and, ilike } from "drizzle-orm";
 import { verifyToken } from "./auth.js";
+import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
   const h = req.headers.authorization;
@@ -16,6 +17,7 @@ function getUserIdFromReq(req: { headers: { authorization?: string } }): number 
 }
 
 const router = Router();
+router.use(blockIfMustChangePassword);
 
 async function enrichAgent(agent: typeof agentsTable.$inferSelect) {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, agent.userId)).limit(1);
