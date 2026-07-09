@@ -105,28 +105,6 @@ export const LoginResponse = zod.object({
 
 
 /**
- * @summary Sign up or log in with Google
- */
-export const GoogleAuthBody = zod.object({
-  "idToken": zod.string(),
-  "role": zod.enum(['visitor', 'business_owner', 'field_agent']).optional(),
-  "referralCode": zod.string().nullish()
-})
-
-export const GoogleAuthResponse = zod.object({
-  "token": zod.string(),
-  "user": zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "email": zod.string(),
-  "role": zod.string(),
-  "createdAt": zod.string(),
-  "mustChangePassword": zod.boolean().optional()
-})
-})
-
-
-/**
  * @summary Change the current user's password (also clears the must-change-password flag)
  */
 export const ChangePasswordBody = zod.object({

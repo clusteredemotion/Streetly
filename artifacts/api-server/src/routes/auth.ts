@@ -3,13 +3,10 @@ import { db } from "@workspace/db";
 import { usersTable, referralsTable } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import crypto from "crypto";
-import { OAuth2Client } from "google-auth-library";
 import { sendMail } from "../lib/mailer";
 import { logger } from "../lib/logger";
 
 const REFERRAL_SIGNUP_BONUS = 100;
-
-const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
 async function verifyRecaptcha(token: unknown): Promise<boolean> {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
@@ -188,94 +185,6 @@ router.post("/login", async (req, res) => {
 
   const token = generateToken(user.id);
   sendLoginNotificationEmail(user.email, user.name, getClientIp(req));
-  return res.json({
-    token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt, mustChangePassword: user.mustChangePassword },
-  });
-});
-
-// POST /auth/google — sign up or log in with Google
-router.post("/google", async (req, res) => {
-  const { idToken, role, referralCode } = req.body;
-  if (!idToken || typeof idToken !== "string") {
-    return res.status(400).json({ error: "Missing Google idToken" });
-  }
-  if (!googleClient) {
-    return res.status(500).json({ error: "Google sign-in is not configured on the server" });
-  }
-
-  let payload: { sub: string; email?: string; name?: string; email_verified?: boolean } | undefined;
-  try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    payload = ticket.getPayload() as any;
-  } catch (err) {
-    logger.error({ err }, "Google idToken verification failed");
-    return res.status(401).json({ error: "Invalid Google token" });
-  }
-
-  if (!payload?.sub || !payload.email) {
-    return res.status(401).json({ error: "Invalid Google token payload" });
-  }
-
-  const ip = getClientIp(req);
-  let [user] = await db.select().from(usersTable).where(eq(usersTable.googleId, payload.sub)).limit(1);
-
-  if (!user) {
-    const [byEmail] = await db.select().from(usersTable).where(eq(usersTable.email, payload.email)).limit(1);
-    if (byEmail) {
-      [user] = await db.update(usersTable).set({ googleId: payload.sub }).where(eq(usersTable.id, byEmail.id)).returning();
-    }
-  }
-
-  let isNewUser = false;
-  if (!user) {
-    isNewUser = true;
-    let referrer: typeof usersTable.$inferSelect | undefined;
-    if (referralCode && typeof referralCode === "string") {
-      const [found] = await db.select().from(usersTable).where(eq(usersTable.referralCode, referralCode.trim().toUpperCase())).limit(1);
-      referrer = found;
-    }
-    const ownReferralCode = await generateUniqueReferralCode();
-    const chosenRole = (role === "business_owner" || role === "field_agent") ? role : "visitor";
-
-    const [created] = await db.insert(usersTable).values({
-      name: payload.name || payload.email.split("@")[0],
-      email: payload.email,
-      passwordHash: null,
-      googleId: payload.sub,
-      role: chosenRole as "visitor" | "business_owner" | "field_agent",
-      registrationIp: ip,
-      referralCode: ownReferralCode,
-      referredByUserId: referrer?.id ?? null,
-    }).returning();
-
-    const msaId = await generateMsaId(created.id, created.role);
-    await db.update(usersTable).set({ msaId }).where(eq(usersTable.id, created.id));
-    user = { ...created, msaId };
-
-    if (referrer) {
-      await db.insert(referralsTable).values({
-        referrerId: referrer.id,
-        refereeId: created.id,
-        pointsAwarded: REFERRAL_SIGNUP_BONUS,
-        reason: "signup",
-      });
-      await db.update(usersTable)
-        .set({ creditPoints: sql`${usersTable.creditPoints} + ${REFERRAL_SIGNUP_BONUS}` })
-        .where(eq(usersTable.id, referrer.id));
-    }
-  }
-
-  const token = generateToken(user.id);
-  if (isNewUser) {
-    sendWelcomeEmail(user.email, user.name);
-  } else {
-    sendLoginNotificationEmail(user.email, user.name, ip);
-  }
-
   return res.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt, mustChangePassword: user.mustChangePassword },

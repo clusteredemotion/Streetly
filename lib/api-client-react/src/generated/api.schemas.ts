@@ -31,21 +31,6 @@ export interface LoginInput {
   password: string;
 }
 
-export type GoogleAuthInputRole = typeof GoogleAuthInputRole[keyof typeof GoogleAuthInputRole];
-
-
-export const GoogleAuthInputRole = {
-  visitor: 'visitor',
-  business_owner: 'business_owner',
-  field_agent: 'field_agent',
-} as const;
-
-export interface GoogleAuthInput {
-  idToken: string;
-  role?: GoogleAuthInputRole;
-  referralCode?: string | null;
-}
-
 export interface ChangePasswordInput {
   currentPassword: string;
   newPassword: string;

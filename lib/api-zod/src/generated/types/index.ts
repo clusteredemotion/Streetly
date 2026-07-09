@@ -44,8 +44,6 @@ export * from './errorEnvelope';
 export * from './geoInfo';
 export * from './getAvailableRidersDirectoryParams';
 export * from './getNearbyRidersParams';
-export * from './googleAuthInput';
-export * from './googleAuthInputRole';
 export * from './healthStatus';
 export * from './listBusinessesParams';
 export * from './loginInput';
