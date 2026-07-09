@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11", "postgresql-16", "java-graalvm22.3"]
+modules = ["nodejs-24", "python-3.11", "java-graalvm22.3", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -20,6 +20,10 @@ author = "agent"
 task = "workflow.run"
 args = "typecheck"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "e2e-rider-redirect"
+
 [[workflows.workflow]]
 name = "typecheck"
 author = "agent"
@@ -27,6 +31,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm run typecheck"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "e2e-rider-redirect"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/streetly && npx playwright test e2e/rider-redirect.spec.ts"
 
 [workflows.workflow.metadata]
 isValidation = true
