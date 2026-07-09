@@ -10,3 +10,4 @@
 - [Streetly image upload testing pitfall](streetly-image-upload-testing.md) — e2e subagent mistargets file inputs on pages with multiple upload widgets; cross-check with curl/DB before trusting a failure; images use base64 data URLs, no object storage
 - [Streetly owner-scoped resource lists](streetly-owner-scoped-lists.md) — public list endpoints only return approved records; owner dashboards need a dedicated `/mine` endpoint to see their own pending/rejected items
 - [Streetly duplicated auth middleware](streetly-duplicated-auth-middleware.md) — admin.ts has its own copy of the token/role-check logic instead of importing authHelpers.ts; any auth-gating change must be made in both places
+- [Streetly schema/DB drift](streetly-schema-db-drift.md) — usersTable columns referenced in code (e.g. must_change_password) may not actually exist in the DB; verify with information_schema before assuming a migrated feature works

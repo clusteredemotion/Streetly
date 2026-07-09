@@ -140,6 +140,27 @@ export const ChangePasswordResponse = zod.object({
 
 
 /**
+ * @summary Consume a one-time password-setup link (from the welcome email) to set an initial password
+ */
+export const SetupPasswordBody = zod.object({
+  "token": zod.string(),
+  "newPassword": zod.string()
+})
+
+export const SetupPasswordResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "createdAt": zod.string(),
+  "mustChangePassword": zod.boolean().optional()
+})
+})
+
+
+/**
  * @summary Get current user
  */
 export const GetMeResponse = zod.object({

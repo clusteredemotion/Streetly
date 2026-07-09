@@ -35,6 +35,7 @@ import MessagesPage from "@/pages/MessagesPage";
 import PropertiesPage from "@/pages/PropertiesPage";
 import PropertySubmitPage from "@/pages/PropertySubmitPage";
 import ChangePasswordPage from "@/pages/ChangePasswordPage";
+import SetupPasswordPage from "@/pages/SetupPasswordPage";
 
 function handlePasswordChangeRequired(error: unknown) {
   if (
@@ -85,6 +86,7 @@ function Router() {
       <Route path="/auth/login" component={LoginPage} />
       <Route path="/auth/register" component={RegisterPage} />
       <Route path="/change-password" component={ChangePasswordPage} />
+      <Route path="/setup-password" component={SetupPasswordPage} />
       <Route path="/account">
         {() => localStorage.getItem("streetly_token") ? <AccountPage /> : <LoginPage />}
       </Route>

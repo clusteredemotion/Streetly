@@ -68,6 +68,7 @@ import type {
   RiderLocationInput,
   RiderOnlineStatusInput,
   RiderOrderQueue,
+  SetupPasswordInput,
   Street,
   SupportTicket,
   SupportTicketDetail,
@@ -685,6 +686,77 @@ export const useChangePassword = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getChangePasswordMutationOptions(options));
+    }
+
+export const getSetupPasswordUrl = () => {
+
+
+
+
+  return `/api/auth/setup-password`
+}
+
+/**
+ * @summary Consume a one-time password-setup link (from the welcome email) to set an initial password
+ */
+export const setupPassword = async (setupPasswordInput: SetupPasswordInput, options?: RequestInit): Promise<AuthResponse> => {
+
+  return customFetch<AuthResponse>(getSetupPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setupPasswordInput,)
+  }
+);}
+
+
+
+
+export const getSetupPasswordMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupPassword>>, TError,{data: BodyType<SetupPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setupPassword>>, TError,{data: BodyType<SetupPasswordInput>}, TContext> => {
+
+const mutationKey = ['setupPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setupPassword>>, {data: BodyType<SetupPasswordInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setupPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetupPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof setupPassword>>>
+    export type SetupPasswordMutationBody = BodyType<SetupPasswordInput>
+    export type SetupPasswordMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Consume a one-time password-setup link (from the welcome email) to set an initial password
+ */
+export const useSetupPassword = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setupPassword>>, TError,{data: BodyType<SetupPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setupPassword>>,
+        TError,
+        {data: BodyType<SetupPasswordInput>},
+        TContext
+      > => {
+      return useMutation(getSetupPasswordMutationOptions(options));
     }
 
 export const getGetMeUrl = () => {

@@ -657,6 +657,11 @@ router.post("/users", async (req, res) => {
   const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
   if (existing.length > 0) return res.status(409).json({ error: "Email already in use" });
   const hash = crypto.createHash("sha256").update(password + "streetly_salt").digest("hex");
+
+  const setupToken = crypto.randomBytes(32).toString("hex");
+  const setupTokenHash = crypto.createHash("sha256").update(setupToken).digest("hex");
+  const setupTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
   const [user] = await db.insert(usersTable).values({
     name: name.trim(),
     email: email.toLowerCase().trim(),
@@ -664,37 +669,38 @@ router.post("/users", async (req, res) => {
     role: (role ?? "visitor") as any,
     status: "active",
     mustChangePassword: true,
+    passwordSetupTokenHash: setupTokenHash,
+    passwordSetupTokenExpiresAt: setupTokenExpiresAt,
   }).returning();
 
   const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "streetly.app"}`;
   const roleName = user.role.replace(/_/g, " ");
+  const setupUrl = `${appUrl}/setup-password?token=${setupToken}`;
   await sendMail({
     to: user.email,
-    subject: "Welcome to Streetly — your account details",
+    subject: "Welcome to Streetly — set up your account",
     text: [
       `Hi ${user.name},`,
       "",
-      `Your Streetly staff account has been created. Here are your login details:`,
+      `Your Streetly staff account has been created. Here are your account details:`,
       "",
-      `  Login URL : ${appUrl}`,
       `  Email     : ${user.email}`,
-      `  Password  : ${password}`,
       `  Role      : ${roleName}`,
       "",
-      "Please sign in and change your password as soon as possible.",
+      `Set your own password using this one-time link (expires in 7 days):`,
+      `  ${setupUrl}`,
       "",
       "— The Streetly Team",
     ].join("\n"),
     html: `
       <p>Hi ${user.name},</p>
-      <p>Your Streetly staff account has been created. Here are your login details:</p>
+      <p>Your Streetly staff account has been created. Here are your account details:</p>
       <table cellpadding="4" style="border-collapse:collapse">
-        <tr><td><strong>Login URL</strong></td><td><a href="${appUrl}">${appUrl}</a></td></tr>
         <tr><td><strong>Email</strong></td><td>${user.email}</td></tr>
-        <tr><td><strong>Password</strong></td><td><code>${password}</code></td></tr>
         <tr><td><strong>Role</strong></td><td>${roleName}</td></tr>
       </table>
-      <p>Please sign in and change your password as soon as possible.</p>
+      <p>Set your own password using this one-time link (expires in 7 days):</p>
+      <p><a href="${setupUrl}">${setupUrl}</a></p>
       <p>— The Streetly Team</p>
     `,
   });

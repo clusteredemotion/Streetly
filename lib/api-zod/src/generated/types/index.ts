@@ -67,6 +67,7 @@ export * from './riderLocationInput';
 export * from './riderOnlineStatusInput';
 export * from './riderOrderQueue';
 export * from './riderStatus';
+export * from './setupPasswordInput';
 export * from './street';
 export * from './supportTicket';
 export * from './supportTicketDetail';

@@ -234,6 +234,25 @@ paths:
                   success:
                     type: boolean
 
+  /auth/setup-password:
+    post:
+      operationId: setupPassword
+      tags: [auth]
+      summary: Consume a one-time password-setup link (from the welcome email) to set an initial password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupPasswordInput"
+      responses:
+        "200":
+          description: Password set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
   /auth/me:
     get:
       operationId: getMe
@@ -1411,6 +1430,15 @@ components:
       required: [currentPassword, newPassword]
       properties:
         currentPassword:
+          type: string
+        newPassword:
+          type: string
+
+    SetupPasswordInput:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token:
           type: string
         newPassword:
           type: string

@@ -51,6 +51,11 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+export interface SetupPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
 export interface ContactInput {
   name: string;
   email: string;

@@ -312,6 +312,36 @@ router.post("/change-password", async (req, res) => {
   return res.json({ success: true });
 });
 
+// POST /auth/setup-password — consume a one-time link (from the welcome email) to set an initial password
+router.post("/setup-password", async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || typeof token !== "string") return res.status(400).json({ error: "Missing token" });
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "New password must be at least 6 characters" });
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.passwordSetupTokenHash, tokenHash)).limit(1);
+  if (!user) return res.status(400).json({ error: "Invalid or expired setup link" });
+  if (!user.passwordSetupTokenExpiresAt || user.passwordSetupTokenExpiresAt.getTime() < Date.now()) {
+    return res.status(400).json({ error: "Invalid or expired setup link" });
+  }
+
+  await db.update(usersTable)
+    .set({
+      passwordHash: hashPassword(newPassword),
+      mustChangePassword: false,
+      passwordSetupTokenHash: null,
+      passwordSetupTokenExpiresAt: null,
+    })
+    .where(eq(usersTable.id, user.id));
+
+  const authToken = generateToken(user.id);
+  return res.json({
+    success: true,
+    token: authToken,
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, msaId: user.msaId, createdAt: user.createdAt },
+  });
+});
+
 // GET /auth/me
 router.get("/me", async (req, res) => {
   const authHeader = req.headers.authorization;

@@ -18,6 +18,8 @@ export const usersTable = pgTable("users", {
   referredByUserId: integer("referred_by_user_id"),
   creditPoints: integer("credit_points").notNull().default(0),
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  passwordSetupTokenHash: text("password_setup_token_hash"),
+  passwordSetupTokenExpiresAt: timestamp("password_setup_token_expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
