@@ -1041,15 +1041,15 @@ export function HomeMapView() {
   const visibleCount = businesses.filter(b => b.latitude && b.longitude).length;
 
   return (
-    <div ref={outerRef} className="relative w-full overflow-hidden" style={{ height: "100dvh", touchAction: "pan-x pan-y" }}>
+    <div ref={outerRef} className="relative w-full overflow-hidden map-hero-h" style={{ touchAction: "pan-x pan-y" }}>
       {/* Map canvas — rotation applied here via CSS transform in useEffect */}
       {/* Physical 3× container — Leaflet loads tiles for 3× viewport area,
           giving a full free-pan buffer in every direction when rotated.
           transform-origin defaults to 50% 50% = viewport center (correct). */}
-      <div ref={containerRef} style={{
+      <div ref={containerRef} className="map-hero-h-3x" style={{
         position: "absolute",
-        width: "300vw", height: "300dvh",
-        top: "-100dvh", left: "-100vw",
+        width: "300vw",
+        left: "-100vw",
       }} />
 
       {/* ── Floating Search + Filters ── */}

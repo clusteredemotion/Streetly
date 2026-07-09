@@ -381,3 +381,15 @@ html { scroll-behavior: smooth; }
   50% { transform: scale(1.15); opacity: 0.7; }
 }
 .live-dot { animation: live-pulse 1.2s ease-in-out infinite; }
+
+/* ─── Robust full-viewport height (some Android WebView builds don't
+   support the dvh unit — vh is the safe fallback, dvh overrides it
+   when supported) ─── */
+.map-hero-h { height: 100vh; }
+@supports (height: 100dvh) {
+  .map-hero-h { height: 100dvh; }
+}
+.map-hero-h-3x { height: 300vh; top: -100vh; }
+@supports (height: 100dvh) {
+  .map-hero-h-3x { height: 300dvh; top: -100dvh; }
+}
