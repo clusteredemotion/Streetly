@@ -769,7 +769,10 @@ router.post("/users/:id/reset-password", async (req, res) => {
   if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
 
   const hash = crypto.createHash("sha256").update(newPassword + "streetly_salt").digest("hex");
-  const [user] = await db.update(usersTable).set({ passwordHash: hash }).where(eq(usersTable.id, id)).returning();
+  const [user] = await db.update(usersTable)
+    .set({ passwordHash: hash, mustChangePassword: true })
+    .where(eq(usersTable.id, id))
+    .returning();
   if (!user) return res.status(404).json({ error: "User not found" });
   return res.json({ ok: true });
 });
