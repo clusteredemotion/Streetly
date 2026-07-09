@@ -8,7 +8,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only). This also runs automatically after every task merge (see `scripts/post-merge.sh`), so schema drift should be rare if changes always go through `lib/db/src/schema`. Never hand-edit the dev/prod DB with raw SQL to "fix" a missing column — fix the schema file and push instead, or the fix will be lost on the next drift check.
 - Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack

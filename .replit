@@ -24,6 +24,10 @@ args = "typecheck"
 task = "workflow.run"
 args = "e2e-rider-redirect"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "db-schema-drift"
+
 [[workflows.workflow]]
 name = "typecheck"
 author = "agent"
@@ -42,6 +46,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd artifacts/streetly && npx playwright test e2e/rider-redirect.spec.ts"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "db-schema-drift"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/db run check-drift"
 
 [workflows.workflow.metadata]
 isValidation = true
