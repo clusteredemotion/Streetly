@@ -48,8 +48,9 @@ type Summary = {
   totalPaidOut: number;
 };
 
-function useSummary() {
+function useSummary(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["rm", "summary"],
     refetchInterval: 30_000,
     queryFn: async () => {
@@ -76,12 +77,14 @@ function useEarningsTrend(period: "day" | "week" | "month") {
   });
 }
 
-function useMyAgents() {
+function useMyAgents(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["rm", "agents"],
     refetchInterval: 60_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/regional-manager/agents`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load agents");
       return res.json() as Promise<AgentRow[]>;
     },
   });
@@ -93,6 +96,7 @@ function useAgentBusinesses(agentId: number | null) {
     enabled: agentId !== null,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/regional-manager/agents/${agentId}/businesses`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load businesses");
       return res.json() as Promise<Business[]>;
     },
   });
@@ -104,6 +108,7 @@ function useAgentCommissions(agentId: number | null) {
     enabled: agentId !== null,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/regional-manager/agents/${agentId}/commissions`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load commissions");
       return res.json() as Promise<Commission[]>;
     },
   });
@@ -416,8 +421,8 @@ export default function RegionalManagerDashboardPage() {
       .finally(() => setChecking(false));
   }, []);
 
-  const { data: agents = [], isLoading } = useMyAgents();
-  const { data: summary, isLoading: summaryLoading } = useSummary();
+  const { data: agents = [], isLoading } = useMyAgents(!!token);
+  const { data: summary, isLoading: summaryLoading } = useSummary(!!token);
 
   if (checking) {
     return (

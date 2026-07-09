@@ -6,7 +6,7 @@ import { Loader2, CheckCircle, XCircle, Building2, ImageIcon, Star, LifeBuoy, Lo
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import AdminSupportTickets from "@/components/admin/AdminSupportTickets";
-import { useListAllSupportTickets } from "@workspace/api-client-react";
+import { useListAllSupportTickets, getListAllSupportTicketsQueryKey } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -24,22 +24,26 @@ const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: "tickets", label: "Support Tickets", icon: <LifeBuoy className="h-4 w-4" /> },
 ];
 
-function usePendingBusinesses() {
+function usePendingBusinesses(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["mod", "businesses", "pending"],
     refetchInterval: 30_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/businesses/pending`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load pending businesses");
       return res.json() as Promise<Array<{ id: number; name: string; phone: string | null; address: string | null; status: string; createdAt: string }>>;
     },
   });
 }
 
-function useAllBusinesses() {
+function useAllBusinesses(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["mod", "businesses", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/businesses/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load businesses");
       return res.json() as Promise<Array<{ id: number; name: string; categoryName: string | null; status: string }>>;
     },
   });
@@ -324,6 +328,11 @@ export default function ModeratorDashboardPage() {
       .finally(() => setChecking(false));
   }, []);
 
+  const { data: pendingBizList = [] } = usePendingBusinesses(!!token);
+  const { data: allTickets = [] } = useListAllSupportTickets({ query: { enabled: !!token, queryKey: getListAllSupportTicketsQueryKey() } });
+  const pendingCount = Array.isArray(pendingBizList) ? pendingBizList.length : 0;
+  const openTicketsCount = Array.isArray(allTickets) ? allTickets.filter((t: any) => t.status === "open").length : 0;
+
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center"
@@ -332,11 +341,6 @@ export default function ModeratorDashboardPage() {
       </div>
     );
   }
-
-  const { data: pendingBizList = [] } = usePendingBusinesses();
-  const { data: allTickets = [] } = useListAllSupportTickets();
-  const pendingCount = Array.isArray(pendingBizList) ? pendingBizList.length : 0;
-  const openTicketsCount = Array.isArray(allTickets) ? allTickets.filter((t: any) => t.status === "open").length : 0;
 
   if (!token) {
     return (

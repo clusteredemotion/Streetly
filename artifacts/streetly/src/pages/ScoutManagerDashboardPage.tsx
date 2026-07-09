@@ -24,12 +24,14 @@ const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
 ];
 
 /* ── Data hooks ── */
-function useAllAgents() {
+function useAllAgents(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["scout", "agents", "all"],
     refetchInterval: 30_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/agents/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load agents");
       return res.json() as Promise<Array<{
         id: number; userId: number; status: string; fullName: string | null;
         bankName: string | null; accountNumber: string | null; accountName: string | null;
@@ -66,11 +68,13 @@ function useSuspendAgent() {
   });
 }
 
-function useWithdrawals() {
+function useWithdrawals(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["scout", "withdrawals"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/withdrawals`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load withdrawals");
       return res.json() as Promise<Array<{
         id: number; agentId: number; amount: number; status: string; createdAt: string;
         agentFullName: string | null; agentBankName: string | null;
@@ -94,12 +98,14 @@ function useApproveWithdrawal() {
   });
 }
 
-function useAllProperties() {
+function useAllProperties(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["scout", "properties"],
     refetchInterval: 30_000,
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/properties/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load properties");
       return res.json() as Promise<Array<{
         id: number; title: string; address: string; status: string;
         priceAmount: number | null; priceType: string; contactName: string; contactPhone: string;
@@ -377,8 +383,8 @@ export default function ScoutManagerDashboardPage() {
       .finally(() => setChecking(false));
   }, []);
 
-  const { data: agentList = [] } = useAllAgents();
-  const { data: propertyList = [] } = useAllProperties();
+  const { data: agentList = [] } = useAllAgents(!!token);
+  const { data: propertyList = [] } = useAllProperties(!!token);
   const pendingAgentsCount = Array.isArray(agentList) ? agentList.filter((a: any) => a.status === "pending").length : 0;
   const pendingPropertiesCount = Array.isArray(propertyList) ? propertyList.filter((p: any) => p.status === "pending").length : 0;
 
