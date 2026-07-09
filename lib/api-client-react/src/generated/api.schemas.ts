@@ -23,11 +23,27 @@ export interface RegisterInput {
   email: string;
   password: string;
   role: RegisterInputRole;
+  recaptchaToken: string;
 }
 
 export interface LoginInput {
   email: string;
   password: string;
+}
+
+export type GoogleAuthInputRole = typeof GoogleAuthInputRole[keyof typeof GoogleAuthInputRole];
+
+
+export const GoogleAuthInputRole = {
+  visitor: 'visitor',
+  business_owner: 'business_owner',
+  field_agent: 'field_agent',
+} as const;
+
+export interface GoogleAuthInput {
+  idToken: string;
+  role?: GoogleAuthInputRole;
+  referralCode?: string | null;
 }
 
 export interface ChangePasswordInput {

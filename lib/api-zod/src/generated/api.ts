@@ -78,7 +78,8 @@ export const RegisterBody = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "password": zod.string(),
-  "role": zod.enum(['visitor', 'business_owner', 'field_agent'])
+  "role": zod.enum(['visitor', 'business_owner', 'field_agent']),
+  "recaptchaToken": zod.string()
 })
 
 
@@ -91,6 +92,28 @@ export const LoginBody = zod.object({
 })
 
 export const LoginResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string(),
+  "createdAt": zod.string(),
+  "mustChangePassword": zod.boolean().optional()
+})
+})
+
+
+/**
+ * @summary Sign up or log in with Google
+ */
+export const GoogleAuthBody = zod.object({
+  "idToken": zod.string(),
+  "role": zod.enum(['visitor', 'business_owner', 'field_agent']).optional(),
+  "referralCode": zod.string().nullish()
+})
+
+export const GoogleAuthResponse = zod.object({
   "token": zod.string(),
   "user": zod.object({
   "id": zod.number(),

@@ -192,6 +192,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
 
+  /auth/google:
+    post:
+      operationId: googleAuth
+      tags: [auth]
+      summary: Sign up or log in with Google
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleAuthInput"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
   /auth/change-password:
     post:
       operationId: changePassword
@@ -1351,7 +1370,7 @@ components:
     # Auth
     RegisterInput:
       type: object
-      required: [name, email, password, role]
+      required: [name, email, password, role, recaptchaToken]
       properties:
         name:
           type: string
@@ -1362,6 +1381,8 @@ components:
         role:
           type: string
           enum: [visitor, business_owner, field_agent]
+        recaptchaToken:
+          type: string
 
     LoginInput:
       type: object
@@ -1371,6 +1392,19 @@ components:
           type: string
         password:
           type: string
+
+    GoogleAuthInput:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
+          type: string
+        role:
+          type: string
+          enum: [visitor, business_owner, field_agent]
+        referralCode:
+          type: string
+          nullable: true
 
     ChangePasswordInput:
       type: object

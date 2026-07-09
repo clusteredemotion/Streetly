@@ -12,4 +12,5 @@ export interface RegisterInput {
   email: string;
   password: string;
   role: RegisterInputRole;
+  recaptchaToken: string;
 }

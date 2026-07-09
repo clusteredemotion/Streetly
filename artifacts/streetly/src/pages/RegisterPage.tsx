@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRegister } from "@workspace/api-client-react";
+import { useRegister, useGoogleAuth } from "@workspace/api-client-react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import type { RegisterInputRole } from "@workspace/api-client-react";
 import { MapPin, User, Building2, MapPin as AgentIcon, Info } from "lucide-react";
 import { cn, formatCurrencyWithConversion } from "@/lib/utils";
 import { BUSINESS_REGISTRATION_FEE } from "@/lib/constants";
 import { useVisitorGeo } from "@/hooks/useVisitorGeo";
+import { RecaptchaWidget } from "@/components/auth/RecaptchaWidget";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
 const ROLES: { value: RegisterInputRole; label: string; desc: string; icon: typeof User }[] = [
   { value: "visitor" as RegisterInputRole, label: "Customer / Visitor", desc: "Discover and contact local businesses", icon: User },
@@ -29,18 +31,30 @@ function getInitialRole(): RegisterInputRole {
 export default function RegisterPage() {
   const [, navigate] = useLocation();
   const registerMutation = useRegister();
+  const googleAuthMutation = useGoogleAuth();
   const { geo } = useVisitorGeo();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(getInitialRole);
   const [error, setError] = useState("");
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const referralCode = new URLSearchParams(window.location.search).get("ref");
+
+  const goToRoleDestination = (r: RegisterInputRole) => {
+    if (r === "field_agent") navigate("/agents/apply");
+    else if (r === "business_owner") navigate("/business/onboard");
+    else navigate("/");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!recaptchaToken) {
+      setError("Please complete the reCAPTCHA verification.");
+      return;
+    }
     try {
       const result = await registerMutation.mutateAsync({ 
         data: { 
@@ -48,18 +62,29 @@ export default function RegisterPage() {
           email, 
           password, 
           role,
-          referralCode 
+          referralCode,
+          recaptchaToken,
         } as any 
       });
       localStorage.setItem("streetly_token", result.token);
       setAuthTokenGetter(() => localStorage.getItem("streetly_token"));
-      if (role === "field_agent") navigate("/agents/apply");
-      else if (role === "business_owner") navigate("/business/onboard");
-      else navigate("/");
+      goToRoleDestination(role);
     } catch (err: any) {
       setError(err?.data?.error ?? "Registration failed. Please try again.");
     }
   };
+
+  const handleGoogleCredential = useCallback(async (idToken: string) => {
+    setError("");
+    try {
+      const result = await googleAuthMutation.mutateAsync({ data: { idToken, role, referralCode: referralCode ?? undefined } as any });
+      localStorage.setItem("streetly_token", result.token);
+      setAuthTokenGetter(() => localStorage.getItem("streetly_token"));
+      goToRoleDestination(result.user.role as RegisterInputRole);
+    } catch (err: any) {
+      setError(err?.data?.error ?? "Google sign-up failed. Please try again.");
+    }
+  }, [role, referralCode, googleAuthMutation]);
 
   return (
     <Layout>
@@ -155,6 +180,10 @@ export default function RegisterPage() {
                 />
               </div>
 
+              <div>
+                <RecaptchaWidget onVerify={setRecaptchaToken} />
+              </div>
+
               {error && (
                 <div className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</div>
               )}
@@ -163,6 +192,14 @@ export default function RegisterPage() {
                 {registerMutation.isPending ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
+
+            <div className="my-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">OR</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <GoogleAuthButton onCredential={handleGoogleCredential} text="signup_with" />
 
             <div className="mt-5 text-center text-sm text-muted-foreground">
               Already have an account?{" "}

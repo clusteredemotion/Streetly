@@ -1,16 +1,28 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, useGoogleAuth } from "@workspace/api-client-react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { MapPin } from "lucide-react";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+
+function navigateForRole(role: string, navigate: (path: string) => void) {
+  if (role === "field_agent") navigate("/agent-dashboard");
+  else if (role === "business_owner") navigate("/owner-dashboard");
+  else if (role === "admin") navigate("/admin");
+  else if (role === "moderator") navigate("/moderator");
+  else if (role === "scout_manager") navigate("/scout-manager");
+  else if (role === "regional_manager") navigate("/regional-manager");
+  else navigate("/");
+}
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
   const loginMutation = useLogin();
+  const googleAuthMutation = useGoogleAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,19 +38,27 @@ export default function LoginPage() {
         navigate("/change-password");
         return;
       }
-      // Navigate based on role
-      const role = result.user.role;
-      if (role === "field_agent") navigate("/agent-dashboard");
-      else if (role === "business_owner") navigate("/owner-dashboard");
-      else if (role === "admin") navigate("/admin");
-      else if (role === "moderator") navigate("/moderator");
-      else if (role === "scout_manager") navigate("/scout-manager");
-      else if (role === "regional_manager") navigate("/regional-manager");
-      else navigate("/");
+      navigateForRole(result.user.role, navigate);
     } catch (err: any) {
       setError(err?.data?.error ?? "Invalid email or password");
     }
   };
+
+  const handleGoogleCredential = useCallback(async (idToken: string) => {
+    setError("");
+    try {
+      const result = await googleAuthMutation.mutateAsync({ data: { idToken } as any });
+      localStorage.setItem("streetly_token", result.token);
+      setAuthTokenGetter(() => localStorage.getItem("streetly_token"));
+      if (result.user.mustChangePassword) {
+        navigate("/change-password");
+        return;
+      }
+      navigateForRole(result.user.role, navigate);
+    } catch (err: any) {
+      setError(err?.data?.error ?? "Google sign-in failed. Please try again.");
+    }
+  }, [navigate, googleAuthMutation]);
 
   return (
     <Layout>
@@ -86,6 +106,14 @@ export default function LoginPage() {
                 {loginMutation.isPending ? "Signing in..." : "Sign In"}
               </Button>
             </form>
+
+            <div className="my-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">OR</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <GoogleAuthButton onCredential={handleGoogleCredential} text="signin_with" />
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
