@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Bike, Loader2, AlertCircle, CheckCircle, ShoppingCart } from "lucide-react";
-import { useGetAvailableRiders, useCreateMarketplaceOrder } from "@workspace/api-client-react";
+import { useGetAvailableRiders, useCreateMarketplaceOrder, getGetAvailableRidersQueryKey } from "@workspace/api-client-react";
 import { useCart } from "./CartContext";
 import { formatCurrency } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ export default function MarketplaceCheckoutModal({
 }: MarketplaceCheckoutModalProps) {
   const [, setLocation] = useLocation();
   const { lines, subtotal, clear } = useCart(businessId);
-  const { data: riders, isLoading: ridersLoading } = useGetAvailableRiders(businessId, { query: { enabled: open } });
+  const { data: riders, isLoading: ridersLoading } = useGetAvailableRiders(businessId, { query: { queryKey: getGetAvailableRidersQueryKey(businessId), enabled: open } });
   const createOrder = useCreateMarketplaceOrder();
 
   const [selectedRiderId, setSelectedRiderId] = useState<number | null>(null);

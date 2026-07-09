@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListReviews, useCreateReview, getListReviewsQueryKey } from "@workspace/api-client-react";
+import type { BusinessPhoto } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   MapPin, Star, ShieldCheck, Phone, MessageCircle, Globe,
@@ -188,7 +189,7 @@ export default function BusinessProfilePage() {
       .catch(() => setIsLoading(false));
   }, [slug]);
 
-  const { data: reviews } = useListReviews(bizId, { query: { enabled: !!bizId } });
+  const { data: reviews } = useListReviews(bizId, { query: { queryKey: getListReviewsQueryKey(bizId), enabled: !!bizId } });
   const createReview = useCreateReview();
 
   const [reviewerName, setReviewerName] = useState("");
@@ -361,7 +362,7 @@ export default function BusinessProfilePage() {
                 className={`grid ${gridClass} gap-2 mb-8 rounded-3xl overflow-hidden border border-white/5`}
                 style={{ height: count <= 2 ? "14rem" : "18rem" }}
               >
-                {visible.map((p, i) => {
+                {visible.map((p: BusinessPhoto, i: number) => {
                   const isLast = i === 3;
                   return (
                     <button
@@ -458,7 +459,7 @@ export default function BusinessProfilePage() {
                 {/* Thumbnail strip */}
                 {photos.length > 1 && (
                   <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 px-4 overflow-x-auto max-w-[90vw]">
-                    {photos.map((p, i) => (
+                    {photos.map((p: BusinessPhoto, i: number) => (
                       <button
                         key={p.id ?? i}
                         onClick={(e) => { e.stopPropagation(); setLightboxIdx(i); }}

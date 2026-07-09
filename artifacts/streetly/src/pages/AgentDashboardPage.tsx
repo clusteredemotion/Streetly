@@ -834,7 +834,7 @@ function ProfileTab({ agent, agentId, onRefresh }: {
           <div>
             <div className="text-base font-semibold text-white">{(agent.fullName as string) || (agent.userName as string) || "Agent"}</div>
             <div className="text-sm text-white/50 mt-0.5">{(agent.userEmail as string) || ""}</div>
-            {agent.msaId && (
+            {(agent.msaId as string | null | undefined) && (
               <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-[#4a9eff]/10 border border-[#4a9eff]/25 text-[#4a9eff] text-[10px] font-mono font-bold tracking-wider">
                 {agent.msaId as string}
               </span>
@@ -1032,7 +1032,7 @@ export default function AgentDashboardPage() {
       if (!res.ok) throw new Error(data.error ?? "Withdrawal failed");
       setShowWithdraw(false);
       setWithdrawAmount("");
-      fetchDash();
+      fetchDash(agentId!);
     } catch (err: unknown) {
       setWithdrawError(err instanceof Error ? err.message : "Failed");
     } finally {
@@ -1149,7 +1149,7 @@ export default function AgentDashboardPage() {
                       <h1 className="text-2xl font-extrabold text-white">
                         {(agent.fullName as string) || (agent.userName as string) || "Agent"}
                       </h1>
-                      {agent.msaId && (
+                      {(agent.msaId as string | null | undefined) && (
                         <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-[#4a9eff]/15 border border-[#4a9eff]/30 text-[#4a9eff] text-xs font-mono font-bold tracking-wider">
                           {agent.msaId as string}
                         </span>
@@ -1246,7 +1246,7 @@ export default function AgentDashboardPage() {
                         <div>
                           <div className="text-xs text-white/50 mb-0.5">Available Balance</div>
                           <div className="text-2xl font-bold text-white">{fmt(agent.availableBalance as number)}</div>
-                          <div className="text-xs text-white/40 mt-0.5">{agent.bankName} · {agent.accountNumber}</div>
+                          <div className="text-xs text-white/40 mt-0.5">{agent.bankName as string} · {agent.accountNumber as string}</div>
                         </div>
                         {!showWithdraw && (
                           <button
@@ -1367,7 +1367,7 @@ export default function AgentDashboardPage() {
               <motion.div key="listings" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-semibold text-white">All My Listings</h2>
-                  <button onClick={() => { fetchListings(); fetchDash(); }}
+                  <button onClick={() => { fetchListings(agentId!); fetchDash(agentId!); }}
                     className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors">
                     <RefreshCw className="h-3.5 w-3.5" /> Refresh
                   </button>
@@ -1428,13 +1428,13 @@ export default function AgentDashboardPage() {
                             <div className="text-xs text-white/40 mt-1">
                               {biz.categoryName as string ?? "—"} · {new Date(biz.createdAt as string).toLocaleDateString()}
                             </div>
-                            {biz.address && (
+                            {(biz.address as string | null | undefined) && (
                               <div className="flex items-center gap-1 text-xs text-white/35 mt-1">
                                 <MapPin className="h-3 w-3" />
                                 <span className="truncate">{biz.address as string}</span>
                               </div>
                             )}
-                            {biz.phone && (
+                            {(biz.phone as string | null | undefined) && (
                               <div className="flex items-center gap-1 text-xs text-white/35 mt-0.5">
                                 <Phone className="h-3 w-3" />
                                 {biz.phone as string}

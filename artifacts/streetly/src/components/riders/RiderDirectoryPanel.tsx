@@ -4,7 +4,7 @@ import {
   X, Phone, MessageCircle, Bike, Car, Footprints, Truck,
   MapPin, ChevronRight, Calendar, Package, ArrowLeft,
 } from "lucide-react";
-import { useGetAvailableRidersDirectory } from "@workspace/api-client-react";
+import { useGetAvailableRidersDirectory, getGetAvailableRidersDirectoryQueryKey } from "@workspace/api-client-react";
 import type { RiderDirectoryEntry } from "@workspace/api-client-react";
 
 function vehicleIcon(vehicleType?: string | null) {
@@ -63,9 +63,10 @@ export function RiderDirectoryPanel({ open, onClose }: RiderDirectoryPanelProps)
     if (!open) setProfileRider(null);
   }, [open]);
 
+  const _riderParams = coords ? { lat: coords.lat, lon: coords.lon } : undefined;
   const { data: riders, isLoading } = useGetAvailableRidersDirectory(
-    coords ? { lat: coords.lat, lon: coords.lon } : undefined,
-    { query: { enabled: open } },
+    _riderParams,
+    { query: { queryKey: getGetAvailableRidersDirectoryQueryKey(_riderParams), enabled: open } },
   );
 
   return (

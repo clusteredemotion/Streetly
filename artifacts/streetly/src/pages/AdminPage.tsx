@@ -8,11 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetAdminStats,
   useGetPendingBusinesses,
-  useGetPendingAgents,
   useApproveBusiness,
   useApproveAgent,
   getGetPendingBusinessesQueryKey,
-  getGetPendingAgentsQueryKey,
   getGetAdminStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -73,6 +71,23 @@ function useAllAgents() {
         totalEarnings: number; availableBalance: number;
         passportPhotoUrl: string | null; ninSlipUrl: string | null; createdAt: string;
         userName: string | null; userEmail: string | null; userRole: string | null;
+        msaId: string | null; managerId: number | null;
+      }>>;
+    },
+  });
+}
+
+type AllAgentRow = NonNullable<ReturnType<typeof useAllAgents>["data"]>[number];
+
+function usePendingAdminAgents() {
+  return useQuery({
+    queryKey: ["admin", "agents", "pending"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/admin/agents/pending`, { headers: authHeader() });
+      return res.json() as Promise<Array<{
+        id: number; userId: number; status: string;
+        fullName: string | null; passportPhotoUrl: string | null;
+        createdAt: string; userEmail: string | null;
       }>>;
     },
   });
@@ -669,7 +684,7 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
 
 /* ── Edit Agent Modal ── */
 function EditAgentModal({ agent, onClose, onSaved }: {
-  agent: ReturnType<typeof useAllAgents>["data"] extends Array<infer T> ? T : never;
+  agent: AllAgentRow;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1812,7 +1827,7 @@ export default function AdminPage() {
   const { data: pendingBiz } = useGetPendingBusinesses();
   const { data: pendingProperties } = usePendingProperties();
   const { data: allProperties, refetch: refetchAllProperties } = useAllProperties();
-  const { data: pendingAgents } = useGetPendingAgents();
+  const { data: pendingAgents } = usePendingAdminAgents();
   const { data: pendingClaims } = usePendingClaims();
   const { data: allAgents, refetch: refetchAgents } = useAllAgents();
   const { data: pendingRiders, refetch: refetchPendingRiders } = usePendingRiders();
@@ -1842,14 +1857,14 @@ export default function AdminPage() {
   const { data: allKYC } = useAllKYC();
 
   const [adminNotes, setAdminNotes] = useState<Record<number, string>>({});
-  const [editAgent, setEditAgent] = useState<any>(null);
+  const [editAgent, setEditAgent] = useState<AllAgentRow | null>(null);
   const [editUser, setEditUser] = useState<{ id: number; name: string; email: string; role: string; createdAt: string } | null>(null);
   const [resetPwUser, setResetPwUser] = useState<{ id: number; name: string } | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [editBusiness, setEditBusiness] = useState<AdminBusiness | null>(null);
   const [itemsBusiness, setItemsBusiness] = useState<AdminBusiness | null>(null);
   const [viewAgentBiz, setViewAgentBiz] = useState<AdminBusiness | null>(null);
-  const [reviewAgent, setReviewAgent] = useState<any>(null);
+  const [reviewAgent, setReviewAgent] = useState<AllAgentRow | null>(null);
   const [reviewRider, setReviewRider] = useState<PendingRider | null>(null);
   const [reviewProperty, setReviewProperty] = useState<AdminProperty | null>(null);
   const [reviewPropertyReadOnly, setReviewPropertyReadOnly] = useState(false);
@@ -1957,7 +1972,7 @@ export default function AdminPage() {
 
   const handleAgentApproval = async (id: number, approved: boolean) => {
     await approveAgent.mutateAsync({ id, data: { approved } });
-    qc.invalidateQueries({ queryKey: getGetPendingAgentsQueryKey() });
+    qc.invalidateQueries({ queryKey: ["admin", "agents", "pending"] });
     qc.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
     refetchAgents();
   };
@@ -2002,7 +2017,7 @@ export default function AdminPage() {
       <AnimatePresence>
         {editAgent && (
           <EditAgentModal
-            agent={editAgent as any}
+            agent={editAgent!}
             onClose={() => setEditAgent(null)}
             onSaved={() => { refetchAgents(); qc.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() }); }}
           />
@@ -2046,7 +2061,7 @@ export default function AdminPage() {
             onClose={() => setViewAgentBiz(null)}
             onEdit={() => {
               const match = allAgents?.find(a => a.id === viewAgentBiz.agentId);
-              if (match) { setViewAgentBiz(null); setEditAgent(match as any); }
+              if (match) { setViewAgentBiz(null); setEditAgent(match); }
             }}
           />
         )}
@@ -2784,7 +2799,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0 flex-col sm:flex-row">
-                      <Button size="sm" variant="outline" onClick={() => setEditAgent(agent as any)}
+                      <Button size="sm" variant="outline" onClick={() => setEditAgent(agent)}
                         className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
                         <Edit2 className="h-3.5 w-3.5" /> Edit
                       </Button>

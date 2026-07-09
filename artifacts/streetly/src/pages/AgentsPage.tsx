@@ -80,7 +80,7 @@ export default function AgentsPage() {
                 { label: "Active Agents", value: stats.totalAgents.toLocaleString() },
                 { label: "Businesses Listed", value: stats.totalBusinesses.toLocaleString() },
                 { label: "Streets Covered", value: stats.totalStreets.toLocaleString() },
-                { label: "Total Paid Out", value: formatCurrency(stats.totalEarningsPaid) },
+                { label: "Total Paid Out", value: formatCurrency(stats.totalEarningsPaid ?? 0) },
               ].map((item) => (
                 <div key={item.label}>
                   <div className="text-2xl md:text-3xl font-extrabold text-foreground">{item.value}</div>

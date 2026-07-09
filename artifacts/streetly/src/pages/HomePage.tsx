@@ -121,6 +121,7 @@ function TypingText({ words }: { words: string[] }) {
       } else {
         setIdx((i) => (i + 1) % words.length);
         setTyping(true);
+        return;
       }
     }
   }, [text, typing, idx, words]);
