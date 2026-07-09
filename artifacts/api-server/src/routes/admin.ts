@@ -715,6 +715,7 @@ router.get("/users/all", async (_req, res) => {
       registrationIp: usersTable.registrationIp,
       passwordHash: usersTable.passwordHash,
       msaId: usersTable.msaId,
+      mustChangePassword: usersTable.mustChangePassword,
     })
     .from(usersTable)
     .orderBy(usersTable.createdAt);

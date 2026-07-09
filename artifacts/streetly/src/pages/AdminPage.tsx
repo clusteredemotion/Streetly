@@ -102,7 +102,7 @@ function useAllUsers() {
       const res = await fetch(`${BASE}/api/admin/users/all`, { headers: authHeader() });
       return res.json() as Promise<Array<{
         id: number; name: string; email: string; role: string; createdAt: string;
-        registrationIp: string | null; passwordHash: string | null;
+        registrationIp: string | null; passwordHash: string | null; mustChangePassword: boolean | null;
       }>>;
     },
   });
@@ -2980,6 +2980,11 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <h3 className="font-semibold text-foreground">{user.name}</h3>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/60">{user.role}</span>
+                        {user.mustChangePassword && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-medium">
+                            Password change pending
+                          </span>
+                        )}
                       </div>
                       {(user as any).msaId && (
                         <span className="inline-block mb-1 px-2 py-0.5 rounded-full bg-[#4a9eff]/10 border border-[#4a9eff]/25 text-[#4a9eff] text-[10px] font-mono font-bold tracking-wider">
