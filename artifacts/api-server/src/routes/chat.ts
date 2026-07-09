@@ -1,10 +1,12 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { db } from "@workspace/db";
 import {
   conversationsTable, chatMessagesTable, businessesTable, usersTable,
 } from "@workspace/db";
 import { eq, and, or, desc, isNull, ne } from "drizzle-orm";
 import { requireAuth } from "../lib/authHelpers";
+
+type IdParams = { id: string };
 
 const router = Router();
 
@@ -90,7 +92,7 @@ function canAccessConversation(conv: typeof conversationsTable.$inferSelect, use
 }
 
 // GET /conversations/:id/messages
-router.get("/:id/messages", requireAuth, async (req, res) => {
+router.get("/:id/messages", requireAuth, async (req: Request<IdParams>, res) => {
   const user = (req as any).currentUser;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
@@ -119,7 +121,7 @@ router.get("/:id/messages", requireAuth, async (req, res) => {
 });
 
 // POST /conversations/:id/messages
-router.post("/:id/messages", requireAuth, async (req, res) => {
+router.post("/:id/messages", requireAuth, async (req: Request<IdParams>, res) => {
   const user = (req as any).currentUser;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });

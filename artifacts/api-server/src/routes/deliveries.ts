@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { db } from "@workspace/db";
 import {
   deliveryOrdersTable, businessesTable, ridersTable, usersTable,
@@ -64,6 +64,8 @@ function verifyGuestTrackingToken(
   return crypto.timingSafeEqual(expectedBuf, actualBuf);
 }
 
+type BusinessParams = { businessId: string };
+
 const router = Router({ mergeParams: true });
 const standaloneRouter = Router();
 router.use(blockIfMustChangePassword);
@@ -97,7 +99,7 @@ async function enrichDelivery(order: typeof deliveryOrdersTable.$inferSelect) {
 }
 
 // POST /businesses/:businessId/deliveries — customer creates a delivery request
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
@@ -138,7 +140,7 @@ router.post("/", async (req, res) => {
 });
 
 // GET /businesses/:businessId/deliveries — business owner (or admin) views their delivery orders
-router.get("/", async (req, res) => {
+router.get("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
@@ -303,7 +305,7 @@ const businessMarketRouter = Router({ mergeParams: true });
 
 // GET /businesses/:businessId/available-riders — online, approved riders near the business,
 // each with a computed delivery fee, so the customer can pick one at checkout.
-businessMarketRouter.get("/available-riders", async (req, res) => {
+businessMarketRouter.get("/available-riders", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
@@ -334,7 +336,7 @@ businessMarketRouter.get("/available-riders", async (req, res) => {
 
 // POST /businesses/:businessId/marketplace-orders — customer checks out a cart:
 // picks items + a specific rider, server recomputes all pricing and creates the order pre-assigned to that rider.
-businessMarketRouter.post("/marketplace-orders", async (req, res) => {
+businessMarketRouter.post("/marketplace-orders", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 

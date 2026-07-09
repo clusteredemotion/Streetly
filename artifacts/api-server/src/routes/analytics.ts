@@ -1,10 +1,12 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { db } from "@workspace/db";
 import {
   businessAnalyticsEventsTable, businessesTable, deliveryOrdersTable,
 } from "@workspace/db";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/authHelpers";
+
+type BusinessParams = { businessId: string };
 
 const router = Router({ mergeParams: true });
 
@@ -30,7 +32,7 @@ router.post("/track", async (req, res) => {
 });
 
 // GET /businesses/:businessId/analytics — owner or admin only
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", requireAuth, async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 

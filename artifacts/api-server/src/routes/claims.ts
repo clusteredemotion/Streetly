@@ -1,9 +1,11 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { db } from "@workspace/db";
 import { businessClaimsTable, businessesTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { verifyToken } from "./auth";
 import { blockIfMustChangePassword } from "../lib/authHelpers";
+
+type BusinessParams = { businessId?: string; id?: string };
 
 const router = Router({ mergeParams: true });
 router.use(blockIfMustChangePassword);
@@ -15,7 +17,7 @@ function getUser(req: any): { userId: number } | null {
 }
 
 // POST /businesses/:id/claim
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId ?? req.params.id ?? "0");
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid business id" });
 
@@ -46,7 +48,7 @@ router.post("/", async (req, res) => {
 });
 
 // GET /businesses/:id/claim/status — check claim status for current user
-router.get("/status", async (req, res) => {
+router.get("/status", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId ?? req.params.id ?? "0");
   const user = getUser(req);
   if (!user) return res.json({ claimed: false, status: null });

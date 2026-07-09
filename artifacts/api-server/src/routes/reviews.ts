@@ -1,12 +1,14 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { db } from "@workspace/db";
 import { reviewsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
+type BusinessParams = { businessId: string };
+
 const router = Router({ mergeParams: true });
 
 // GET /businesses/:businessId/reviews
-router.get("/", async (req, res) => {
+router.get("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
@@ -18,7 +20,7 @@ router.get("/", async (req, res) => {
 });
 
 // POST /businesses/:businessId/reviews
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 

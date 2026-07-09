@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import crypto from "crypto";
 import { db } from "@workspace/db";
 import {
@@ -13,6 +13,8 @@ import { generateUniqueSlug } from "./businesses";
 import { enrichProperty } from "./properties";
 import { sendMail } from "../lib/mailer";
 import { requireRole } from "../lib/authHelpers";
+
+type IdParams = { id: string };
 
 const router = Router();
 
@@ -192,7 +194,7 @@ router.put("/businesses/featured-order", async (req, res) => {
 });
 
 // PUT /admin/businesses/:id — edit any business (admin only)
-router.put("/businesses/:id", adminOnly, async (req, res) => {
+router.put("/businesses/:id", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
@@ -223,7 +225,7 @@ router.put("/businesses/:id", adminOnly, async (req, res) => {
 });
 
 // PATCH /admin/businesses/:id/suspend — toggle suspension (admin only)
-router.patch("/businesses/:id/suspend", adminOnly, async (req, res) => {
+router.patch("/businesses/:id/suspend", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   const { suspend } = req.body;
@@ -236,7 +238,7 @@ router.patch("/businesses/:id/suspend", adminOnly, async (req, res) => {
 });
 
 // DELETE /admin/businesses/:id (admin only)
-router.delete("/businesses/:id", adminOnly, async (req, res) => {
+router.delete("/businesses/:id", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   await db.delete(businessPhotosTable).where(eq(businessPhotosTable.businessId, id));
@@ -371,7 +373,7 @@ router.post("/properties", adminOnly, async (req, res) => {
 });
 
 // PUT /admin/properties/:id — edit any property (admin only)
-router.put("/properties/:id", adminOnly, async (req, res) => {
+router.put("/properties/:id", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
@@ -421,7 +423,7 @@ router.patch("/properties/:id/approve", async (req, res) => {
 });
 
 // DELETE /admin/properties/:id (admin only)
-router.delete("/properties/:id", adminOnly, async (req, res) => {
+router.delete("/properties/:id", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   await db.delete(propertyPhotosTable).where(eq(propertyPhotosTable.propertyId, id));
@@ -498,7 +500,7 @@ router.patch("/agents/:id/suspend", async (req, res) => {
 });
 
 // PATCH /admin/agents/:id/assign-manager — assign agent to a regional manager (admin only)
-router.patch("/agents/:id/assign-manager", adminOnly, async (req, res) => {
+router.patch("/agents/:id/assign-manager", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   const { managerId } = req.body;
@@ -515,7 +517,7 @@ router.patch("/agents/:id/assign-manager", adminOnly, async (req, res) => {
 });
 
 // DELETE /admin/agents/:id (admin only)
-router.delete("/agents/:id", adminOnly, async (req, res) => {
+router.delete("/agents/:id", adminOnly, async (req: Request<IdParams>, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, id)).limit(1);

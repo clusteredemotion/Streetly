@@ -26,7 +26,7 @@ async function getRates(): Promise<RateInfo> {
   }
   try {
     const resp = await fetch("https://open.er-api.com/v6/latest/NGN");
-    const data = await resp.json();
+    const data = (await resp.json()) as { result?: string; rates?: Record<string, number> };
     if (data && data.result === "success" && data.rates) {
       rateCache = { base: "NGN", rates: data.rates, fetchedAt: Date.now() };
       return rateCache;
@@ -53,7 +53,15 @@ async function lookupGeo(ip: string): Promise<GeoInfo> {
   }
   try {
     const resp = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,message,country,countryCode,regionName,city,currency,query`);
-    const data = await resp.json();
+    const data = (await resp.json()) as {
+      status?: string;
+      query?: string;
+      city?: string;
+      regionName?: string;
+      country?: string;
+      countryCode?: string;
+      currency?: string;
+    };
     if (data && data.status === "success") {
       return {
         ip: data.query ?? ip,

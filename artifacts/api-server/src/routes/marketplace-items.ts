@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { db } from "@workspace/db";
 import { marketplaceItemsTable, businessesTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -23,13 +23,15 @@ async function requireOwnerOrAdmin(userId: number | null, businessId: number): P
   return { ok: true };
 }
 
+type BusinessParams = { businessId: string };
+
 const router = Router({ mergeParams: true });
 const standaloneRouter = Router();
 router.use(blockIfMustChangePassword);
 standaloneRouter.use(blockIfMustChangePassword);
 
 // GET /businesses/:businessId/marketplace-items — public storefront view (available items only)
-router.get("/", async (req, res) => {
+router.get("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
@@ -40,7 +42,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET /businesses/:businessId/marketplace-items/manage — owner/admin view (includes unavailable items)
-router.get("/manage", async (req, res) => {
+router.get("/manage", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
@@ -54,7 +56,7 @@ router.get("/manage", async (req, res) => {
 });
 
 // POST /businesses/:businessId/marketplace-items — owner/admin adds an item
-router.post("/", async (req, res) => {
+router.post("/", async (req: Request<BusinessParams>, res) => {
   const businessId = parseInt(req.params.businessId);
   if (isNaN(businessId)) return res.status(400).json({ error: "Invalid businessId" });
 
