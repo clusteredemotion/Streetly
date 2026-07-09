@@ -29,11 +29,11 @@ jobs:
           node-version: 22
           cache: "pnpm"
 
-      - name: Setup JDK 21
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "21"
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -87,11 +87,11 @@ jobs:
           node-version: 22
           cache: "pnpm"
 
-      - name: Setup JDK 21
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "21"
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
