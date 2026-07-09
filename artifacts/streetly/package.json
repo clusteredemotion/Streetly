@@ -85,6 +85,9 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@types/leaflet": "^1.9.21",
     "country-state-city": "^3.2.1",
     "leaflet": "^1.9.4"
