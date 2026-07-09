@@ -21,3 +21,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_CLIENT_ID = "609502913107-6iqd2macnh7tqgu9etah37aifkj1d352.apps.googleusercontent.com"
+RECAPTCHA_SITE_KEY = "6LfoY0stAAAAAI0gKRZ6efCkYp_Gr5L7vV86RYuT"
