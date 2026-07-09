@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, Users, LogOut, Menu, X, ChevronLeft, Building2,
   CreditCard, User, IdCard, MapPin, Wallet, BadgeCheck, Phone, Mail,
-  Camera, Image as ImageIcon,
+  Camera, Image as ImageIcon, TrendingUp, Clock,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
@@ -36,6 +36,26 @@ type Business = {
 };
 
 type Commission = { id: number; agentId: number; amount: number; status: string; createdAt: string };
+
+type Summary = {
+  totalAgents: number;
+  pendingAgents: number;
+  totalBusinesses: number;
+  cumulativeEarnings: number;
+  totalPaidOut: number;
+};
+
+function useSummary() {
+  return useQuery({
+    queryKey: ["rm", "summary"],
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/regional-manager/summary`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load summary");
+      return res.json() as Promise<Summary>;
+    },
+  });
+}
 
 function useMyAgents() {
   return useQuery({
@@ -84,6 +104,44 @@ function StatusPill({ status }: { status: string }) {
     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${map[status] ?? "bg-white/10 text-white/50"}`}>
       {status}
     </span>
+  );
+}
+
+function StatCard({ label, value, icon, color }: { label: string; value: React.ReactNode; icon: React.ReactNode; color: string }) {
+  return (
+    <div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}20` }}>
+        <span style={{ color }}>{icon}</span>
+      </div>
+      <div>
+        <p className="text-2xl font-extrabold text-white">{value}</p>
+        <p className="text-xs text-white/40 mt-0.5">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function RegionSummary({ summary, isLoading }: { summary: Summary | undefined; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="rounded-2xl p-5 h-[76px] flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <Loader2 className="h-4 w-4 animate-spin text-white/30" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (!summary) return null;
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatCard label="Assigned Agents" value={summary.totalAgents} icon={<Users className="h-5 w-5" />} color="#4a9eff" />
+      <StatCard label="Businesses Registered" value={summary.totalBusinesses} icon={<Building2 className="h-5 w-5" />} color="#7c6ef5" />
+      <StatCard label="Cumulative Earnings" value={`₦${summary.cumulativeEarnings.toLocaleString()}`} icon={<TrendingUp className="h-5 w-5" />} color="#34d399" />
+      <StatCard label="Paid-Out Commissions" value={`₦${summary.totalPaidOut.toLocaleString()}`} icon={<Wallet className="h-5 w-5" />} color="#fbbf24" />
+    </div>
   );
 }
 
@@ -291,6 +349,7 @@ export default function RegionalManagerDashboardPage() {
   }
 
   const { data: agents = [], isLoading } = useMyAgents();
+  const { data: summary, isLoading: summaryLoading } = useSummary();
 
   if (!token) {
     return (
@@ -359,6 +418,11 @@ export default function RegionalManagerDashboardPage() {
             <AgentDetailView agent={selectedAgent} onBack={() => setSelectedAgent(null)} />
           ) : (
             <div className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-white mb-1">Region Overview</h2>
+                <p className="text-sm text-white/40">Live summary of your region's performance.</p>
+              </div>
+              <RegionSummary summary={summary} isLoading={summaryLoading} />
               <div>
                 <h2 className="text-lg font-bold text-white mb-1">My Agents</h2>
                 <p className="text-sm text-white/40">All field agents assigned to your region. Tap an agent to view their full profile, commissions, and registered businesses.</p>

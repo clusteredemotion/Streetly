@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { agentsTable, usersTable, businessesTable, businessPhotosTable, withdrawalsTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray, sql, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -31,6 +31,44 @@ async function requireRegionalManager(req: any, res: any, next: any) {
 }
 
 router.use(requireRegionalManager);
+
+// GET /regional-manager/summary — aggregated stats for this manager's region
+router.get("/summary", async (req: any, res) => {
+  const myAgents = await db
+    .select({ id: agentsTable.id, totalEarnings: agentsTable.totalEarnings, status: agentsTable.status })
+    .from(agentsTable)
+    .where(eq(agentsTable.managerId, req.managerId));
+
+  const agentIds = myAgents.map((a) => a.id);
+  const totalAgents = myAgents.length;
+  const pendingAgents = myAgents.filter((a) => a.status === "pending").length;
+  const cumulativeEarnings = myAgents.reduce((sum, a) => sum + a.totalEarnings, 0);
+
+  let totalBusinesses = 0;
+  let totalPaidOut = 0;
+
+  if (agentIds.length > 0) {
+    const [bizRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(businessesTable)
+      .where(inArray(businessesTable.agentId, agentIds));
+    totalBusinesses = bizRow?.count ?? 0;
+
+    const [paidRow] = await db
+      .select({ total: sql<number>`coalesce(sum(${withdrawalsTable.amount}), 0)::float` })
+      .from(withdrawalsTable)
+      .where(and(inArray(withdrawalsTable.agentId, agentIds), eq(withdrawalsTable.status, "completed")));
+    totalPaidOut = paidRow?.total ?? 0;
+  }
+
+  return res.json({
+    totalAgents,
+    pendingAgents,
+    totalBusinesses,
+    cumulativeEarnings,
+    totalPaidOut,
+  });
+});
 
 // GET /regional-manager/agents — all agents assigned to this manager
 router.get("/agents", async (req: any, res) => {
