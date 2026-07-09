@@ -2801,6 +2801,9 @@ export default function AdminPage() {
                           Bank: {agent.bankName ?? "—"} · Earned: ₦{agent.totalEarnings?.toLocaleString() ?? 0} · Balance: ₦{agent.availableBalance?.toLocaleString() ?? 0}
                         </p>
                         <p className="text-xs text-muted-foreground">Applied: {new Date(agent.createdAt).toLocaleDateString()}</p>
+                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[10px] font-medium">
+                          Manager: {(allUsers ?? []).find((u: any) => u.id === agent.managerId)?.name ?? "Unassigned"}
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0 flex-col sm:flex-row">
