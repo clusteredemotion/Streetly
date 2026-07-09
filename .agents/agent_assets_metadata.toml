@@ -6,3 +6,9 @@ id = "B__Ez71PxHST-eB2ngQb1"
 uri = "file://Streetly_Documentation.pdf"
 type = "pdf"
 title = "Streetly Platform — Full Documentation"
+
+[[outputs]]
+id = "YNr1P7kwzN5mfsxrf4jbh"
+uri = "file://artifacts/streetly/streetly-release-signing.zip"
+type = "unspecified"
+title = "Streetly release keystore + password + setup instructions"
