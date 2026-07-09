@@ -41,6 +41,8 @@ export * from './deliveryOrderStatus';
 export * from './deliveryStatusInput';
 export * from './deliveryStatusInputStatus';
 export * from './errorEnvelope';
+export * from './forgotPassword200';
+export * from './forgotPasswordInput';
 export * from './geoInfo';
 export * from './getAvailableRidersDirectoryParams';
 export * from './getNearbyRidersParams';

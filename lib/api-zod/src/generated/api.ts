@@ -118,6 +118,18 @@ export const ChangePasswordResponse = zod.object({
 
 
 /**
+ * @summary Request a password reset link to be emailed to the user
+ */
+export const ForgotPasswordBody = zod.object({
+  "email": zod.string()
+})
+
+export const ForgotPasswordResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary Consume a one-time password-setup link (from the welcome email) to set an initial password
  */
 export const SetupPasswordBody = zod.object({

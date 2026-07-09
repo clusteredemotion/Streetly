@@ -221,6 +221,48 @@ router.post("/change-password", async (req, res) => {
   return res.json({ success: true });
 });
 
+// POST /auth/forgot-password — request a password reset link via email
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
+
+  // Always respond with success to avoid leaking whether an email is registered
+  if (!user) {
+    return res.json({ success: true });
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await db.update(usersTable)
+    .set({
+      passwordSetupTokenHash: resetTokenHash,
+      passwordSetupTokenExpiresAt: resetTokenExpiresAt,
+    })
+    .where(eq(usersTable.id, user.id));
+
+  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "streetly.app"}`;
+  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+
+  const sent = await sendMail({
+    to: user.email,
+    subject: "Reset your Streetly password",
+    text: `Hi ${user.name},\n\nWe received a request to reset your Streetly password. Click the link below to choose a new password:\n\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n— The Streetly Team`,
+    html: `<p>Hi ${user.name},</p><p>We received a request to reset your Streetly password. Click the button below to choose a new password:</p><p><a href="${resetUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">Reset Password</a></p><p>Or copy this link: ${resetUrl}</p><p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p><p>— The Streetly Team</p>`,
+  });
+
+  if (!sent) {
+    logger.error({ email: user.email }, "Failed to send password reset email — mailer not configured or send failed");
+  }
+
+  return res.json({ success: true });
+});
+
 // POST /auth/setup-password — consume a one-time link (from the welcome email) to set an initial password
 router.post("/setup-password", async (req, res) => {
   const { token, newPassword } = req.body;

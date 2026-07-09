@@ -182,21 +182,12 @@ export function Preloader() {
           <MapBackground />
           <MapPins />
 
-          {/* ── Frosted logo card ── */}
+          {/* ── Logo content, directly on the moving map ── */}
           <motion.div
             initial={{ opacity: 0, scale: 0.88, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.55, ease: easeOutBack }}
             className="relative z-10 flex flex-col items-center"
-            style={{
-              background: "rgba(6,12,30,0.55)",
-              backdropFilter: "blur(28px)",
-              WebkitBackdropFilter: "blur(28px)",
-              border: "1px solid rgba(74,158,255,0.18)",
-              borderRadius: 28,
-              padding: "36px 48px 32px",
-              boxShadow: "0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
-            }}
           >
             {/* SVG mark */}
             <motion.svg

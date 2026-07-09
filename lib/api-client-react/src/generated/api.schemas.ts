@@ -41,6 +41,10 @@ export interface SetupPasswordInput {
   newPassword: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
 export interface ContactInput {
   name: string;
   email: string;
@@ -719,6 +723,10 @@ export interface ErrorEnvelope {
 }
 
 export type ChangePassword200 = {
+  success: boolean;
+};
+
+export type ForgotPassword200 = {
   success: boolean;
 };
 
