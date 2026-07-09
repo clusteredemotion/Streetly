@@ -55,6 +55,7 @@ function usePendingClaims() {
         proofNote: string | null; status: string; createdAt: string;
       }>>;
     },
+    refetchInterval: 30_000,
   });
 }
 
@@ -90,6 +91,7 @@ function usePendingAdminAgents() {
         createdAt: string; userEmail: string | null;
       }>>;
     },
+    refetchInterval: 30_000,
   });
 }
 
@@ -130,6 +132,7 @@ function usePendingWithdrawals() {
         agentAvailableBalance: number | null;
       }>>;
     },
+    refetchInterval: 30_000,
   });
 }
 
@@ -311,6 +314,7 @@ function usePendingRiders() {
       const res = await fetch(`${BASE}/api/admin/riders/pending`, { headers: authHeader() });
       return res.json() as Promise<PendingRider[]>;
     },
+    refetchInterval: 30_000,
   });
 }
 
@@ -1654,6 +1658,7 @@ function usePendingProperties() {
       const res = await fetch(`${BASE}/api/admin/properties/pending`, { headers: authHeader() });
       return res.json() as Promise<AdminProperty[]>;
     },
+    refetchInterval: 30_000,
   });
 }
 
@@ -1823,8 +1828,8 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const handleNavSelect = (section: Section) => { setActiveSection(section); setSidebarOpen(false); };
 
-  const { data: stats, isLoading: statsLoading } = useGetAdminStats();
-  const { data: pendingBiz } = useGetPendingBusinesses();
+  const { data: stats, isLoading: statsLoading } = useGetAdminStats({ query: { refetchInterval: 30_000 } });
+  const { data: pendingBiz } = useGetPendingBusinesses({ query: { refetchInterval: 30_000 } });
   const { data: pendingProperties } = usePendingProperties();
   const { data: allProperties, refetch: refetchAllProperties } = useAllProperties();
   const { data: pendingAgents } = usePendingAdminAgents();
