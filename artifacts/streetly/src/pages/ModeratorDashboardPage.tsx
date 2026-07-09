@@ -390,8 +390,11 @@ export default function ModeratorDashboardPage() {
       <main className="flex-1 min-w-0 overflow-y-auto">
         <header className="flex items-center gap-3 px-6 py-4 border-b border-white/8 sticky top-0 z-20"
           style={{ background: "rgba(6,12,26,0.8)", backdropFilter: "blur(12px)" }}>
-          <button className="md:hidden text-white/50 hover:text-white" onClick={() => setMobileOpen(true)}>
+          <button className="relative md:hidden text-white/50 hover:text-white" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
+            {(pendingCount + openTicketsCount) > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
+            )}
           </button>
           <div>
             <h1 className="font-bold text-white text-sm">{NAV.find(n => n.id === activeSection)?.label}</h1>
