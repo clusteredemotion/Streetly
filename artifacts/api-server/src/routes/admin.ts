@@ -12,6 +12,7 @@ import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
 import { enrichProperty } from "./properties";
 import { sendMail } from "../lib/mailer";
+import { requireRole } from "../lib/authHelpers";
 
 const router = Router();
 
@@ -34,16 +35,11 @@ function getUserIdFromAuthHeader(req: { headers: { authorization?: string } }): 
   }
 }
 
-function requireAnyRole(...roles: string[]) {
-  return async (req: any, res: any, next: any) => {
-    const userId = getUserIdFromAuthHeader(req);
-    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const [user] = await db.select({ role: usersTable.role, mustChangePassword: usersTable.mustChangePassword }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    if (!user || !roles.includes(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
-    if (user.mustChangePassword) { res.status(403).json({ error: "You must change your password before continuing", code: "PASSWORD_CHANGE_REQUIRED" }); return; }
-    next();
-  };
-}
+// Explicit allow-list of staff roles permitted on /admin/*. Any role not in
+// this set — regional_manager included — hits the deny-all fallback in
+// requireRole and gets a 403. Kept as a local alias so call sites below read
+// the same as before the refactor.
+const requireAnyRole = requireRole;
 
 const adminOnly = requireAnyRole("admin");
 

@@ -2,35 +2,22 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { agentsTable, usersTable, businessesTable, businessPhotosTable, withdrawalsTable } from "@workspace/db";
 import { eq, desc, inArray, sql, and } from "drizzle-orm";
+import { requireRole } from "../lib/authHelpers";
 
 const router = Router();
 
-function getUserIdFromAuthHeader(req: { headers: { authorization?: string } }): number | null {
-  const h = req.headers.authorization;
-  if (!h?.startsWith("Bearer ")) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(h.slice(7), "base64").toString());
-    if (typeof payload?.userId !== "number") return null;
-    if (typeof payload?.exp === "number" && payload.exp < Date.now()) return null;
-    return payload.userId;
-  } catch {
-    return null;
-  }
-}
+// Explicit allow-list of exactly one role. Uses the shared requireRole
+// middleware (same token-parsing + deny-all logic as /admin/*) instead of a
+// bespoke base64 decode, so this route family can't drift from the rest of
+// the app's auth behavior.
+router.use(requireRole("regional_manager"));
 
-async function requireRegionalManager(req: any, res: any, next: any) {
-  const userId = getUserIdFromAuthHeader(req);
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const [user] = await db.select({ id: usersTable.id, role: usersTable.role })
-    .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user || user.role !== "regional_manager") { res.status(403).json({ error: "Forbidden" }); return; }
-  const [flagRow] = await db.select({ mustChangePassword: usersTable.mustChangePassword }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (flagRow?.mustChangePassword) { res.status(403).json({ error: "You must change your password before continuing", code: "PASSWORD_CHANGE_REQUIRED" }); return; }
-  req.managerId = userId;
+// requireRole attaches the full user row to req.currentUser; keep
+// req.managerId around since the handlers below already reference it.
+router.use((req: any, _res, next) => {
+  req.managerId = req.currentUser.id;
   next();
-}
-
-router.use(requireRegionalManager);
+});
 
 // GET /regional-manager/summary — aggregated stats for this manager's region
 router.get("/summary", async (req: any, res) => {

@@ -12,3 +12,4 @@
 - [Streetly duplicated auth middleware](streetly-duplicated-auth-middleware.md) — admin.ts has its own copy of the token/role-check logic instead of importing authHelpers.ts; any auth-gating change must be made in both places
 - [Streetly schema/DB drift](streetly-schema-db-drift.md) — usersTable columns referenced in code (e.g. must_change_password, password_setup_token_hash) may not actually exist in the DB; verify with information_schema before assuming login works
 - [Streetly admin portal optimistic loading](streetly-admin-portal-optimistic-loading.md) — AdminPage briefly renders full admin UI for non-admin tokens while /auth/me loads; admin-only data hooks must check res.ok or they crash before the redirect fires
+- [Streetly requireRole select columns](streetly-require-role-columns.md) — shared role-check middleware must select only {id,role,mustChangePassword}, not full user row, or it 500s on drifted schema columns
