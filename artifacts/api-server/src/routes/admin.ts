@@ -716,10 +716,74 @@ router.get("/users/all", async (_req, res) => {
       passwordHash: usersTable.passwordHash,
       msaId: usersTable.msaId,
       mustChangePassword: usersTable.mustChangePassword,
+      passwordSetupTokenExpiresAt: usersTable.passwordSetupTokenExpiresAt,
     })
     .from(usersTable)
     .orderBy(usersTable.createdAt);
-  return res.json(users);
+
+  const now = Date.now();
+  const withSetupStatus = users.map((u) => {
+    let setupLinkStatus: "none" | "pending" | "expired" = "none";
+    if (u.mustChangePassword && u.passwordSetupTokenExpiresAt) {
+      setupLinkStatus = u.passwordSetupTokenExpiresAt.getTime() < now ? "expired" : "pending";
+    }
+    const { passwordSetupTokenExpiresAt, ...rest } = u;
+    return { ...rest, setupLinkStatus, setupLinkExpiresAt: passwordSetupTokenExpiresAt };
+  });
+
+  return res.json(withSetupStatus);
+});
+
+// POST /admin/users/:id/resend-setup-link — regenerate + email a fresh one-time setup link
+router.post("/users/:id/resend-setup-link", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const setupToken = crypto.randomBytes(32).toString("hex");
+  const setupTokenHash = crypto.createHash("sha256").update(setupToken).digest("hex");
+  const setupTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await db.update(usersTable)
+    .set({
+      mustChangePassword: true,
+      passwordSetupTokenHash: setupTokenHash,
+      passwordSetupTokenExpiresAt: setupTokenExpiresAt,
+    })
+    .where(eq(usersTable.id, id));
+
+  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "streetly.app"}`;
+  const roleName = user.role.replace(/_/g, " ");
+  const setupUrl = `${appUrl}/setup-password?token=${setupToken}`;
+  await sendMail({
+    to: user.email,
+    subject: "Streetly — new account setup link",
+    text: [
+      `Hi ${user.name},`,
+      "",
+      `Your previous account setup link expired (or was unused). Here is a fresh one-time link (expires in 7 days):`,
+      `  ${setupUrl}`,
+      "",
+      `  Email : ${user.email}`,
+      `  Role  : ${roleName}`,
+      "",
+      "— The Streetly Team",
+    ].join("\n"),
+    html: `
+      <p>Hi ${user.name},</p>
+      <p>Your previous account setup link expired (or was unused). Here is a fresh one-time link (expires in 7 days):</p>
+      <p><a href="${setupUrl}">${setupUrl}</a></p>
+      <table cellpadding="4" style="border-collapse:collapse">
+        <tr><td><strong>Email</strong></td><td>${user.email}</td></tr>
+        <tr><td><strong>Role</strong></td><td>${roleName}</td></tr>
+      </table>
+      <p>— The Streetly Team</p>
+    `,
+  });
+
+  return res.json({ ok: true });
 });
 
 // PUT /admin/users/:id — edit user

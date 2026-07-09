@@ -22,7 +22,7 @@ import {
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
   MessageSquare, LifeBuoy, Star, BarChart2, ChevronRight, Download, Settings, Menu,
-  Calendar, IdCard, UserPlus,
+  Calendar, IdCard, UserPlus, Mail, Clock,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -103,6 +103,7 @@ function useAllUsers() {
       return res.json() as Promise<Array<{
         id: number; name: string; email: string; role: string; createdAt: string;
         registrationIp: string | null; passwordHash: string | null; mustChangePassword: boolean | null;
+        setupLinkStatus?: "none" | "pending" | "expired"; setupLinkExpiresAt?: string | null;
       }>>;
     },
   });
@@ -113,6 +114,18 @@ function useResetPassword() {
     mutationFn: async ({ id, newPassword }: { id: number; newPassword: string }) => {
       const res = await fetch(`${BASE}/api/admin/users/${id}/reset-password`, {
         method: "POST", headers: authHeader(), body: JSON.stringify({ newPassword }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+      return res.json();
+    },
+  });
+}
+
+function useResendSetupLink() {
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${BASE}/api/admin/users/${id}/resend-setup-link`, {
+        method: "POST", headers: authHeader(),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
       return res.json();
@@ -1851,6 +1864,8 @@ export default function AdminPage() {
   const approveWithdrawal = useApproveWithdrawal();
   const suspendUser = useSuspendUser();
   const deleteUser = useDeleteUser();
+  const resendSetupLink = useResendSetupLink();
+  const [resendingId, setResendingId] = useState<number | null>(null);
   const suspendAgent = useSuspendAgent();
   const deleteAgent = useDeleteAgent();
   const approveRider = useApproveRiderAdmin();
@@ -3069,6 +3084,16 @@ export default function AdminPage() {
                             {user.role === "moderator" ? "Moderator" : user.role === "regional_manager" ? "Regional Manager" : "Scout Manager"}
                           </span>
                           {(user as any).status === "suspended" && <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/40">suspended</span>}
+                          {user.setupLinkStatus === "pending" && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> setup link pending
+                            </span>
+                          )}
+                          {user.setupLinkStatus === "expired" && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> setup link expired
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                         <p className="text-xs text-muted-foreground">Since {new Date(user.createdAt).toLocaleDateString("en-NG", { dateStyle: "medium" })}</p>
@@ -3082,6 +3107,18 @@ export default function AdminPage() {
                           className="gap-1 text-amber-400 border-amber-400/30 hover:bg-amber-400/10">
                           <Key className="h-3.5 w-3.5" /> Reset PW
                         </Button>
+                        {(user.setupLinkStatus === "pending" || user.setupLinkStatus === "expired") && (
+                          <Button size="sm" variant="outline" disabled={resendingId === user.id}
+                            onClick={async () => {
+                              setResendingId(user.id);
+                              try { await resendSetupLink.mutateAsync(user.id); refetchUsers(); }
+                              finally { setResendingId(null); }
+                            }}
+                            className="gap-1 text-blue-400 border-blue-400/30 hover:bg-blue-400/10">
+                            {resendingId === user.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                            Resend Setup Link
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => handleImpersonate(user.id, user.name)}
                           className="gap-1 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">
                           <LogIn className="h-3.5 w-3.5" /> Login As
