@@ -22,3 +22,10 @@ based on code/memory alone, check `information_schema.columns` for the table
 against the Drizzle schema file. If a column is missing, add it via raw SQL
 (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...`) rather than assuming
 `drizzle-kit push` was run after the last schema change.
+
+**Update (2026-07-09):** Recurred — `users.password_setup_token_hash` and
+`users.password_setup_token_expires_at` were also missing, which broke
+`POST /auth/login` and `/auth/register` for every account (not just one
+feature), since the select lists every column. Before doing any auth-flow
+testing, proactively diff `information_schema.columns` for `users` against
+`lib/db/src/schema/users.ts` and backfill any gaps first.

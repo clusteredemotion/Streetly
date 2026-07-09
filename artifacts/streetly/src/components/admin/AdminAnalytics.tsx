@@ -18,6 +18,7 @@ function useAnalytics() {
     queryKey: ["admin", "analytics"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/analytics`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load analytics");
       return res.json() as Promise<{
         businessGrowth: Array<{ month: string; count: number; cumulative: number }>;
         categoryBreakdown: Array<{ name: string; count: number }>;
