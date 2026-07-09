@@ -8,6 +8,9 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -53,6 +56,22 @@ function useSummary() {
       const res = await fetch(`${BASE}/api/regional-manager/summary`, { headers: authHeader() });
       if (!res.ok) throw new Error("Failed to load summary");
       return res.json() as Promise<Summary>;
+    },
+  });
+}
+
+type EarningsTrend = {
+  period: "day" | "week" | "month";
+  data: Array<{ label: string; paidOut: number; totalRequested: number }>;
+};
+
+function useEarningsTrend(period: "day" | "week" | "month") {
+  return useQuery({
+    queryKey: ["rm", "earnings-trend", period],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/regional-manager/earnings-trend?period=${period}`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load earnings trend");
+      return res.json() as Promise<EarningsTrend>;
     },
   });
 }
@@ -141,6 +160,64 @@ function RegionSummary({ summary, isLoading }: { summary: Summary | undefined; i
       <StatCard label="Businesses Registered" value={summary.totalBusinesses} icon={<Building2 className="h-5 w-5" />} color="#7c6ef5" />
       <StatCard label="Cumulative Earnings" value={`₦${summary.cumulativeEarnings.toLocaleString()}`} icon={<TrendingUp className="h-5 w-5" />} color="#34d399" />
       <StatCard label="Paid-Out Commissions" value={`₦${summary.totalPaidOut.toLocaleString()}`} icon={<Wallet className="h-5 w-5" />} color="#fbbf24" />
+    </div>
+  );
+}
+
+const trendTooltipContentStyle = { background: "#0d1b2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", fontSize: 12 };
+
+function EarningsTrendChart() {
+  const [period, setPeriod] = useState<"day" | "week" | "month">("month");
+  const { data, isLoading } = useEarningsTrend(period);
+
+  return (
+    <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Earnings & Commissions Trend</h3>
+          <p className="text-xs text-white/40 mt-0.5">Commission payouts for your region over time</p>
+        </div>
+        <div className="flex gap-1.5">
+          {(["day", "week", "month"] as const).map((p) => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all capitalize ${period === p ? "bg-[#4a9eff]/20 text-[#4a9eff]" : "text-white/40 hover:text-white/70"}`}
+              style={period !== p ? { background: "rgba(255,255,255,0.05)" } : {}}>
+              {p}ly
+            </button>
+          ))}
+        </div>
+      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-white/40" /></div>
+      ) : !data || data.data.length === 0 ? (
+        <div className="text-center py-16 text-white/30 text-sm">No commission activity in this period yet</div>
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <AreaChart data={data.data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorPaidOut" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="colorRequested" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#4a9eff" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#4a9eff" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={trendTooltipContentStyle}
+              labelStyle={{ color: "rgba(255,255,255,0.6)" }}
+              formatter={(value: number) => `₦${value.toLocaleString()}`}
+            />
+            <Legend wrapperStyle={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }} />
+            <Area type="monotone" dataKey="totalRequested" name="Total Commissions" stroke="#4a9eff" fill="url(#colorRequested)" strokeWidth={2} dot={false} />
+            <Area type="monotone" dataKey="paidOut" name="Paid Out" stroke="#34d399" fill="url(#colorPaidOut)" strokeWidth={2} dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
@@ -339,6 +416,9 @@ export default function RegionalManagerDashboardPage() {
       .finally(() => setChecking(false));
   }, []);
 
+  const { data: agents = [], isLoading } = useMyAgents();
+  const { data: summary, isLoading: summaryLoading } = useSummary();
+
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center"
@@ -347,9 +427,6 @@ export default function RegionalManagerDashboardPage() {
       </div>
     );
   }
-
-  const { data: agents = [], isLoading } = useMyAgents();
-  const { data: summary, isLoading: summaryLoading } = useSummary();
 
   if (!token) {
     return (
@@ -423,6 +500,7 @@ export default function RegionalManagerDashboardPage() {
                 <p className="text-sm text-white/40">Live summary of your region's performance.</p>
               </div>
               <RegionSummary summary={summary} isLoading={summaryLoading} />
+              <EarningsTrendChart />
               <div>
                 <h2 className="text-lg font-bold text-white mb-1">My Agents</h2>
                 <p className="text-sm text-white/40">All field agents assigned to your region. Tap an agent to view their full profile, commissions, and registered businesses.</p>

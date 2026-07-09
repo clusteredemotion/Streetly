@@ -57,6 +57,56 @@ router.get("/summary", async (req: any, res) => {
   });
 });
 
+// GET /regional-manager/earnings-trend — commission totals over time for this manager's agents
+// period=day -> last 14 days, period=week -> last 12 weeks, period=month -> last 12 months
+router.get("/earnings-trend", async (req: any, res) => {
+  const period = ["day", "week", "month"].includes(req.query.period) ? req.query.period : "month";
+  const config = {
+    day: { unit: "day", span: "13 days", fmt: "Mon DD" },
+    week: { unit: "week", span: "11 weeks", fmt: "Mon DD" },
+    month: { unit: "month", span: "11 months", fmt: "Mon 'YY" },
+  }[period as "day" | "week" | "month"];
+
+  const myAgents = await db
+    .select({ id: agentsTable.id })
+    .from(agentsTable)
+    .where(eq(agentsTable.managerId, req.managerId));
+  const agentIds = myAgents.map((a) => a.id);
+
+  if (agentIds.length === 0) {
+    return res.json({ period, data: [] });
+  }
+
+  const rows = await db.execute(sql`
+    WITH periods AS (
+      SELECT generate_series(
+        date_trunc(${config.unit}, NOW() - INTERVAL ${sql.raw(`'${config.span}'`)}),
+        date_trunc(${config.unit}, NOW()),
+        ${sql.raw(`'1 ${config.unit}'::interval`)}
+      ) AS p
+    )
+    SELECT
+      TO_CHAR(periods.p, ${config.fmt}) AS label,
+      COALESCE(SUM(w.amount) FILTER (WHERE w.status = 'completed'), 0)::float AS "paidOut",
+      COALESCE(SUM(w.amount), 0)::float AS "totalRequested"
+    FROM periods
+    LEFT JOIN withdrawals w
+      ON date_trunc(${config.unit}, w.created_at) = periods.p
+      AND w.agent_id IN (${sql.join(agentIds.map((id) => sql`${id}`), sql`, `)})
+    GROUP BY periods.p
+    ORDER BY periods.p
+  `);
+
+  return res.json({
+    period,
+    data: (rows.rows as any[]).map((r) => ({
+      label: r.label,
+      paidOut: Number(r.paidOut),
+      totalRequested: Number(r.totalRequested),
+    })),
+  });
+});
+
 // GET /regional-manager/agents — all agents assigned to this manager
 router.get("/agents", async (req: any, res) => {
   const rows = await db
