@@ -44,11 +44,13 @@ const authHeader = () => ({
 });
 
 /* ── Shared data hooks ── */
-function usePendingClaims() {
+function usePendingClaims(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "claims", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/claims/pending`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load claims");
       return res.json() as Promise<Array<{
         id: number; businessId: number; businessName: string; userId: number;
         claimerName: string; claimerEmail: string; claimerPhone: string | null;
@@ -59,11 +61,13 @@ function usePendingClaims() {
   });
 }
 
-function useAllAgents() {
+function useAllAgents(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "agents", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/agents/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load agents");
       return res.json() as Promise<Array<{
         id: number; userId: number; status: string;
         fullName: string | null; age: number | null; address: string | null;
@@ -80,11 +84,13 @@ function useAllAgents() {
 
 type AllAgentRow = NonNullable<ReturnType<typeof useAllAgents>["data"]>[number];
 
-function usePendingAdminAgents() {
+function usePendingAdminAgents(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "agents", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/agents/pending`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load pending agents");
       return res.json() as Promise<Array<{
         id: number; userId: number; status: string;
         fullName: string | null; passportPhotoUrl: string | null;
@@ -95,11 +101,13 @@ function usePendingAdminAgents() {
   });
 }
 
-function useAllUsers() {
+function useAllUsers(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "users", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/users/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load users");
       return res.json() as Promise<Array<{
         id: number; name: string; email: string; role: string; createdAt: string;
         registrationIp: string | null; passwordHash: string | null; mustChangePassword: boolean | null;
@@ -133,11 +141,13 @@ function useResendSetupLink() {
   });
 }
 
-function usePendingWithdrawals() {
+function usePendingWithdrawals(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "withdrawals", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/withdrawals`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load withdrawals");
       return res.json() as Promise<Array<{
         id: number; agentId: number; amount: number; status: string; createdAt: string;
         agentFullName: string | null; agentBankName: string | null;
@@ -173,11 +183,13 @@ function useApproveWithdrawal() {
 
 type FeaturedBiz = { id: number; name: string; categoryName: string | null; sortOrder: number | null; verified: boolean };
 
-function useFeaturedOrder() {
+function useFeaturedOrder(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "businesses", "featured-order"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/businesses/featured`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load featured order");
       return res.json() as Promise<FeaturedBiz[]>;
     },
   });
@@ -218,11 +230,13 @@ type AdminBusiness = {
   agentTotalEarnings: number | null;
 };
 
-function useAllBusinesses() {
+function useAllBusinesses(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "businesses", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/businesses/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load businesses");
       return res.json() as Promise<AdminBusiness[]>;
     },
   });
@@ -320,22 +334,26 @@ interface PendingRider {
   createdAt: string; userName: string | null; userEmail: string | null;
 }
 
-function usePendingRiders() {
+function usePendingRiders(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "riders", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/riders/pending`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load pending riders");
       return res.json() as Promise<PendingRider[]>;
     },
     refetchInterval: 30_000,
   });
 }
 
-function useAllRiders() {
+function useAllRiders(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "riders", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/riders/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load riders");
       return res.json() as Promise<Array<{
         id: number; userId: number; status: string; isOnline: boolean; fullName: string | null;
         phone: string | null; vehicleType: string | null; totalDeliveries: number | null;
@@ -375,11 +393,13 @@ function useDeleteRider() {
   });
 }
 
-function useAllDeliveries() {
+function useAllDeliveries(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "deliveries", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/deliveries/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load deliveries");
       return res.json() as Promise<Array<{
         id: number; businessId: number; businessName: string | null; riderId: number | null;
         riderName: string | null; customerName: string; customerPhone: string; deliveryAddress: string;
@@ -408,11 +428,13 @@ function useDeleteBusiness() {
   });
 }
 
-function useAllKYC() {
+function useAllKYC(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "kyc"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/kyc`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load KYC");
       return res.json() as Promise<Array<{
         id: number; userId: number; status: string; fullName: string | null;
         idType: string | null; idNumber: string | null;
@@ -423,11 +445,13 @@ function useAllKYC() {
   });
 }
 
-function useAdminGallery() {
+function useAdminGallery(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "gallery"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/gallery`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load gallery");
       return res.json() as Promise<{
         agentPassports: Array<{ url: string; agentId: number; agentName: string; createdAt: string }>;
         agentNIN: Array<{ url: string; agentId: number; agentName: string; createdAt: string }>;
@@ -1664,22 +1688,26 @@ type AdminProperty = {
   photos: Array<{ id: number; url: string }>;
 };
 
-function usePendingProperties() {
+function usePendingProperties(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "properties", "pending"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/properties/pending`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load pending properties");
       return res.json() as Promise<AdminProperty[]>;
     },
     refetchInterval: 30_000,
   });
 }
 
-function useAllProperties() {
+function useAllProperties(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["admin", "properties", "all"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/properties/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load properties");
       return res.json() as Promise<AdminProperty[]>;
     },
   });
@@ -1841,20 +1869,22 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const handleNavSelect = (section: Section) => { setActiveSection(section); setSidebarOpen(false); };
 
-  const { data: stats, isLoading: statsLoading } = useGetAdminStats({ query: { refetchInterval: 30_000 } });
-  const { data: pendingBiz } = useGetPendingBusinesses({ query: { refetchInterval: 30_000 } });
-  const { data: pendingProperties } = usePendingProperties();
-  const { data: allProperties, refetch: refetchAllProperties } = useAllProperties();
-  const { data: pendingAgents } = usePendingAdminAgents();
-  const { data: pendingClaims } = usePendingClaims();
-  const { data: allAgents, refetch: refetchAgents } = useAllAgents();
-  const { data: pendingRiders, refetch: refetchPendingRiders } = usePendingRiders();
-  const { data: allRiders, refetch: refetchRiders } = useAllRiders();
-  const { data: allDeliveries, refetch: refetchDeliveries } = useAllDeliveries();
-  const { data: allUsers, refetch: refetchUsers } = useAllUsers();
-  const { data: allBusinesses, refetch: refetchAllBusinesses } = useAllBusinesses();
-  const { data: featuredOrderData, refetch: refetchFeaturedOrder } = useFeaturedOrder();
-  const { data: withdrawals, refetch: refetchWithdrawals } = usePendingWithdrawals();
+  const isAdmin = adminUser?.role === "admin";
+
+  const { data: stats, isLoading: statsLoading } = useGetAdminStats({ query: { queryKey: getGetAdminStatsQueryKey(), refetchInterval: 30_000, enabled: isAdmin } });
+  const { data: pendingBiz } = useGetPendingBusinesses({ query: { queryKey: getGetPendingBusinessesQueryKey(), refetchInterval: 30_000, enabled: isAdmin } });
+  const { data: pendingProperties } = usePendingProperties(isAdmin);
+  const { data: allProperties, refetch: refetchAllProperties } = useAllProperties(isAdmin);
+  const { data: pendingAgents } = usePendingAdminAgents(isAdmin);
+  const { data: pendingClaims } = usePendingClaims(isAdmin);
+  const { data: allAgents, refetch: refetchAgents } = useAllAgents(isAdmin);
+  const { data: pendingRiders, refetch: refetchPendingRiders } = usePendingRiders(isAdmin);
+  const { data: allRiders, refetch: refetchRiders } = useAllRiders(isAdmin);
+  const { data: allDeliveries, refetch: refetchDeliveries } = useAllDeliveries(isAdmin);
+  const { data: allUsers, refetch: refetchUsers } = useAllUsers(isAdmin);
+  const { data: allBusinesses, refetch: refetchAllBusinesses } = useAllBusinesses(isAdmin);
+  const { data: featuredOrderData, refetch: refetchFeaturedOrder } = useFeaturedOrder(isAdmin);
+  const { data: withdrawals, refetch: refetchWithdrawals } = usePendingWithdrawals(isAdmin);
 
   const approveBiz = useApproveBusiness();
   const approveProperty = useApproveProperty();
@@ -1874,7 +1904,7 @@ export default function AdminPage() {
   const suspendBusiness = useSuspendBusiness();
   const deleteBusiness = useDeleteBusiness();
 
-  const { data: allKYC } = useAllKYC();
+  const { data: allKYC } = useAllKYC(isAdmin);
 
   const [adminNotes, setAdminNotes] = useState<Record<number, string>>({});
   const [editAgent, setEditAgent] = useState<AllAgentRow | null>(null);
@@ -1907,7 +1937,7 @@ export default function AdminPage() {
   const [galleryPinError, setGalleryPinError] = useState(false);
   const [galleryFolder, setGalleryFolder] = useState<"passports" | "nin" | "business">("passports");
   const [galleryLightbox, setGalleryLightbox] = useState<string | null>(null);
-  const { data: galleryData, isLoading: galleryLoading } = useAdminGallery();
+  const { data: galleryData, isLoading: galleryLoading } = useAdminGallery(isAdmin);
   const [assignMgrSelected, setAssignMgrSelected] = useState<string>("");
   const [assignMgrSaving, setAssignMgrSaving] = useState(false);
   const [assignMgrError, setAssignMgrError] = useState<string | null>(null);

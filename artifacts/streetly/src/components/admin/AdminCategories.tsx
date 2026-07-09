@@ -124,6 +124,7 @@ export default function AdminCategories() {
     queryKey: ["admin-categories-mgmt"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/categories`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
   });

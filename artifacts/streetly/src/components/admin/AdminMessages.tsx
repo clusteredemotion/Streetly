@@ -17,6 +17,7 @@ function useAllUsersMsg() {
     queryKey: ["admin", "users-msg"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/users/all`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load users");
       return res.json() as Promise<UserRecord[]>;
     },
   });
@@ -27,6 +28,7 @@ function useSentMessages() {
     queryKey: ["admin", "messages"],
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/admin/messages`, { headers: authHeader() });
+      if (!res.ok) throw new Error("Failed to load messages");
       return res.json() as Promise<Array<{
         id: number; recipientType: string; recipientId: number | null;
         subject: string; body: string; sentAt: string;

@@ -592,6 +592,7 @@ export default function AddBusinessForm({ onSuccess }: AddBusinessFormProps) {
       const res = await fetch(`${BASE}/api/admin/categories`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}` },
       });
+      if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
   });

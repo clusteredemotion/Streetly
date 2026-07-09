@@ -132,6 +132,7 @@ export default function AdminEmailSettings() {
   useEffect(() => {
     (async () => {
       const res = await fetch(`${BASE}/api/admin/settings`, { headers: authHeader() });
+      if (!res.ok) return;
       const data: Record<string, string> = await res.json();
       setSettings(data);
       setAccountEmail(data.admin_login_email ?? "");
