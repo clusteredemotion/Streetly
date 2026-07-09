@@ -16,3 +16,4 @@
 - [Streetly Android APK build](streetly-android-apk-build.md) — Actions workflow needs Node 22+/JDK 21 for Capacitor; API push to .github/workflows/** needs `workflow` token scope
 - [Schema/DB drift root cause and fix](schema-db-drift-fix.md) — missing columns + legacy unique-constraint names block non-interactive drizzle push; rename constraints instead of assuming real drift
 - [Streetly db-schema-drift validation silently broken](streetly-schema-drift-validation-silent-fail.md) — the isValidation workflow can fail with "tsx: command not found" if lib/db node_modules is stale; run pnpm install and confirm it actually prints a result before trusting it
+- [Streetly Gradle release keystore path resolution](streetly-gradle-keystore-path.md) — file() in app/build.gradle resolves relative to app/, not android/ root; use rootProject.file() for CI-decoded keystore paths

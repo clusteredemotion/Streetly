@@ -20,7 +20,7 @@ android {
         release {
             def storeFilePath = System.getenv("STREETLY_KEYSTORE_PATH")
             if (storeFilePath != null) {
-                storeFile file(storeFilePath)
+                storeFile rootProject.file(storeFilePath)
                 storePassword System.getenv("STREETLY_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("STREETLY_KEY_ALIAS")
                 keyPassword System.getenv("STREETLY_KEY_PASSWORD")
