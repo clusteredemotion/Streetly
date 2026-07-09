@@ -7,6 +7,12 @@ export const RIDER_PASSWORD = "TestPass123!";
 export const REGIONAL_MANAGER_EMAIL = "regional-manager-e2e-test@example.com";
 export const REGIONAL_MANAGER_PASSWORD = "TestPass123!";
 
+export const MODERATOR_EMAIL = "moderator-e2e-test@example.com";
+export const MODERATOR_PASSWORD = "TestPass123!";
+
+export const SCOUT_MANAGER_EMAIL = "scout-manager-e2e-test@example.com";
+export const SCOUT_MANAGER_PASSWORD = "TestPass123!";
+
 function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "streetly_salt").digest("hex");
 }
@@ -31,6 +37,18 @@ export default async function globalSetup() {
        VALUES ($1, $2, $3, 'regional_manager', $4)
        ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'regional_manager'`,
       ["Regional Manager E2E Test", REGIONAL_MANAGER_EMAIL, hashPassword(REGIONAL_MANAGER_PASSWORD), "REGIONAL-MGR-E2E-1"],
+    );
+    await client.query(
+      `INSERT INTO users (name, email, password_hash, role, msa_id)
+       VALUES ($1, $2, $3, 'moderator', $4)
+       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'moderator'`,
+      ["Moderator E2E Test", MODERATOR_EMAIL, hashPassword(MODERATOR_PASSWORD), "MODERATOR-E2E-1"],
+    );
+    await client.query(
+      `INSERT INTO users (name, email, password_hash, role, msa_id)
+       VALUES ($1, $2, $3, 'scout_manager', $4)
+       ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'scout_manager'`,
+      ["Scout Manager E2E Test", SCOUT_MANAGER_EMAIL, hashPassword(SCOUT_MANAGER_PASSWORD), "SCOUT-MGR-E2E-1"],
     );
   } finally {
     await client.end();
