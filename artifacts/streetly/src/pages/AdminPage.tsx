@@ -2000,20 +2000,29 @@ export default function AdminPage() {
 
   const totalPending = (stats?.pendingBusinesses ?? 0) + (stats?.pendingAgents ?? 0) + (pendingClaims?.length ?? 0) + (withdrawals?.length ?? 0);
 
-  const isAdminAuth = !!token && (adminUserLoading || adminUser?.role === "admin");
-  if (!isAdminAuth && !adminUserLoading) {
-    if (adminUser && adminUser.role !== "admin") {
-      return (
-        <div className="min-h-screen flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
-          <div className="text-center">
-            <p className="text-red-400 font-semibold text-lg mb-1">Access Denied</p>
-            <p className="text-white/40 text-sm">Redirecting you to your portal…</p>
-          </div>
-        </div>
-      );
-    }
+  if (!token) {
     return <AdminLoginGate onUnlock={handleUnlock} />;
+  }
+
+  if (adminUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+      </div>
+    );
+  }
+
+  if (!adminUser || adminUser.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: "linear-gradient(135deg, #060c1a 0%, #0a1428 50%, #060c1a 100%)" }}>
+        <div className="text-center">
+          <p className="text-red-400 font-semibold text-lg mb-1">Access Denied</p>
+          <p className="text-white/40 text-sm">Redirecting you to your portal…</p>
+        </div>
+      </div>
+    );
   }
 
   return (
