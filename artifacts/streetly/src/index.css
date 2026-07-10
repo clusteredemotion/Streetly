@@ -338,6 +338,14 @@
 /* ─── Smooth scroll ─── */
 html { scroll-behavior: smooth; }
 
+/* ─── Mobile-comfortable type scale ───
+   The design was tuned for desktop; on phones the same rem sizes read as
+   oversized. Scaling the root font-size down slightly shrinks every
+   rem-based text/icon size site-wide, without touching each component. */
+@media (max-width: 767px) {
+  html { font-size: 87.5%; }
+}
+
 /* ─── Card hover ─── */
 .card-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease;

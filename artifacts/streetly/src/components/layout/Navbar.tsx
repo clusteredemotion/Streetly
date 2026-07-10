@@ -91,15 +91,15 @@ export function Navbar() {
       >
         <div className="container mx-auto flex h-[58px] items-center justify-between px-4 md:px-6">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-1.5 md:gap-2 group">
             <div className={cn(
-              "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+              "w-7 h-7 md:w-8 md:h-8 rounded-xl flex items-center justify-center transition-colors",
               onMap ? "bg-blue-700/10" : "bg-white/10"
             )}>
-              <MapPin className={cn("h-4 w-4", onMap ? "text-[#0547B6]" : "text-white")} />
+              <MapPin className={cn("h-3.5 w-3.5 md:h-4 md:w-4", onMap ? "text-[#0547B6]" : "text-white")} />
             </div>
             <span className={cn(
-              "font-bold text-lg tracking-tight transition-colors",
+              "font-bold text-base md:text-lg tracking-tight transition-colors",
               onMap ? "text-[#0547B6]" : "text-white"
             )}>
               Streetly
@@ -231,7 +231,7 @@ export function Navbar() {
           {/* Mobile toggle */}
           <button
             className={cn(
-              "md:hidden w-9 h-9 flex items-center justify-center rounded-lg transition-colors",
+              "md:hidden w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
               onMap
                 ? "text-[#0547B6] hover:bg-blue-700/8"
                 : "text-white hover:bg-white/10"
@@ -247,7 +247,7 @@ export function Navbar() {
                 exit={{ rotate: 90, opacity: 0 }}
                 transition={{ duration: 0.15 }}
               >
-                {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                {isOpen ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
               </motion.div>
             </AnimatePresence>
           </button>
@@ -263,7 +263,7 @@ export function Navbar() {
               transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
               className="md:hidden overflow-hidden glass-nav border-t border-white/10"
             >
-              <nav className="container mx-auto px-4 py-4 flex flex-col gap-1 safe-bottom">
+              <nav className="container mx-auto px-4 py-3 flex flex-col gap-0.5 safe-bottom">
                 {moreLinks.map((link, i) => (
                   <motion.div
                     key={link.href}
@@ -275,23 +275,23 @@ export function Navbar() {
                       href={link.href}
                       onClick={() => setIsOpen(false)}
                       className={cn(
-                        "flex items-center justify-between text-sm font-medium p-3 rounded-xl transition-colors",
+                        "flex items-center justify-between text-[13px] font-medium p-2.5 rounded-xl transition-colors",
                         location === link.href
                           ? "bg-white/15 text-white"
                           : "text-white/80 hover:bg-white/10 hover:text-white"
                       )}
                     >
                       {link.label}
-                      <ChevronRight className="h-4 w-4 opacity-40" />
+                      <ChevronRight className="h-3.5 w-3.5 opacity-40" />
                     </Link>
                   </motion.div>
                 ))}
 
-                <div className="h-px bg-white/10 my-2" />
+                <div className="h-px bg-white/10 my-1.5" />
 
                 {user ? (
                   <div className="flex flex-col gap-2">
-                    <p className="text-sm text-white/60 px-1 font-medium">
+                    <p className="text-xs text-white/60 px-1 font-medium">
                       {greeting}, <span className="text-white font-semibold">{firstName}</span> 👋
                     </p>
                     <Link href={dashboardHref(user.role)}>

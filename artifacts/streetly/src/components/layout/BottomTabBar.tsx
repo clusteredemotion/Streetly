@@ -14,7 +14,7 @@ export function BottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-[1100] bg-background/80 backdrop-blur-xl border-t border-white/10 safe-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-[1100] bg-white/5 backdrop-blur-2xl backdrop-saturate-150 border-t border-white/10 safe-bottom"
       aria-label="Primary"
     >
       <div className="grid grid-cols-4 max-w-md mx-auto">
