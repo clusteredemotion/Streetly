@@ -14,27 +14,22 @@ function MapBackground() {
       {/* Slow-pan map plane — 4× viewport so movement never reveals edges */}
       <motion.div
         className="absolute"
-        style={{ width: "400%", height: "400%", top: "-150%", left: "-150%" }}
-        animate={{ x: ["0%", "-8%", "-3%", "-10%", "0%"], y: ["0%", "-5%", "-10%", "-4%", "0%"] }}
-        transition={{ duration: 36, repeat: Infinity, ease: "linear" }}
+        style={{ width: "300%", height: "300%", top: "-100%", left: "-100%" }}
+        animate={{ x: ["0%", "-3%", "0%"], y: ["0%", "-2%", "0%"] }}
+        transition={{ duration: 42, repeat: Infinity, ease: "easeInOut" }}
       >
         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
           <defs>
             {/* Fine grid — city blocks */}
             <pattern id="pl-grid" width="80" height="80" patternUnits="userSpaceOnUse">
-              <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(74,158,255,0.055)" strokeWidth="0.6"/>
+              <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(74,158,255,0.03)" strokeWidth="0.6"/>
             </pattern>
             {/* Wide arterial road grid */}
             <pattern id="pl-roads" width="320" height="320" patternUnits="userSpaceOnUse">
               <rect width="320" height="320" fill="none"/>
-              <line x1="0" y1="160" x2="320" y2="160" stroke="rgba(255,255,255,0.045)" strokeWidth="7"/>
-              <line x1="160" y1="0" x2="160" y2="320" stroke="rgba(255,255,255,0.045)" strokeWidth="7"/>
+              <line x1="0" y1="160" x2="320" y2="160" stroke="rgba(255,255,255,0.025)" strokeWidth="7"/>
+              <line x1="160" y1="0" x2="160" y2="320" stroke="rgba(255,255,255,0.025)" strokeWidth="7"/>
             </pattern>
-            {/* Street labels glow */}
-            <filter id="pl-glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
           </defs>
 
           {/* Base fill */}
@@ -43,65 +38,38 @@ function MapBackground() {
           <rect width="100%" height="100%" fill="url(#pl-grid)"/>
           <rect width="100%" height="100%" fill="url(#pl-roads)"/>
 
-          {/* ── Diagonal expressways ── */}
+          {/* ── City blocks (kept faint, no diagonals/nodes/route lines) ── */}
           {[
-            { x1:"0%",  y1:"35%", x2:"100%", y2:"55%", w:14 },
-            { x1:"0%",  y1:"60%", x2:"100%", y2:"30%", w:10 },
-            { x1:"20%", y1:"0%",  x2:"40%",  y2:"100%",w:8  },
-            { x1:"65%", y1:"0%",  x2:"55%",  y2:"100%",w:8  },
-          ].map((r,i)=>(
-            <line key={i} x1={r.x1} y1={r.y1} x2={r.x2} y2={r.y2}
-              stroke="rgba(255,255,255,0.055)" strokeWidth={r.w}/>
-          ))}
-
-          {/* ── City blocks ── */}
-          {[
-            [5,5,110,70],[135,8,95,60],[250,5,130,75],[400,10,100,65],[545,6,115,70],[700,8,90,65],[850,5,105,70],
-            [8,100,100,80],[130,105,120,75],[275,100,100,80],[410,98,115,78],[555,102,100,72],[705,100,110,80],[855,98,100,76],
-            [5,210,115,72],[140,205,100,80],[270,210,130,70],[420,208,100,78],[560,205,115,75],[710,208,100,72],[860,210,105,78],
-            [8,315,100,80],[135,310,115,75],[265,315,100,72],[405,312,120,80],[555,315,110,78],[705,310,100,80],[855,315,115,72],
-            [5,420,110,75],[140,415,100,80],[270,420,125,72],[415,418,100,78],[560,415,115,75],[710,420,100,72],[858,415,108,80],
-            [8,525,100,78],[138,520,115,75],[265,525,100,72],[405,522,120,80],[555,520,110,78],[705,525,100,75],[855,520,115,72],
+            [5,5,110,70],[250,5,130,75],[545,6,115,70],[850,5,105,70],
+            [130,105,120,75],[410,98,115,78],[705,100,110,80],
+            [140,205,100,80],[420,208,100,78],[860,210,105,78],
+            [265,315,100,72],[555,315,110,78],[855,315,115,72],
+            [140,415,100,80],[560,415,115,75],[858,415,108,80],
+            [265,525,100,72],[705,525,100,75],
           ].map(([x,y,w,h],i)=>(
             <rect key={i} x={`${x/9.6}%`} y={`${y/9.6}%`} width={`${w/9.6}%`} height={`${h/9.6}%`}
-              fill={`rgba(${[18,24,30][i%3]},${[28,36,44][i%3]},${[55,65,80][i%3]},0.75)`} rx="2"/>
+              fill={`rgba(${[18,24,30][i%3]},${[28,36,44][i%3]},${[55,65,80][i%3]},0.4)`} rx="2"/>
           ))}
 
           {/* ── Water body ── */}
-          <ellipse cx="30%" cy="72%" rx="12%" ry="5%" fill="rgba(74,158,255,0.06)"/>
-          <ellipse cx="70%" cy="25%" rx="8%"  ry="3%" fill="rgba(74,158,255,0.05)"/>
+          <ellipse cx="30%" cy="72%" rx="12%" ry="5%" fill="rgba(74,158,255,0.04)"/>
 
           {/* ── Park / green patch ── */}
-          <rect x="46%" y="42%" width="8%" height="6%" fill="rgba(22,163,74,0.07)" rx="4"/>
-          <rect x="15%" y="62%" width="6%" height="5%" fill="rgba(22,163,74,0.06)" rx="4"/>
-
-          {/* ── Glowing intersection nodes ── */}
-          {[
-            ["33%","37%","#4a9eff"],["53%","52%","#facc15"],["66%","43%","#4a9eff"],
-            ["20%","58%","#22c55e"],["80%","35%","#4a9eff"],["42%","68%","#f97316"],
-            ["58%","22%","#8b5cf6"],["73%","60%","#4a9eff"],
-          ].map(([cx,cy,c],i)=>(
-            <circle key={i} cx={cx} cy={cy} r="1.2%" fill={c} fillOpacity="0.55" filter="url(#pl-glow)"/>
-          ))}
-
-          {/* ── Subtle route line linking a few nodes ── */}
-          <path
-            d="M 1267 1421 L 1613 1728 L 2035 1997 L 2534 1650"
-            fill="none" stroke="rgba(74,158,255,0.18)" strokeWidth="4" strokeDasharray="12 16"/>
+          <rect x="46%" y="42%" width="8%" height="6%" fill="rgba(22,163,74,0.05)" rx="4"/>
         </svg>
       </motion.div>
 
-      {/* Dark vignette so edges stay dark and logo pops */}
+      {/* Dark vignette so edges stay dark and logo pops — much stronger now */}
       <div className="absolute inset-0"
-        style={{ background: "radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(6,12,30,0.88) 100%)" }}/>
+        style={{ background: "radial-gradient(ellipse at 50% 50%, rgba(6,12,30,0.55) 0%, rgba(6,12,30,0.97) 62%)" }}/>
 
       {/* Central glow behind logo */}
       <motion.div
         className="absolute rounded-full"
         style={{ width: 420, height: 420, top: "50%", left: "50%",
           transform: "translate(-50%,-50%)",
-          background: "radial-gradient(circle, rgba(74,158,255,0.09) 0%, transparent 70%)" }}
-        animate={{ scale: [1, 1.18, 1] }}
+          background: "radial-gradient(circle, rgba(74,158,255,0.1) 0%, transparent 70%)" }}
+        animate={{ scale: [1, 1.1, 1] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
       />
     </div>
@@ -111,13 +79,10 @@ function MapBackground() {
 /* ── Floating pin drops on the map ── */
 function MapPins() {
   const pins = [
-    { x: "22%", y: "38%", color: "#ef4444", delay: 0.6  },
-    { x: "68%", y: "28%", color: "#22c55e", delay: 1.0  },
-    { x: "38%", y: "64%", color: BLUE,      delay: 1.4  },
-    { x: "74%", y: "56%", color: YELLOW,    delay: 0.9  },
-    { x: "52%", y: "20%", color: "#8b5cf6", delay: 1.7  },
-    { x: "14%", y: "62%", color: "#f97316", delay: 1.2  },
-    { x: "82%", y: "70%", color: "#22c55e", delay: 2.0  },
+    { x: "18%", y: "30%", color: "#ef4444", delay: 0.6  },
+    { x: "82%", y: "32%", color: YELLOW,    delay: 1.0  },
+    { x: "20%", y: "72%", color: BLUE,      delay: 1.4  },
+    { x: "80%", y: "74%", color: "#22c55e", delay: 1.7  },
   ];
   return (
     <>
