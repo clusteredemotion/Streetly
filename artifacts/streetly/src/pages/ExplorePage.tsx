@@ -12,8 +12,9 @@ import {
   useListStreets,
 } from "@workspace/api-client-react";
 import { MapPin, ChevronRight, Building2, Home, Grid, List, ChevronDown } from "lucide-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 type ExploreBusiness = {
   id: number; slug?: string | null; name: string; categoryName?: string | null;

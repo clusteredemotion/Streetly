@@ -14,7 +14,7 @@ import {
   getGetAdminStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getApiBase } from "@/lib/utils";
 import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 import {
   Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
@@ -36,7 +36,7 @@ import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

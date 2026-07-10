@@ -3,8 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, Check, X, Store } from "lucide-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}`,

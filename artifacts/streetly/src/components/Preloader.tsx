@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { isNativeApp } from "@/lib/utils";
 
 const easeOutBack = [0.34, 1.56, 0.64, 1] as const;
 
@@ -119,8 +120,26 @@ function MapPins() {
 export function Preloader() {
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
+  // Only the packaged native app ships its own offline shell — the web
+  // build always has a live network connection to the page it's on.
+  const [offline, setOffline] = useState(
+    () => isNativeApp() && typeof navigator !== "undefined" && !navigator.onLine,
+  );
 
   useEffect(() => {
+    if (!isNativeApp()) return;
+    const handleOnline = () => setOffline(false);
+    const handleOffline = () => setOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (offline) return;
     const start = Date.now();
     const duration = 3200;
     const raf = () => {
@@ -132,7 +151,7 @@ export function Preloader() {
     requestAnimationFrame(raf);
     const timer = setTimeout(() => setVisible(false), duration);
     return () => clearTimeout(timer);
-  }, []);
+  }, [offline]);
 
   return (
     <AnimatePresence>
@@ -291,8 +310,12 @@ export function Preloader() {
                 />
               </div>
               <div className="flex justify-between items-center mt-1.5">
-                <span className="text-[10px] text-white/25 font-medium tracking-widest uppercase">Loading</span>
-                <span className="text-[10px] font-bold tabular-nums" style={{ color: BLUE }}>{progress}%</span>
+                <span className="text-[10px] text-white/25 font-medium tracking-widest uppercase">
+                  {offline ? "Waiting for connection" : "Loading"}
+                </span>
+                {!offline && (
+                  <span className="text-[10px] font-bold tabular-nums" style={{ color: BLUE }}>{progress}%</span>
+                )}
               </div>
             </motion.div>
           </motion.div>

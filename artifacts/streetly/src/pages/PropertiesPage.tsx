@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, MapPin, Maximize2, Tag, Phone, User, X, Plus, ChevronLeft, ChevronRight, Search, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 interface PropertyPhoto {
   id: number;

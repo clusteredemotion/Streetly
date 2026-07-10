@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Building2, Plus, X, Loader2, CheckCircle, ArrowLeft, ImageIcon, Upload, Info, Phone } from "lucide-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}`,

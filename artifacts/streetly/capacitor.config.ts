@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
   appName: "Streetly",
   webDir: "dist/public",
   server: {
-    url: "https://mystreetly.app",
     androidScheme: "https",
     cleartext: false,
   },

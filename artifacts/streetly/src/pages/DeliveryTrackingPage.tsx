@@ -7,9 +7,9 @@ import {
   ArrowLeft, Package, User, Phone, MapPin, Bike, Clock,
   CheckCircle, Loader2, AlertCircle, Truck, ShoppingBag,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

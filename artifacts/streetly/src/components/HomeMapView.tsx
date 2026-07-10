@@ -10,8 +10,9 @@ import {
   Car, Square, Navigation2, Flag, LocateFixed, Bike,
 } from "lucide-react";
 import { RiderDirectoryPanel } from "@/components/riders/RiderDirectoryPanel";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 interface Business {
   id: number; name: string;

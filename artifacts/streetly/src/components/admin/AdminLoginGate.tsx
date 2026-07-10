@@ -2,8 +2,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, Eye, EyeOff, Lock, Mail, AlertCircle, X, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const RESET_DESTINATION = "madebayo68@gmail.com";
 
 interface Props {

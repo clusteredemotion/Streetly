@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Truck, Loader2, AlertCircle, CheckCircle, Bike } from "lucide-react";
 import { useCreateDeliveryOrder } from "@workspace/api-client-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 interface NearbyRider {
   id: number;

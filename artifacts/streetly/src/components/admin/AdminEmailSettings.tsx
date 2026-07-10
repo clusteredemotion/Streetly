@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { getApiBase } from "@/lib/utils";
 import {
   Mail, Lock, Server, FileText, Save, Eye, EyeOff,
   CheckCircle2, Loader2, AlertCircle, ChevronDown, ChevronUp, RefreshCw,
 } from "lucide-react";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}`,

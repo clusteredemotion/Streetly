@@ -3,12 +3,13 @@ import { Country, State } from "country-state-city";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
+import { getApiBase } from "@/lib/utils";
 import {
   Building2, MapPin, Camera, X, CheckCircle, Upload,
   ChevronDown, Loader2, User,
 } from "lucide-react";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 function compressImage(file: File, maxWidth = 1200, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {

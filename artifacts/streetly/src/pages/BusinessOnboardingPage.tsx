@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import L from "leaflet";
+import { getApiBase } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
 import {
   Building2, CheckCircle, MapPin, Phone, Globe, Camera, Upload, X,
@@ -13,7 +14,7 @@ import {
   Image as ImageIcon, Package, ArrowRight
 } from "lucide-react";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

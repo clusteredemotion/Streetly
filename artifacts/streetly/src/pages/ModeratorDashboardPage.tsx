@@ -7,8 +7,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import AdminSupportTickets from "@/components/admin/AdminSupportTickets";
 import { useListAllSupportTickets, getListAllSupportTicketsQueryKey } from "@workspace/api-client-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

@@ -8,11 +8,12 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
+import { getApiBase } from "@/lib/utils";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

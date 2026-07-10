@@ -1,9 +1,24 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { setAuthTokenGetter } from "@workspace/api-client-react"
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react"
+import { Capacitor } from "@capacitor/core"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+// When packaged as a native Capacitor app, the WebView loads the bundled
+// app shell from a local scheme (not the production domain), so relative
+// `/api/...` requests must be pointed at the live API server explicitly.
+// In the browser build the shell and API share an origin, so this stays "".
+const NATIVE_API_BASE = "https://mystreetly.app";
+
+export function getApiBase(): string {
+  return Capacitor.isNativePlatform() ? NATIVE_API_BASE : "";
+}
+
+export function isNativeApp(): boolean {
+  return Capacitor.isNativePlatform();
 }
 
 export function formatCurrency(amount: number) {
@@ -50,4 +65,5 @@ export function initApi() {
   setAuthTokenGetter(() => {
     return localStorage.getItem("streetly_token");
   });
+  setBaseUrl(getApiBase() || null);
 }

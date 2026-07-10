@@ -12,9 +12,10 @@ import {
   Plus, Package,
 } from "lucide-react";
 import L from "leaflet";
+import { getApiBase } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 // ── helpers ────────────────────────────────────────────────────────────────
 

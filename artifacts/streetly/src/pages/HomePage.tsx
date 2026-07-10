@@ -20,8 +20,9 @@ import { HomeMapView } from "@/components/HomeMapView";
 import { AGENT_COMMISSION_PER_LISTING, AGENT_HIGH_QUALITY_BONUS } from "@/lib/constants";
 import appStoreBadge from "@/assets/app-store-badge.svg";
 import googlePlayBadge from "@/assets/google-play-badge.png";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 type HomeProperty = {
   id: number; title: string; sizeSqft: number | null; priceAmount: number | null;

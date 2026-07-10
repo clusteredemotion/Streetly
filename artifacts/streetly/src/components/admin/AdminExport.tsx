@@ -2,8 +2,9 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, Users, UserCheck, Building2, Lock, ShieldAlert, CheckCircle2, Loader2 } from "lucide-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const EXPORT_PIN = "1537";
 
 const authHeader = () => ({

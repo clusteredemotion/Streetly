@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+import { getApiBase } from "@/lib/utils";
 import {
   useSetRiderOnlineStatus, useUpdateRiderLocation, useAcceptDeliveryOrder, useUpdateDeliveryStatus,
 } from "@workspace/api-client-react";
@@ -11,7 +12,7 @@ import {
   Loader2, AlertCircle, User, Phone, ArrowRight, RefreshCw, TrendingUp,
 } from "lucide-react";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

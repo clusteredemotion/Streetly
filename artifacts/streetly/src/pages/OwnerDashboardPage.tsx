@@ -9,8 +9,9 @@ import { useListMyBusinesses } from "@workspace/api-client-react";
 import { Building2, PlusCircle, Star, ShieldCheck, ArrowRight, Edit2, X, Save, Loader2, Trash2, Image as ImageIcon, Plus, Package, BarChart3, Eye, MousePointer2, PhoneCall, ShoppingBag, MessageSquare } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const authHeader = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("streetly_token") ?? ""}`,

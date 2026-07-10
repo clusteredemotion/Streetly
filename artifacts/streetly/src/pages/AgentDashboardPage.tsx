@@ -17,8 +17,9 @@ import {
   XCircle, RefreshCw, Package,
 } from "lucide-react";
 import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 const COMMISSION_PER_LISTING = AGENT_COMMISSION_PER_LISTING;
 
 const NIGERIAN_BANKS = [

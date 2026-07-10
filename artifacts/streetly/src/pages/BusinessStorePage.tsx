@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { ArrowLeft, Store } from "lucide-react";
 import MarketplaceSection from "@/components/marketplace/MarketplaceSection";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 export default function BusinessStorePage() {
   const { slug } = useParams() as { slug: string };

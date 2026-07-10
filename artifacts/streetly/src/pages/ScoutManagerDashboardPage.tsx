@@ -6,8 +6,9 @@ import { Loader2, CheckCircle, XCircle, Users, CreditCard, Tag, Building2, LogOu
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import AdminCategories from "@/components/admin/AdminCategories";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 const authHeader = () => ({
   "Content-Type": "application/json",

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ShieldCheck, CheckCircle, AlertCircle } from "lucide-react";
+import { getApiBase } from "@/lib/utils";
 
 interface ClaimBusinessModalProps {
   open: boolean;
@@ -29,7 +30,7 @@ export function ClaimBusinessModal({ open, onClose, businessId, businessName }: 
 
   const update = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
 
-  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const BASE = getApiBase();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

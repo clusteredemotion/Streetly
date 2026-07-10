@@ -8,8 +8,9 @@ import {
   Calendar, MapPin, IdCard, FileCheck2, Upload,
 } from "lucide-react";
 import { useUpload } from "@workspace/object-storage-web";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 function GlassInput({ value, onChange, placeholder, type = "text", required }: {
   value: string; onChange: (v: string) => void;

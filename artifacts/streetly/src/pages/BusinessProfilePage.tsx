@@ -43,8 +43,9 @@ import { ClaimBusinessModal } from "@/components/ClaimBusinessModal";
 import { DeliveryRequestModal } from "@/components/DeliveryRequestModal";
 import MarketplaceSection from "@/components/marketplace/MarketplaceSection";
 import { Truck } from "lucide-react";
+import { getApiBase } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+const BASE = getApiBase();
 
 /* ─── Fullscreen Directions Map Overlay ─── */
 function DirectionsMap({ lat, lon, name, onClose }: { lat: number; lon: number; name: string; onClose: () => void }) {
