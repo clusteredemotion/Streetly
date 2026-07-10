@@ -8,7 +8,7 @@ export function Footer() {
   return (
     <footer className="bg-background text-foreground py-12 border-t border-white/5">
       <div className="container px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl text-primary-foreground hover:text-primary transition-colors">
               <MapPin className="h-6 w-6 text-primary" />
@@ -26,22 +26,24 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-semibold text-lg mb-4 text-primary-foreground">Explore</h3>
+            <h3 className="font-semibold text-lg mb-4 text-primary-foreground">Quick Links</h3>
             <ul className="space-y-2.5">
-              <li><Link href="/businesses" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">All Businesses</Link></li>
-              <li><Link href="/explore" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Street Explorer</Link></li>
-              <li><Link href="/categories" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Categories</Link></li>
-              <li><Link href="/cities" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Cities</Link></li>
+              <li><Link href="/" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Home</Link></li>
+              <li><Link href="/businesses" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Business Directory</Link></li>
+              <li><Link href="/auth/register?role=business_owner" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">List your Business</Link></li>
+              <li><Link href="/properties" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Properties</Link></li>
+              <li><Link href="/account" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Account</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-semibold text-lg mb-4 text-primary-foreground">For Partners</h3>
+            <h3 className="font-semibold text-lg mb-4 text-primary-foreground">Explore</h3>
             <ul className="space-y-2.5">
+              <li><Link href="/explore" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Street Explorer</Link></li>
               <li><Link href="/agents" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Become an Agent</Link></li>
-              <li><Link href="/auth/register" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Add Your Business</Link></li>
-              <li><Link href="/owner-dashboard" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Business Dashboard</Link></li>
-              <li><Link href="/agent-dashboard" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Agent Dashboard</Link></li>
+              <li><Link href="/riders/apply" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Become a Rider</Link></li>
+              <li><Link href="/messages" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Messages</Link></li>
+              <li><Link href="/support" className="text-muted-foreground hover:text-primary text-sm transition-colors hover:underline underline-offset-4">Support Tickets</Link></li>
             </ul>
           </div>
 

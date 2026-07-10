@@ -1,10 +1,16 @@
 import { Link, useLocation } from "wouter";
 import { useGetMe } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, MapPin, ChevronRight, User as UserIcon } from "lucide-react";
+import { Menu, X, MapPin, ChevronRight, ChevronDown, User as UserIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -39,15 +45,21 @@ export function Navbar() {
   const isAgent = user?.role === "field_agent";
   const isRider = user?.role === "delivery_rider";
 
+  // Primary destinations — shown on the desktop nav, and mirrored by the
+  // bottom tab bar on mobile, so they're intentionally kept short.
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/properties", label: "Properties" },
     { href: "/businesses", label: "Directory" },
+  ];
+
+  // Secondary/less-frequent destinations — tucked into the mobile menu and
+  // the footer instead of competing for space in the primary nav.
+  const moreLinks = [
     { href: "/explore", label: "Street Explorer" },
     ...(!isAgent ? [{ href: "/agents", label: "Become an Agent" }] : []),
     ...(!isRider ? [{ href: "/riders/apply", label: "Become a Rider" }] : []),
     ...(!user ? [{ href: "/auth/register?role=business_owner", label: "List Your Business" }] : []),
-    ...(user ? [{ href: "/account", label: "My Account" }] : []),
     ...(user ? [{ href: "/messages", label: "Messages" }] : []),
     ...(user ? [{ href: "/support", label: "Support Tickets" }] : []),
   ];
@@ -114,6 +126,28 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "text-sm font-medium px-3.5 py-2 rounded-lg transition-all duration-150 flex items-center gap-1",
+                    onMap
+                      ? "text-[#0547B6]/75 hover:bg-blue-700/8 hover:text-[#0547B6]"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  More
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {moreLinks.map((link) => (
+                  <DropdownMenuItem key={link.href} asChild>
+                    <Link href={link.href}>{link.label}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
           {/* Auth */}
@@ -230,7 +264,7 @@ export function Navbar() {
               className="md:hidden overflow-hidden glass-nav border-t border-white/10"
             >
               <nav className="container mx-auto px-4 py-4 flex flex-col gap-1 safe-bottom">
-                {navLinks.map((link, i) => (
+                {moreLinks.map((link, i) => (
                   <motion.div
                     key={link.href}
                     initial={{ opacity: 0, x: -10 }}
