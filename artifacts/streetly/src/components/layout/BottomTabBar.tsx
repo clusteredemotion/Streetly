@@ -14,10 +14,10 @@ export function BottomTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-[1100] bg-background/95 backdrop-blur-lg border-t border-white/10 safe-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-[1100] bg-background/80 backdrop-blur-xl border-t border-white/10 safe-bottom"
       aria-label="Primary"
     >
-      <div className="grid grid-cols-4">
+      <div className="grid grid-cols-4 max-w-md mx-auto">
         {tabs.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? location === "/" : location.startsWith(href);
           return (
@@ -25,11 +25,11 @@ export function BottomTabBar() {
               key={href}
               href={href}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-medium leading-none transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <Icon className={cn("h-5 w-5", active && "fill-primary/10")} strokeWidth={active ? 2.4 : 2} />
+              <Icon className={cn("h-[18px] w-[18px]", active && "fill-primary/10")} strokeWidth={active ? 2.4 : 2} />
               {label}
             </Link>
           );
