@@ -266,13 +266,13 @@ export function Preloader() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.95, duration: 0.5 }}
-              className="mt-2 flex items-center gap-2"
+              className="mt-2 flex items-center gap-2 px-6 max-w-full"
             >
-              <span className="w-5 h-px" style={{ background: "rgba(74,158,255,0.5)" }}/>
-              <p className="text-[11px] font-bold tracking-[0.14em] uppercase text-blue-300/70 whitespace-nowrap">
+              <span className="w-4 sm:w-5 h-px flex-shrink-0" style={{ background: "rgba(74,158,255,0.5)" }}/>
+              <p className="min-w-0 text-[9px] sm:text-[11px] font-bold tracking-[0.08em] sm:tracking-[0.14em] uppercase text-blue-300/70 text-center whitespace-normal leading-tight">
                 Discovering every business, every street
               </p>
-              <span className="w-5 h-px" style={{ background: `${YELLOW}80` }}/>
+              <span className="w-4 sm:w-5 h-px flex-shrink-0" style={{ background: `${YELLOW}80` }}/>
             </motion.div>
 
             {/* Progress bar */}
