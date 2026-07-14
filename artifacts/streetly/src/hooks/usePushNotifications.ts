@@ -27,7 +27,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-async function subscribeWebPush(token?: string | null): Promise<void> {
+async function subscribeWebPush(): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
   const vapidKey = await getVapidPublicKey();
@@ -48,10 +48,7 @@ async function subscribeWebPush(token?: string | null): Promise<void> {
 
     await fetch(`${BASE}/api/push/web-subscribe`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(subscription.toJSON()),
     });
   } catch (err) {
@@ -59,7 +56,7 @@ async function subscribeWebPush(token?: string | null): Promise<void> {
   }
 }
 
-async function registerNativePush(token?: string | null): Promise<void> {
+async function registerNativePush(): Promise<void> {
   try {
     const permStatus = await PushNotifications.requestPermissions();
     if (permStatus.receive !== "granted") return;
@@ -69,10 +66,7 @@ async function registerNativePush(token?: string | null): Promise<void> {
     PushNotifications.addListener("registration", async (fcmToken) => {
       await fetch(`${BASE}/api/push/device-token`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: fcmToken.value, platform: "android" }),
       });
     });
@@ -86,7 +80,7 @@ async function registerNativePush(token?: string | null): Promise<void> {
     });
 
     PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-      const url = (action.notification.data as any)?.url;
+      const url = (action.notification.data as Record<string, unknown>)?.url as string | undefined;
       if (url) window.location.href = url;
     });
   } catch (err) {
@@ -94,23 +88,28 @@ async function registerNativePush(token?: string | null): Promise<void> {
   }
 }
 
-export function usePushNotifications(authToken?: string | null): void {
-  const initialised = useRef(false);
+/**
+ * Subscribes the current device/browser to push notifications.
+ * Works for ALL visitors — no login required.
+ * Safe to call multiple times (runs only once per session).
+ */
+export function usePushNotifications(): void {
+  const done = useRef(false);
 
   useEffect(() => {
-    if (initialised.current) return;
-    initialised.current = true;
+    if (done.current) return;
+    done.current = true;
 
     if (Capacitor.isNativePlatform()) {
-      registerNativePush(authToken);
+      registerNativePush();
     } else if ("Notification" in window) {
       if (Notification.permission === "granted") {
-        subscribeWebPush(authToken);
+        subscribeWebPush();
       } else if (Notification.permission === "default") {
         Notification.requestPermission().then((p) => {
-          if (p === "granted") subscribeWebPush(authToken);
+          if (p === "granted") subscribeWebPush();
         });
       }
     }
-  }, [authToken]);
+  }, []);
 }
