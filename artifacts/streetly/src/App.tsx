@@ -109,8 +109,7 @@ function Router() {
 }
 
 function PushInit() {
-  const token = localStorage.getItem("streetly_token");
-  usePushNotifications(token);
+  usePushNotifications();
   return null;
 }
 
