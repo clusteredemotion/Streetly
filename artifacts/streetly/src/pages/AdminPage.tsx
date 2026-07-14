@@ -22,7 +22,7 @@ import {
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
   MessageSquare, LifeBuoy, Star, BarChart2, ChevronRight, Download, Settings, Menu,
-  Calendar, IdCard, UserPlus, Mail, Clock, Map as MapIcon,
+  Calendar, IdCard, UserPlus, Mail, Clock, Map as MapIcon, Bell,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -35,6 +35,7 @@ import AdminExport from "@/components/admin/AdminExport";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import AdminMapStylePanel from "@/components/admin/AdminMapStylePanel";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
+import AdminPushNotifications from "@/components/admin/AdminPushNotifications";
 import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
 const BASE = getApiBase();
@@ -1816,6 +1817,7 @@ const SECTION_LABELS: Record<string, string> = {
   "pending-agents": "Pending Agents", kyc: "KYC Documents",
   categories: "Categories", commissions: "Commissions",
   messages: "Messages", "support-tickets": "Support Tickets",
+  "push-notifications": "Push Notifications",
   export: "Export Data", "email-settings": "Email & Account",
   gallery: "Gallery", "map-style": "Map Style",
 };
@@ -2396,6 +2398,7 @@ export default function AdminPage() {
             <NavGroup label="Communications" />
             <NavItem section="messages" active={activeSection} label="Messages" icon={<MessageSquare className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="support-tickets" active={activeSection} label="Support Tickets" icon={<LifeBuoy className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="push-notifications" active={activeSection} label="Push Notifications" icon={<Bell className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Data" />
             <NavItem section="export" active={activeSection} label="Export Data" icon={<Download className="h-4 w-4" />} onSelect={handleNavSelect} />
@@ -2453,6 +2456,7 @@ export default function AdminPage() {
           {/* ── Messages ── */}
           {activeSection === "messages" && <AdminMessages />}
           {activeSection === "support-tickets" && <AdminSupportTickets />}
+          {activeSection === "push-notifications" && <AdminPushNotifications />}
           {activeSection === "export" && <AdminExport />}
           {activeSection === "email-settings" && <AdminEmailSettings />}
           {activeSection === "map-style" && <AdminMapStylePanel />}
