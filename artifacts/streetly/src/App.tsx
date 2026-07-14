@@ -39,6 +39,7 @@ import SetupPasswordPage from "@/pages/SetupPasswordPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { PermissionsGate } from "@/components/PermissionsGate";
 
 function handlePasswordChangeRequired(error: unknown) {
   if (
@@ -120,6 +121,7 @@ function App() {
         <CartProvider>
           <PushInit />
           <Preloader />
+          <PermissionsGate />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <ScrollToTop />
             <Router />
