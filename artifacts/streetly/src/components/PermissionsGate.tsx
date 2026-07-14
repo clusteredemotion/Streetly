@@ -17,6 +17,8 @@ export function PermissionsGate() {
   const [busy, setBusy]       = useState(false);
 
   useEffect(() => {
+    // Never show during automated testing (Playwright sets navigator.webdriver)
+    if (navigator.webdriver) return;
     if (localStorage.getItem(STORAGE_KEY)) return;
     const t = setTimeout(() => setVisible(true), 3400);
     return () => clearTimeout(t);
