@@ -23,6 +23,7 @@ import chatRouter from "./chat";
 import propertiesRouter from "./properties";
 import regionalManagerRouter from "./regional-manager";
 import publicRouter from "./public";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -54,5 +55,6 @@ router.use("/users", referralsRouter);
 router.use("/conversations", chatRouter);
 router.use("/properties", propertiesRouter);
 router.use("/regional-manager", regionalManagerRouter);
+router.use("/push", pushRouter);
 
 export default router;
