@@ -15,13 +15,13 @@ export async function getVapidPublicKey(): Promise<string | null> {
   }
 }
 
-function urlBase64ToUint8Array(b64: string): Uint8Array {
+function urlBase64ToUint8Array(b64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (b64.length % 4)) % 4);
   const base64 = (b64 + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = atob(base64);
   const out = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
+  return out.buffer as ArrayBuffer;
 }
 
 /** Subscribe current browser to Web Push (VAPID). No-op if already subscribed. */
