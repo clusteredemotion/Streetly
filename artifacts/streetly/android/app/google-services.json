@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "582113625247",
+    "project_id": "streetly-5591b",
+    "storage_bucket": "streetly-5591b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582113625247:android:63aa5ec65bbf50fe8a8eaa",
+        "android_client_info": {
+          "package_name": "com.streetly.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCO6TCPw9Vphxeouihb9UO_bQyy_VokGPw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
