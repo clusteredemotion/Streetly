@@ -38,6 +38,7 @@ import ChangePasswordPage from "@/pages/ChangePasswordPage";
 import SetupPasswordPage from "@/pages/SetupPasswordPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 function handlePasswordChangeRequired(error: unknown) {
   if (
@@ -107,11 +108,18 @@ function Router() {
   );
 }
 
+function PushInit() {
+  const token = localStorage.getItem("streetly_token");
+  usePushNotifications(token);
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <CartProvider>
+          <PushInit />
           <Preloader />
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <ScrollToTop />
