@@ -22,11 +22,13 @@ import referralsRouter from "./referrals";
 import chatRouter from "./chat";
 import propertiesRouter from "./properties";
 import regionalManagerRouter from "./regional-manager";
+import publicRouter from "./public";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(storageRouter);
+router.use(publicRouter);
 router.use("/auth", authRouter);
 router.use("/stats", statsRouter);
 router.use("/geo", geoRouter);

@@ -57,6 +57,10 @@ const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; a
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
     label: "Explore", emoji: "🗺", attribution: "© OpenStreetMap © CARTO",
   },
+  positron: {
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    label: "Positron", emoji: "⬜", attribution: "© OpenStreetMap © CARTO",
+  },
   light: {
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     label: "Light", emoji: "☀️", attribution: "© OpenStreetMap © CARTO",
@@ -68,6 +72,22 @@ const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; a
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     label: "Satellite", emoji: "🛰", attribution: "© Esri, Maxar, Earthstar Geographics",
+  },
+  topo: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    label: "Topo Map", emoji: "⛰", attribution: "© Esri, HERE, Garmin, OpenStreetMap",
+  },
+  natgeo: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",
+    label: "National Geographic", emoji: "🌍", attribution: "© Esri, National Geographic Society",
+  },
+  ocean: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
+    label: "Ocean", emoji: "🌊", attribution: "© Esri, GEBCO, NOAA, National Geographic",
+  },
+  alidade: {
+    url: "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
+    label: "Alidade Smooth", emoji: "🎨", attribution: "© Stadia Maps © OpenStreetMap",
   },
 };
 
@@ -189,7 +209,8 @@ export function HomeMapView() {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [tileStyle, setTileStyle] = useState("explore");
+  const [tileStyle, setTileStyle] = useState("positron");
+  const defaultStyleApplied = useRef(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);
   const [locating, setLocating] = useState(false);
@@ -241,6 +262,22 @@ export function HomeMapView() {
     : (selectedCountryObj && selectedStateObj
         ? CSCCity.getCitiesOfState(selectedCountryObj.isoCode, selectedStateObj.isoCode).map(c => ({ id: 0, name: c.name }))
         : []);
+
+  /* ── Fetch admin-configured default map style on first mount ── */
+  useEffect(() => {
+    if (defaultStyleApplied.current) return;
+    defaultStyleApplied.current = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    fetch(`${BASE}/api/public/settings`, { signal: controller.signal })
+      .then(r => r.json())
+      .then((data: { default_map_style?: string }) => {
+        const key = data?.default_map_style;
+        if (key && key in TILE_STYLES) setTileStyle(key);
+      })
+      .catch(() => { /* fall back to "explore" silently */ })
+      .finally(() => clearTimeout(timeout));
+  }, []);
 
   /* ── Live activity ticker ── */
   useEffect(() => {
@@ -484,8 +521,8 @@ export function HomeMapView() {
       if (!containerRef.current) return;
 
       map = L.map(containerRef.current, {
-        center: [6.5244, 3.3792],
-        zoom: 12,
+        center: [2, 20],
+        zoom: 4,
         zoomControl: false,
         attributionControl: true,
         /* ── Google-Maps-like feel ── */
@@ -565,7 +602,7 @@ export function HomeMapView() {
 
     mappable.forEach((biz, idx) => {
       const color = CATEGORY_COLORS[biz.categoryName ?? ""] ?? DEFAULT_COLOR;
-      const size = biz.featured ? 38 : 30;
+      const size = biz.featured ? 22 : 16;
       const blinkDelay = parseFloat(((idx % 10) * 0.2).toFixed(1));
       const icon = L.divIcon({
         className: "",

@@ -22,7 +22,7 @@ import {
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
   MessageSquare, LifeBuoy, Star, BarChart2, ChevronRight, Download, Settings, Menu,
-  Calendar, IdCard, UserPlus, Mail, Clock,
+  Calendar, IdCard, UserPlus, Mail, Clock, Map as MapIcon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import AddBusinessForm from "@/components/admin/AddBusinessForm";
@@ -33,6 +33,7 @@ import AdminSupportTickets from "@/components/admin/AdminSupportTickets";
 import AdminCategories from "@/components/admin/AdminCategories";
 import AdminExport from "@/components/admin/AdminExport";
 import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
+import AdminMapStylePanel from "@/components/admin/AdminMapStylePanel";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
@@ -1816,7 +1817,7 @@ const SECTION_LABELS: Record<string, string> = {
   categories: "Categories", commissions: "Commissions",
   messages: "Messages", "support-tickets": "Support Tickets",
   export: "Export Data", "email-settings": "Email & Account",
-  gallery: "Gallery",
+  gallery: "Gallery", "map-style": "Map Style",
 };
 
 /* ══════════════════════════════════════════
@@ -2401,6 +2402,7 @@ export default function AdminPage() {
             <NavItem section="gallery" active={activeSection} label="Gallery" icon={<ImageIcon className="h-4 w-4" />} onSelect={handleNavSelect} />
 
             <NavGroup label="Configuration" />
+            <NavItem section="map-style" active={activeSection} label="Map Style" icon={<MapIcon className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="email-settings" active={activeSection} label="Email &amp; Account" icon={<Settings className="h-4 w-4" />} onSelect={handleNavSelect} />
           </nav>
         </aside>
@@ -2453,6 +2455,7 @@ export default function AdminPage() {
           {activeSection === "support-tickets" && <AdminSupportTickets />}
           {activeSection === "export" && <AdminExport />}
           {activeSection === "email-settings" && <AdminEmailSettings />}
+          {activeSection === "map-style" && <AdminMapStylePanel />}
 
           {/* ── Gallery ── */}
           {activeSection === "gallery" && (

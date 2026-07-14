@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 import { getApiBase } from "@/lib/utils";
+import { getCurrentPosition, geoErrorMessage } from "@/lib/geolocation";
 
 const BASE = getApiBase();
 const COMMISSION_PER_LISTING = AGENT_COMMISSION_PER_LISTING;
@@ -154,6 +155,7 @@ function GpsPickerMap({ lat, lon, onChange }: {
   const markerRef = useRef<L.Marker | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
   const placePin = useCallback(async (pLat: number, pLon: number) => {
     const map = mapRef.current;
@@ -168,14 +170,17 @@ function GpsPickerMap({ lat, lon, onChange }: {
     onChange(pLat.toFixed(6), pLon.toFixed(6), address);
   }, [onChange]);
 
-  const handleGetLocation = useCallback(() => {
-    if (!navigator.geolocation || !mapRef.current) return;
+  const handleGetLocation = useCallback(async () => {
+    if (!mapRef.current) return;
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => { setLocating(false); await placePin(pos.coords.latitude, pos.coords.longitude); },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
+    setGeoError(null);
+    const result = await getCurrentPosition();
+    setLocating(false);
+    if (result.ok) {
+      await placePin(result.latitude, result.longitude);
+    } else {
+      setGeoError(geoErrorMessage(result.reason));
+    }
   }, [placePin]);
 
   useEffect(() => {
@@ -217,6 +222,11 @@ function GpsPickerMap({ lat, lon, onChange }: {
         className="absolute top-2 right-2 z-[500] flex items-center gap-1.5 bg-[#4a9eff] hover:bg-[#3a8ef0] disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg transition-colors">
         {locating ? <><Loader2 className="h-3 w-3 animate-spin" /> Locating…</> : <><Navigation className="h-3 w-3" /> Get Address</>}
       </button>
+      {geoError && (
+        <div className="absolute top-12 right-2 bg-red-900/90 backdrop-blur text-red-200 text-[11px] px-3 py-1.5 rounded-lg z-[500] max-w-[200px] text-center">
+          {geoError}
+        </div>
+      )}
       {geocoding && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#0a1628]/90 backdrop-blur text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 z-[500]">
           <Loader2 className="h-3 w-3 animate-spin" /> Looking up address…

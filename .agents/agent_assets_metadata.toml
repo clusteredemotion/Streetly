@@ -12,3 +12,15 @@ id = "YNr1P7kwzN5mfsxrf4jbh"
 uri = "file://artifacts/streetly/streetly-release-signing.zip"
 type = "unspecified"
 title = "Streetly release keystore + password + setup instructions"
+
+[[outputs]]
+id = "in-57LI27egKpl-BLh9EM"
+uri = "file://.local/keystore-output/streetly-release.keystore.b64.txt"
+type = "text"
+title = "Keystore (base64-encoded, paste into STREETLY_KEYSTORE_BASE64)"
+
+[[outputs]]
+id = "jBs3huCMm9SM-wp2jBgkb"
+uri = "file://.local/keystore-output/GITHUB_SECRETS_SETUP.txt"
+type = "text"
+title = "Setup instructions & password"
