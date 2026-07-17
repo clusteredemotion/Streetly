@@ -49,7 +49,7 @@ jobs:
         run: pnpm run build
 
       - name: Sync Capacitor assets into Android project
-        run: npx cap sync android --no-open
+        run: npx cap sync android
 
       - name: Grant execute permission to gradlew
         run: chmod +x android/gradlew
@@ -106,7 +106,7 @@ jobs:
         run: pnpm run build
 
       - name: Sync Capacitor assets into Android project
-        run: npx cap sync android --no-open
+        run: npx cap sync android
 
       - name: Grant execute permission to gradlew
         run: chmod +x android/gradlew
