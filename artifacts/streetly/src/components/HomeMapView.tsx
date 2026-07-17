@@ -733,6 +733,7 @@ export function HomeMapView() {
       return () => { clearInterval(timer); clearTimeout(giveUp); };
     }
     window.speechSynthesis.onvoiceschanged = () => pick();
+    return;
   }, []);
 
   function speak(text: string) {
