@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { getApiBase } from "@/lib/utils";
+import { playNotificationSound, showBrowserNotification } from "@/lib/notificationSound";
 import {
   MessageSquare, ArrowLeft, Send, Loader2, User as UserIcon, Building2,
-  ShieldCheck, RefreshCw, UserCheck, Clock, CheckCircle2, AlertCircle,
+  ShieldCheck, RefreshCw, UserCheck, Clock, CheckCircle2, AlertCircle, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,9 +17,12 @@ const authHeader = () => ({
 
 interface Conversation {
   id: number;
-  customerId: number;
+  customerId: number | null;
   customerName: string | null;
   customerEmail: string | null;
+  guestName: string | null;
+  guestPhone: string | null;
+  isGuest: boolean;
   businessId: number | null;
   businessName: string | null;
   status: string;
@@ -68,6 +71,31 @@ function SenderAvatar({ senderRole }: { senderRole: string }) {
   return <div className={cn(cls, "bg-white/10 text-white/50")}><UserIcon className="h-3.5 w-3.5" /></div>;
 }
 
+// Bouncing dots typing indicator for admin panel (dark theme)
+function TypingBubble({ label }: { label: string | null }) {
+  return (
+    <div className="flex items-end gap-2">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-white/10 text-white/50">
+        <UserIcon className="h-3.5 w-3.5" />
+      </div>
+      <div className="rounded-2xl rounded-bl-md px-3.5 py-2.5" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.06)" }}>
+        {label && (
+          <p className="text-[10px] font-semibold mb-1 opacity-50 capitalize">{label}</p>
+        )}
+        <div className="flex items-center gap-1 h-4">
+          {[0, 150, 300].map((delay) => (
+            <span
+              key={delay}
+              className="w-2 h-2 rounded-full animate-bounce"
+              style={{ backgroundColor: "rgba(255,255,255,0.35)", animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminChatPanel() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,14 +106,31 @@ export default function AdminChatPanel() {
   const [sending, setSending] = useState(false);
   const [reassigning, setReassigning] = useState(false);
   const [reassigned, setReassigned] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [otherTyping, setOtherTyping] = useState<{ isTyping: boolean; label: string | null }>({ isTyping: false, label: null });
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevConvIdsRef = useRef<Set<number> | null>(null);
+  const prevMsgIdsRef  = useRef<Set<number> | null>(null);
 
   const selectedConv = conversations.find(c => c.id === selectedId) ?? null;
 
   const fetchConversations = async () => {
     try {
       const res = await fetch(`${BASE}/api/conversations`, { headers: authHeader() });
-      if (res.ok) setConversations(await res.json());
+      if (res.ok) {
+        const convs: Conversation[] = await res.json();
+        setConversations(convs);
+        if (prevConvIdsRef.current === null) {
+          prevConvIdsRef.current = new Set(convs.map(c => c.id));
+        } else {
+          const newConvs = convs.filter(c => !prevConvIdsRef.current!.has(c.id));
+          if (newConvs.length > 0) {
+            playNotificationSound();
+            showBrowserNotification("New conversation", `${newConvs[0].customerName ?? "A user"} started a chat`);
+          }
+          prevConvIdsRef.current = new Set(convs.map(c => c.id));
+        }
+      }
     } catch {}
     finally { setLoading(false); }
   };
@@ -93,7 +138,29 @@ export default function AdminChatPanel() {
   const fetchMessages = async (id: number) => {
     try {
       const res = await fetch(`${BASE}/api/conversations/${id}/messages`, { headers: authHeader() });
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const msgs: ChatMessage[] = await res.json();
+        setMessages(msgs);
+        if (prevMsgIdsRef.current === null) {
+          prevMsgIdsRef.current = new Set(msgs.map(m => m.id));
+        } else {
+          const newFromOther = msgs.filter(
+            m => !prevMsgIdsRef.current!.has(m.id) && m.senderRole !== "admin"
+          );
+          if (newFromOther.length > 0) {
+            playNotificationSound();
+            showBrowserNotification("New message", newFromOther[newFromOther.length - 1].body);
+          }
+          prevMsgIdsRef.current = new Set(msgs.map(m => m.id));
+        }
+      }
+    } catch {}
+  };
+
+  const fetchTypingStatus = async (id: number) => {
+    try {
+      const res = await fetch(`${BASE}/api/conversations/${id}/typing-status`, { headers: authHeader() });
+      if (res.ok) setOtherTyping(await res.json());
     } catch {}
   };
 
@@ -105,21 +172,42 @@ export default function AdminChatPanel() {
 
   useEffect(() => {
     if (!selectedId) return;
+    setOtherTyping({ isTyping: false, label: null });
     setMsgLoading(true);
     fetchMessages(selectedId).finally(() => setMsgLoading(false));
-    const t = setInterval(() => fetchMessages(selectedId), 3500);
-    return () => clearInterval(t);
+    const msgInterval = setInterval(() => fetchMessages(selectedId), 3500);
+    const typingInterval = setInterval(() => fetchTypingStatus(selectedId), 2000);
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(typingInterval);
+    };
   }, [selectedId]);
 
+  // Scroll to bottom when messages or typing indicator changes
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const el = scrollAreaRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, otherTyping.isTyping]);
 
   const openConversation = (id: number) => {
     setSelectedId(id);
     setMessages([]);
     setInput("");
     setReassigned(false);
+    prevMsgIdsRef.current = null;
+  };
+
+  const signalTyping = (id: number) => {
+    if (typingThrottleRef.current) return;
+    fetch(`${BASE}/api/conversations/${id}/typing`, { method: "POST", headers: authHeader() }).catch(() => {});
+    typingThrottleRef.current = setTimeout(() => {
+      typingThrottleRef.current = null;
+    }, 2000);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    if (selectedId) signalTyping(selectedId);
   };
 
   const handleSend = async (e?: React.FormEvent) => {
@@ -134,7 +222,6 @@ export default function AdminChatPanel() {
         const msg = await res.json();
         setMessages(prev => [...prev, msg]);
         setInput("");
-        // Refresh conv list to update status
         fetchConversations();
       }
     } catch {}
@@ -172,16 +259,29 @@ export default function AdminChatPanel() {
         className="flex flex-col h-full" style={{ minHeight: "520px" }}>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+        <div className="flex items-center gap-3 mb-4 pb-4 border-b flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           <button onClick={() => setSelectedId(null)}
             className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors text-white/50 hover:text-white flex-shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white truncate">
-              {selectedConv?.customerName ?? "User"} → {selectedConv?.businessName ?? "Business"}
-            </p>
-            <p className="text-xs text-white/40 truncate">{selectedConv?.customerEmail}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-white truncate">
+                {selectedConv?.customerName ?? "User"} → {selectedConv?.businessName ?? "Business"}
+              </p>
+              {selectedConv?.isGuest && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/20 flex-shrink-0">
+                  Guest
+                </span>
+              )}
+            </div>
+            {selectedConv?.isGuest && selectedConv.guestPhone ? (
+              <p className="text-xs text-white/40 truncate flex items-center gap-1">
+                <Phone className="h-2.5 w-2.5" /> {selectedConv.guestPhone}
+              </p>
+            ) : (
+              <p className="text-xs text-white/40 truncate">{selectedConv?.customerEmail}</p>
+            )}
           </div>
           {selectedConv && <StatusBadge status={selectedConv.status} assignedTo={selectedConv.assignedTo} />}
           <button onClick={fetchConversations} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors flex-shrink-0">
@@ -190,29 +290,34 @@ export default function AdminChatPanel() {
         </div>
 
         {/* Hand-off banner */}
-        {isReassigned || reassigned ? (
-          <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-2.5"
-            style={{ background: "rgba(22,163,74,0.12)", border: "1px solid rgba(22,163,74,0.25)" }}>
-            <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
-            <span className="text-xs text-green-300">Chat has been handed off to the store. The business owner can now reply directly.</span>
-          </div>
-        ) : (
-          <div className="mb-4 px-4 py-3 rounded-xl flex items-center gap-3"
-            style={{ background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.15)" }}>
-            <AlertCircle className="h-4 w-4 text-[#4a9eff] flex-shrink-0" />
-            <span className="text-xs text-white/50 flex-1">You're handling this as admin. Hand off to the store owner when ready.</span>
-            <Button size="sm" onClick={handleReassign} disabled={reassigning}
-              className="rounded-xl px-3 text-xs font-semibold gap-1.5 flex-shrink-0"
-              style={{ background: "linear-gradient(135deg,#16a34a 0%,#15803d 100%)", color: "#fff" }}>
-              {reassigning ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
-              {reassigning ? "Handing off…" : "Hand off to Store"}
-            </Button>
-          </div>
-        )}
+        <div className="mb-4 flex-shrink-0">
+          {isReassigned || reassigned ? (
+            <div className="px-4 py-3 rounded-xl flex items-center gap-2.5"
+              style={{ background: "rgba(22,163,74,0.12)", border: "1px solid rgba(22,163,74,0.25)" }}>
+              <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
+              <span className="text-xs text-green-300">Chat has been handed off to the store. The business owner can now reply directly.</span>
+            </div>
+          ) : (
+            <div className="px-4 py-3 rounded-xl flex items-center gap-3"
+              style={{ background: "rgba(74,158,255,0.08)", border: "1px solid rgba(74,158,255,0.15)" }}>
+              <AlertCircle className="h-4 w-4 text-[#4a9eff] flex-shrink-0" />
+              <span className="text-xs text-white/50 flex-1">You're handling this as admin. Hand off to the store owner when ready.</span>
+              <Button size="sm" onClick={handleReassign} disabled={reassigning}
+                className="rounded-xl px-3 text-xs font-semibold gap-1.5 flex-shrink-0"
+                style={{ background: "linear-gradient(135deg,#16a34a 0%,#15803d 100%)", color: "#fff" }}>
+                {reassigning ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
+                {reassigning ? "Handing off…" : "Hand off to Store"}
+              </Button>
+            </div>
+          )}
+        </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto rounded-xl mb-4 p-4"
-          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", minHeight: "200px" }}>
+        {/* Messages — plain scrollable div so scrollTop works */}
+        <div
+          ref={scrollAreaRef}
+          className="flex-1 overflow-y-auto rounded-xl mb-4 p-4 min-h-0"
+          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
           {msgLoading && messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-5 w-5 animate-spin text-white/30" />
@@ -250,16 +355,18 @@ export default function AdminChatPanel() {
                   </div>
                 );
               })}
-              <div ref={scrollRef} />
+
+              {/* Typing indicator — shown below the last message */}
+              {otherTyping.isTyping && <TypingBubble label={otherTyping.label} />}
             </div>
           )}
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSend} className="flex gap-2">
+        <form onSubmit={handleSend} className="flex gap-2 flex-shrink-0">
           <input
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Reply as admin…"
             className="flex-1 px-4 py-2.5 rounded-xl text-sm text-white outline-none transition-all"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", caretColor: "#4a9eff" }}
@@ -310,6 +417,11 @@ export default function AdminChatPanel() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className="text-sm font-semibold text-white truncate">{conv.customerName ?? "User"}</span>
+                    {conv.isGuest && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/20 flex-shrink-0">
+                        Guest
+                      </span>
+                    )}
                     <span className="text-xs text-white/30">→</span>
                     <span className="text-sm text-white/70 truncate">{conv.businessName ?? "Business"}</span>
                     {conv.unreadCount > 0 && (
