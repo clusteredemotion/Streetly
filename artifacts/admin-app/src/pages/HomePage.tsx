@@ -1,42 +1,82 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getToken, apiRegisterDeviceToken } from "../lib/api";
 
 interface Props {
   onLogout: () => void;
 }
 
-async function registerPush() {
-  try {
-    const { PushNotifications } = await import("@capacitor/push-notifications");
-    const perm = await PushNotifications.requestPermissions();
-    if (perm.receive !== "granted") return;
-    await PushNotifications.register();
-    PushNotifications.addListener("registration", async (t) => {
-      await apiRegisterDeviceToken(t.value, "android").catch(() => {});
-    });
-    PushNotifications.addListener("registrationError", (err) => {
-      console.warn("[FCM] registration error:", err.error);
-    });
-  } catch {
-    // Not in Capacitor context — no-op in web preview
-  }
+// Map FCM notification data.type → admin section name
+function sectionForNotif(data: Record<string, string>): string {
+  const t = (data?.type ?? "").toLowerCase();
+  if (t.includes("business")) return "businesses";
+  if (t.includes("rider")) return "pending-riders";
+  if (t.includes("message") || t.includes("chat")) return "chat";
+  if (t.includes("user")) return "all-users";
+  if (t.includes("kyc")) return "kyc";
+  if (t.includes("withdrawal") || t.includes("commission")) return "commissions";
+  if (t.includes("claim")) return "claims";
+  return "analytics";
 }
 
 export default function HomePage({ onLogout: _onLogout }: Props) {
   const [loaded, setLoaded] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const token = getToken() ?? "";
 
-  // Token is passed in the URL hash so AdminPage.tsx can pick it up,
-  // save to localStorage, and clear the hash — all within the iframe.
   const adminUrl = `https://mystreetly.app/admin#streetly_token=${encodeURIComponent(token)}`;
 
   useEffect(() => {
+    async function registerPush() {
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+
+        // ── Add ALL listeners BEFORE calling register() ──────────────────
+        // Capacitor fires the `registration` event synchronously on some
+        // Android versions — if the listener isn't attached first the FCM
+        // token is never sent to the server and no notifications arrive.
+
+        PushNotifications.addListener("registration", async (t) => {
+          // Link this device's FCM token to the admin user in the DB
+          await apiRegisterDeviceToken(t.value, "android").catch((err) => {
+            console.warn("[FCM] device-token registration failed:", err);
+          });
+        });
+
+        PushNotifications.addListener("registrationError", (err) => {
+          console.warn("[FCM] registration error:", err.error);
+        });
+
+        PushNotifications.addListener("pushNotificationReceived", (_notif) => {
+          // Notification arrived while app is foregrounded — nothing to do;
+          // the web admin iframe updates itself via its own polling.
+        });
+
+        PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+          // User tapped a notification — tell the iframe to navigate to
+          // the relevant admin section via postMessage.
+          const section = sectionForNotif(action.notification.data ?? {});
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: "STREETLY_ADMIN_NAVIGATE", section },
+            "https://mystreetly.app"
+          );
+        });
+
+        // ── Now request permissions and register ──────────────────────────
+        const perm = await PushNotifications.requestPermissions();
+        if (perm.receive !== "granted") return;
+        await PushNotifications.register();
+
+      } catch {
+        // Not running inside Capacitor — no-op for web preview
+      }
+    }
+
     registerPush();
   }, []);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#0a0f1e", display: "flex", flexDirection: "column" }}>
-      {/* Loading overlay — hides until the iframe has painted */}
+      {/* Loading overlay — hidden once the iframe fires onLoad */}
       {!loaded && (
         <div style={{
           position: "absolute", inset: 0, zIndex: 10,
@@ -65,23 +105,18 @@ export default function HomePage({ onLogout: _onLogout }: Props) {
         </div>
       )}
 
-      {/* Full-screen iframe — stays inside the Capacitor WebView (no system browser) */}
+      {/* Full-screen iframe — stays inside the Capacitor WebView.
+          Android WebView never routes iframe src loads to the system browser. */}
       <iframe
+        ref={iframeRef}
         src={adminUrl}
         onLoad={() => setLoaded(true)}
-        style={{
-          flex: 1,
-          width: "100%",
-          border: "none",
-          display: "block",
-        }}
+        style={{ flex: 1, width: "100%", border: "none", display: "block" }}
         allow="camera; microphone; clipboard-read; clipboard-write"
         referrerPolicy="no-referrer-when-downgrade"
       />
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

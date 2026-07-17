@@ -1869,6 +1869,20 @@ export default function AdminPage() {
     staleTime: 60_000,
   });
 
+  // Listen for navigation messages from the Capacitor admin shell
+  // (sent when an admin taps a push notification)
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.origin !== "capacitor://localhost" && e.origin !== "https://localhost" && e.origin !== "http://localhost") return;
+      if (e.data?.type === "STREETLY_ADMIN_NAVIGATE" && typeof e.data.section === "string") {
+        setActiveSection(e.data.section);
+        setSidebarOpen(false);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   useEffect(() => {
     if (!adminUserLoading && adminUser && adminUser.role !== "admin") {
       if (adminUser.role === "moderator") navigate("/moderator");
