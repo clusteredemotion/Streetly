@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Loader2, User as UserIcon, Building2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn, getApiBase } from "@/lib/utils";
+import { playNotificationSound, showBrowserNotification } from "@/lib/notificationSound";
 
 const BASE = getApiBase();
 
@@ -37,6 +37,36 @@ interface ChatPanelProps {
   onClose?: () => void;
 }
 
+// Bouncing dots typing indicator
+function TypingBubble({ label, isAdmin }: { label: string | null; isAdmin?: boolean }) {
+  return (
+    <div className="flex items-end gap-2">
+      <div className={cn(
+        "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 border",
+        isAdmin ? "bg-blue-500/10 border-blue-500/20" : "bg-muted border-border"
+      )}>
+        {isAdmin
+          ? <ShieldCheck className="h-4 w-4 text-blue-400" />
+          : <Building2 className="h-4 w-4 text-green-400" />}
+      </div>
+      <div className="bg-muted rounded-2xl rounded-bl-none px-4 py-3 flex flex-col gap-0.5">
+        {label && (
+          <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">{label}</p>
+        )}
+        <div className="flex items-center gap-1 h-4">
+          {[0, 150, 300].map((delay) => (
+            <span
+              key={delay}
+              className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce"
+              style={{ animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ChatPanel({ conversationId: initialConversationId, businessId, riderId, deliveryId, onClose }: ChatPanelProps) {
   const [conversationId, setConversationId] = useState<number | undefined>(initialConversationId);
   const [meta, setMeta] = useState<ConversationMeta | null>(null);
@@ -45,14 +75,21 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [otherTyping, setOtherTyping] = useState<{ isTyping: boolean; label: string | null }>({ isTyping: false, label: null });
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevMsgIdsRef = useRef<Set<number> | null>(null);
+  const myUserIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("streetly_token");
     if (token) {
       fetch(`${BASE}/api/auth/me`, { headers: authHeader() })
         .then(r => r.json())
-        .then(d => setCurrentUser({ id: d.id, name: d.name }))
+        .then(d => {
+          setCurrentUser({ id: d.id, name: d.name });
+          myUserIdRef.current = d.id;
+        })
         .catch(() => {});
     }
   }, []);
@@ -60,7 +97,26 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
   const fetchMessages = async (id: number) => {
     try {
       const res = await fetch(`${BASE}/api/conversations/${id}/messages`, { headers: authHeader() });
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const msgs: Message[] = await res.json();
+        setMessages(msgs);
+        const myId = myUserIdRef.current;
+        if (prevMsgIdsRef.current === null) {
+          prevMsgIdsRef.current = new Set(msgs.map(m => m.id));
+        } else {
+          const newFromOther = msgs.filter(
+            m => !prevMsgIdsRef.current!.has(m.id) && m.senderId !== myId
+          );
+          if (newFromOther.length > 0) {
+            playNotificationSound();
+            showBrowserNotification(
+              "New message",
+              newFromOther[newFromOther.length - 1].body
+            );
+          }
+          prevMsgIdsRef.current = new Set(msgs.map(m => m.id));
+        }
+      }
     } catch {}
   };
 
@@ -72,6 +128,13 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
         const found = list.find(c => c.id === id);
         if (found) setMeta(found);
       }
+    } catch {}
+  };
+
+  const fetchTypingStatus = async (id: number) => {
+    try {
+      const res = await fetch(`${BASE}/api/conversations/${id}/typing-status`, { headers: authHeader() });
+      if (res.ok) setOtherTyping(await res.json());
     } catch {}
   };
 
@@ -104,16 +167,36 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
 
   useEffect(() => {
     if (!conversationId) return;
-    const interval = setInterval(() => {
+    const msgInterval = setInterval(() => {
       fetchMessages(conversationId);
       fetchConversationMeta(conversationId);
     }, 4000);
-    return () => clearInterval(interval);
+    // Poll typing status more frequently so the indicator feels responsive
+    const typingInterval = setInterval(() => fetchTypingStatus(conversationId), 2000);
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(typingInterval);
+    };
   }, [conversationId]);
 
+  // Scroll to bottom whenever messages or typing indicator changes
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const el = scrollAreaRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, otherTyping.isTyping]);
+
+  const signalTyping = (id: number) => {
+    if (typingThrottleRef.current) return; // already sent recently
+    fetch(`${BASE}/api/conversations/${id}/typing`, { method: "POST", headers: authHeader() }).catch(() => {});
+    typingThrottleRef.current = setTimeout(() => {
+      typingThrottleRef.current = null;
+    }, 2000);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    if (conversationId) signalTyping(conversationId);
+  };
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -139,7 +222,7 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-muted-foreground gap-2">
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 py-16">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm">Starting chat…</p>
       </div>
@@ -147,11 +230,11 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[450px] bg-card overflow-hidden">
+    <div className="flex flex-col h-full bg-card overflow-hidden">
       {/* Status bar */}
       {meta && (
         <div className={cn(
-          "px-4 py-2 flex items-center gap-2 text-xs font-medium border-b",
+          "px-4 py-2 flex items-center gap-2 text-xs font-medium border-b flex-shrink-0",
           isConnecting
             ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
             : isWithStore
@@ -177,8 +260,8 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
         </div>
       )}
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+      {/* Messages — plain scrollable div so scrollTop works correctly */}
+      <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 min-h-0">
         <div className="space-y-4">
           {messages.length === 0 && !isConnecting && (
             <p className="text-center text-muted-foreground text-sm py-8">
@@ -220,26 +303,30 @@ export function ChatPanel({ conversationId: initialConversationId, businessId, r
                     <p className="text-[10px] font-semibold text-green-400 mb-0.5">{meta?.businessName ?? "Store"}</p>
                   )}
                   <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                  <div className={cn(
-                    "text-[10px] mt-1 opacity-60",
-                    isMe ? "text-right" : "text-left"
-                  )}>
+                  <div className={cn("text-[10px] mt-1 opacity-60", isMe ? "text-right" : "text-left")}>
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
               </div>
             );
           })}
-          <div ref={scrollRef} />
-        </div>
-      </ScrollArea>
 
-      {/* Input */}
-      <div className="p-4 border-t bg-background">
+          {/* Typing indicator — shown below the last message */}
+          {otherTyping.isTyping && (
+            <TypingBubble
+              label={otherTyping.label}
+              isAdmin={true}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Input — flex-shrink-0 keeps it pinned at the bottom */}
+      <div className="p-4 border-t bg-background flex-shrink-0">
         <form onSubmit={handleSend} className="flex gap-2">
           <Input
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             placeholder={isConnecting ? "Send a message while connecting…" : "Type a message…"}
             className="flex-1"
             disabled={sending}
