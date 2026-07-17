@@ -1834,7 +1834,21 @@ const SECTION_LABELS: Record<string, string> = {
 export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>("analytics");
   const qc = useQueryClient();
-  const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("streetly_token"));
+  const [adminToken, setAdminToken] = useState<string | null>(() => {
+    // Accept token injected via URL hash from Capacitor admin app
+    // e.g. /admin#streetly_token=eyJ...
+    const hash = window.location.hash;
+    if (hash.includes("streetly_token=")) {
+      const match = hash.match(/streetly_token=([^&]+)/);
+      if (match?.[1]) {
+        const injected = decodeURIComponent(match[1]);
+        localStorage.setItem("streetly_token", injected);
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+        return injected;
+      }
+    }
+    return localStorage.getItem("streetly_token");
+  });
 
   const handleUnlock = (token: string) => {
     setAdminToken(token);
