@@ -13,10 +13,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   MapPin, Star, ShieldCheck, Phone, MessageCircle, Globe,
   Clock, ArrowLeft, ExternalLink, CheckCircle, Navigation,
-  X, Maximize2, Route, ChevronRight, Share2, Copy, Check, MessageSquare
+  X, Maximize2, Route, ChevronRight, Share2, Copy, Check, MessageSquare, Loader2
 } from "lucide-react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { GuestChatPanel } from "@/components/chat/GuestChatPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 /* ── Social brand SVGs (lucide doesn't include brand icons) ── */
 const IgIcon = () => (
@@ -202,6 +204,13 @@ export default function BusinessProfilePage() {
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [guestFormOpen, setGuestFormOpen] = useState(false);
+  const [guestChatOpen, setGuestChatOpen] = useState(false);
+  const [guestSession, setGuestSession] = useState<{ guestToken: string; guestName: string } | null>(null);
+  const [guestFormName, setGuestFormName] = useState("");
+  const [guestFormPhone, setGuestFormPhone] = useState("");
+  const [guestFormSubmitting, setGuestFormSubmitting] = useState(false);
+  const [guestFormError, setGuestFormError] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -240,6 +249,35 @@ export default function BusinessProfilePage() {
     await createReview.mutateAsync({ businessId: bizId, data: { reviewerName, rating, comment } });
     qc.invalidateQueries({ queryKey: getListReviewsQueryKey(bizId) });
     setReviewerName(""); setComment(""); setRating(5);
+  };
+
+  const handleGuestFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestFormName.trim() || !guestFormPhone.trim() || !business) return;
+    setGuestFormSubmitting(true);
+    setGuestFormError(null);
+    try {
+      const res = await fetch(`${BASE}/api/conversations/guest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId: business.id, guestName: guestFormName.trim(), guestPhone: guestFormPhone.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setGuestFormError((err as any).error ?? "Could not start chat. Please try again.");
+        return;
+      }
+      const data = await res.json();
+      const session = { guestToken: data.guestToken, guestName: guestFormName.trim() };
+      localStorage.setItem(`streetly_guest_chat_${business.id}`, JSON.stringify(session));
+      setGuestSession(session);
+      setGuestFormOpen(false);
+      setGuestChatOpen(true);
+    } catch {
+      setGuestFormError("Network error. Please try again.");
+    } finally {
+      setGuestFormSubmitting(false);
+    }
   };
 
   const trackEvent = (eventType: "view" | "click" | "contact" | "order", meta?: string) => {
@@ -334,15 +372,82 @@ export default function BusinessProfilePage() {
         )}
       </AnimatePresence>
 
+      {/* Logged-in chat */}
       <Dialog open={chatOpen} onOpenChange={setChatOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden gap-0">
-          <DialogHeader className="p-4 border-b bg-card">
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden gap-0 h-[85dvh] max-h-[640px] flex flex-col">
+          <DialogHeader className="p-4 border-b bg-card flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-primary" />
               Chat with {business.name}
             </DialogTitle>
           </DialogHeader>
           <ChatPanel businessId={business.id} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Guest info form */}
+      <Dialog open={guestFormOpen} onOpenChange={v => { setGuestFormOpen(v); if (!v) setGuestFormError(null); }}>
+        <DialogContent className="sm:max-w-[400px] gap-0">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Chat with {business.name}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Let the business know who you are before the chat starts.
+            </p>
+          </DialogHeader>
+          <form onSubmit={handleGuestFormSubmit} className="flex flex-col gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="guest-name">Full Name</Label>
+              <Input
+                id="guest-name"
+                placeholder="e.g. Ada Okafor"
+                value={guestFormName}
+                onChange={e => setGuestFormName(e.target.value)}
+                required
+                disabled={guestFormSubmitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="guest-phone">Phone Number</Label>
+              <Input
+                id="guest-phone"
+                type="tel"
+                placeholder="e.g. 08012345678"
+                value={guestFormPhone}
+                onChange={e => setGuestFormPhone(e.target.value)}
+                required
+                disabled={guestFormSubmitting}
+              />
+            </div>
+            {guestFormError && (
+              <p className="text-sm text-destructive">{guestFormError}</p>
+            )}
+            <Button type="submit" disabled={guestFormSubmitting || !guestFormName.trim() || !guestFormPhone.trim()} className="w-full">
+              {guestFormSubmitting
+                ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Starting chat…</>
+                : "Start Chat"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Guest chat */}
+      <Dialog open={guestChatOpen} onOpenChange={setGuestChatOpen}>
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden gap-0 h-[85dvh] max-h-[640px] flex flex-col">
+          <DialogHeader className="p-4 border-b bg-card flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Chat with {business.name}
+            </DialogTitle>
+          </DialogHeader>
+          {guestSession && (
+            <GuestChatPanel
+              guestToken={guestSession.guestToken}
+              guestName={guestSession.guestName}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -703,16 +808,24 @@ export default function BusinessProfilePage() {
               <div className="p-5 rounded-3xl glass-card sticky top-24">
                 <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wider">Contact</h3>
                 <div className="space-y-2.5">
-                  {business.phone && (
                     <button
                       onClick={() => {
+                        trackEvent("contact", "chat");
                         const token = localStorage.getItem("streetly_token");
-                        if (!token) {
-                          navigate(`/auth/login?redirect=/${slug}`);
+                        if (token) {
+                          setChatOpen(true);
                           return;
                         }
-                        setChatOpen(true);
-                        trackEvent("contact", "chat");
+                        if (!business) return;
+                        const stored = localStorage.getItem(`streetly_guest_chat_${business.id}`);
+                        if (stored) {
+                          try {
+                            setGuestSession(JSON.parse(stored));
+                            setGuestChatOpen(true);
+                            return;
+                          } catch {}
+                        }
+                        setGuestFormOpen(true);
                       }}
                       className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-colors group mb-2"
                     >
@@ -725,7 +838,6 @@ export default function BusinessProfilePage() {
                       </div>
                       <ChevronRight className="h-4 w-4 text-primary/40 group-hover:text-primary/70 ml-auto flex-shrink-0" />
                     </button>
-                  )}
                   {business.phone && (
                     <a href={`tel:${business.phone}`}
                       onClick={() => trackEvent("contact", "phone")}
