@@ -1,0 +1,6 @@
+*.keystore
+*.jks
+*.p12
+*-password.txt
+*.pwd
+google-services.json

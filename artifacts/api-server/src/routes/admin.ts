@@ -8,11 +8,13 @@ import {
   supportTicketsTable, ridersTable, deliveryOrdersTable,
   marketplaceItemsTable, vacantPropertiesTable, propertyPhotosTable,
 } from "@workspace/db";
-import { eq, count, sql, ilike, and, desc, isNotNull } from "drizzle-orm";
+import { eq, count, sql, ilike, and, desc, isNotNull, or } from "drizzle-orm";
 import { generateUniqueSlug } from "./businesses";
 import { enrichProperty } from "./properties";
-import { sendMail } from "../lib/mailer";
+import { sendMail, buildEmailHtml, sendTestMail } from "../lib/mailer";
 import { requireRole } from "../lib/authHelpers";
+import { notifyUser } from "../lib/notifyUser";
+import { createNotification } from "../lib/createNotification";
 
 type IdParams = { id: string };
 
@@ -267,6 +269,14 @@ router.patch("/businesses/:id/approve", async (req, res) => {
 
   if (!biz) return res.status(404).json({ error: "Business not found" });
 
+  if (biz.ownerId) {
+    const notifTitle = approved ? "Business Approved ✅" : "Business Application Rejected";
+    const notifBody = approved
+      ? `Your business "${biz.name}" has been approved and is now live on Streetly.`
+      : `Your business "${biz.name}" was not approved. Contact support for more information.`;
+    createNotification(biz.ownerId, notifTitle, notifBody, "/owner-dashboard").catch(() => {});
+  }
+
   if (approved && biz.agentId) {
     const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, biz.agentId)).limit(1);
     if (agent) {
@@ -419,6 +429,15 @@ router.patch("/properties/:id/approve", async (req, res) => {
     .returning();
 
   if (!prop) return res.status(404).json({ error: "Property not found" });
+
+  if (prop.submittedByUserId) {
+    const propNotifTitle = approved ? "Property Listing Approved ✅" : "Property Listing Rejected";
+    const propNotifBody = approved
+      ? `Your property "${prop.title}" has been approved and is now visible to searchers.`
+      : `Your property "${prop.title}" was not approved. Contact support for more information.`;
+    createNotification(prop.submittedByUserId, propNotifTitle, propNotifBody, "/account").catch(() => {});
+  }
+
   return res.json(prop);
 });
 
@@ -483,6 +502,13 @@ router.patch("/agents/:id/approve", async (req, res) => {
     .returning();
 
   if (!agent) return res.status(404).json({ error: "Agent not found" });
+
+  const notifTitle = approved ? "Agent Application Approved ✅" : "Agent Application Rejected";
+  const notifBody = approved
+    ? "Congratulations! Your field agent application has been approved. You can now access your agent dashboard."
+    : "Your field agent application was not approved at this time. Contact support for more information.";
+  createNotification(agent.userId, notifTitle, notifBody, "/agent-dashboard").catch(() => {});
+
   return res.json(agent);
 });
 
@@ -596,6 +622,13 @@ router.patch("/riders/:id/approve", async (req, res) => {
     .returning();
 
   if (!rider) return res.status(404).json({ error: "Rider not found" });
+
+  const riderNotifTitle = approved ? "Rider Application Approved ✅" : "Rider Application Rejected";
+  const riderNotifBody = approved
+    ? "Congratulations! Your delivery rider application has been approved. You can now access your rider dashboard."
+    : "Your delivery rider application was not approved at this time. Contact support for more information.";
+  createNotification(rider.userId, riderNotifTitle, riderNotifBody, "/rider-dashboard").catch(() => {});
+
   return res.json(rider);
 });
 
@@ -682,25 +715,29 @@ router.post("/users", async (req, res) => {
       "",
       `Your Streetly staff account has been created. Here are your account details:`,
       "",
-      `  Email     : ${user.email}`,
-      `  Role      : ${roleName}`,
+      `  Email : ${user.email}`,
+      `  Role  : ${roleName}`,
       "",
       `Set your own password using this one-time link (expires in 7 days):`,
       `  ${setupUrl}`,
       "",
       "— The Streetly Team",
     ].join("\n"),
-    html: `
-      <p>Hi ${user.name},</p>
-      <p>Your Streetly staff account has been created. Here are your account details:</p>
-      <table cellpadding="4" style="border-collapse:collapse">
-        <tr><td><strong>Email</strong></td><td>${user.email}</td></tr>
-        <tr><td><strong>Role</strong></td><td>${roleName}</td></tr>
-      </table>
-      <p>Set your own password using this one-time link (expires in 7 days):</p>
-      <p><a href="${setupUrl}">${setupUrl}</a></p>
-      <p>— The Streetly Team</p>
-    `,
+    html: buildEmailHtml({
+      title: "Welcome to Streetly — set up your account",
+      preheader: "Your Streetly staff account is ready. Set your password to get started.",
+      body: `
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>Your Streetly staff account has been created. Here are your account details:</p>
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;background:#f8fafc;border-radius:8px;padding:16px 20px;width:100%;">
+          <tr><td style="font-size:13px;color:#475569;padding:5px 0;"><strong>Email:</strong>&nbsp;&nbsp;${user.email}</td></tr>
+          <tr><td style="font-size:13px;color:#475569;padding:5px 0;"><strong>Role:</strong>&nbsp;&nbsp;${roleName}</td></tr>
+        </table>
+        <p>Use the button below to set your password. This link expires in <strong>7 days</strong>.</p>
+        <p>— The Streetly Team</p>
+      `,
+      cta: { label: "Set Up My Password", href: setupUrl },
+    }),
   });
 
   return res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt });
@@ -771,16 +808,20 @@ router.post("/users/:id/resend-setup-link", async (req, res) => {
       "",
       "— The Streetly Team",
     ].join("\n"),
-    html: `
-      <p>Hi ${user.name},</p>
-      <p>Your previous account setup link expired (or was unused). Here is a fresh one-time link (expires in 7 days):</p>
-      <p><a href="${setupUrl}">${setupUrl}</a></p>
-      <table cellpadding="4" style="border-collapse:collapse">
-        <tr><td><strong>Email</strong></td><td>${user.email}</td></tr>
-        <tr><td><strong>Role</strong></td><td>${roleName}</td></tr>
-      </table>
-      <p>— The Streetly Team</p>
-    `,
+    html: buildEmailHtml({
+      title: "Streetly — new account setup link",
+      preheader: "A fresh password setup link has been sent for your Streetly account.",
+      body: `
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>Your previous account setup link expired or was unused. Here is a fresh one-time link valid for <strong>7 days</strong>.</p>
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;background:#f8fafc;border-radius:8px;padding:16px 20px;width:100%;">
+          <tr><td style="font-size:13px;color:#475569;padding:5px 0;"><strong>Email:</strong>&nbsp;&nbsp;${user.email}</td></tr>
+          <tr><td style="font-size:13px;color:#475569;padding:5px 0;"><strong>Role:</strong>&nbsp;&nbsp;${roleName}</td></tr>
+        </table>
+        <p>— The Streetly Team</p>
+      `,
+      cta: { label: "Set My Password", href: setupUrl },
+    }),
   });
 
   return res.json({ ok: true });
@@ -854,8 +895,19 @@ router.post("/impersonate/:userId", async (req, res) => {
   return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
-// GET /admin/withdrawals — pending withdrawal requests
-router.get("/withdrawals", async (_req, res) => {
+// GET /admin/withdrawals — withdrawal requests; ?status=pending (default) or ?status=resolved or ?status=all
+router.get("/withdrawals", async (req, res) => {
+  const statusParam = (req.query.status as string) ?? "pending";
+
+  let whereClause;
+  if (statusParam === "resolved") {
+    whereClause = or(eq(withdrawalsTable.status, "completed"), eq(withdrawalsTable.status, "failed"));
+  } else if (statusParam === "all") {
+    whereClause = undefined;
+  } else {
+    whereClause = eq(withdrawalsTable.status, "pending");
+  }
+
   const rows = await db
     .select({
       id: withdrawalsTable.id,
@@ -863,6 +915,7 @@ router.get("/withdrawals", async (_req, res) => {
       amount: withdrawalsTable.amount,
       status: withdrawalsTable.status,
       createdAt: withdrawalsTable.createdAt,
+      resolvedAt: withdrawalsTable.resolvedAt,
       agentFullName: agentsTable.fullName,
       agentBankName: agentsTable.bankName,
       agentAccountNumber: agentsTable.accountNumber,
@@ -871,8 +924,8 @@ router.get("/withdrawals", async (_req, res) => {
     })
     .from(withdrawalsTable)
     .leftJoin(agentsTable, eq(withdrawalsTable.agentId, agentsTable.id))
-    .where(eq(withdrawalsTable.status, "pending"))
-    .orderBy(withdrawalsTable.createdAt);
+    .where(whereClause)
+    .orderBy(desc(withdrawalsTable.createdAt));
   return res.json(rows);
 });
 
@@ -885,19 +938,32 @@ router.patch("/withdrawals/:id/approve", async (req, res) => {
   const status = approved ? "completed" : "failed";
 
   const [w] = await db.update(withdrawalsTable)
-    .set({ status })
+    .set({ status, resolvedAt: new Date() })
     .where(eq(withdrawalsTable.id, id))
     .returning();
 
   if (!w) return res.status(404).json({ error: "Withdrawal not found" });
 
-  if (approved) {
-    const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, w.agentId)).limit(1);
-    if (agent) {
+  const [agent] = await db
+    .select({ id: agentsTable.id, userId: agentsTable.userId, availableBalance: agentsTable.availableBalance })
+    .from(agentsTable)
+    .where(eq(agentsTable.id, w.agentId))
+    .limit(1);
+
+  if (agent) {
+    if (approved) {
       await db.update(agentsTable)
         .set({ availableBalance: Math.max(0, agent.availableBalance - w.amount) })
         .where(eq(agentsTable.id, agent.id));
     }
+
+    const amountStr = `₦${w.amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const title = approved ? "Withdrawal Approved" : "Withdrawal Rejected";
+    const body = approved
+      ? `Your withdrawal request of ${amountStr} has been approved.`
+      : `Your withdrawal request of ${amountStr} was not approved.`;
+
+    notifyUser(agent.userId, title, body, { type: "withdrawal", status }).catch(() => {});
   }
 
   return res.json(w);
@@ -1438,6 +1504,19 @@ router.get("/gallery", async (_req, res) => {
     .orderBy(desc(businessPhotosTable.createdAt));
 
   return res.json({ agentPassports, agentNIN, businessPhotos: bizPhotos });
+});
+
+// POST /admin/settings/test-email
+router.post("/settings/test-email", async (req, res) => {
+  const { to } = req.body;
+  if (!to || typeof to !== "string" || !to.includes("@")) {
+    return res.status(400).json({ error: "Provide a valid 'to' email address." });
+  }
+  const result = await sendTestMail(to);
+  if (!result.ok) {
+    return res.status(502).json({ error: result.error ?? "Failed to send test email." });
+  }
+  return res.json({ ok: true });
 });
 
 export default router;

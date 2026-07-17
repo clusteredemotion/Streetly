@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { getApiBase } from "@/lib/utils";
 import {
   Mail, Lock, Server, FileText, Save, Eye, EyeOff,
-  CheckCircle2, Loader2, AlertCircle, ChevronDown, ChevronUp, RefreshCw,
+  CheckCircle2, Loader2, AlertCircle, ChevronDown, ChevronUp, RefreshCw, Send,
 } from "lucide-react";
 
 const BASE = getApiBase();
@@ -120,6 +120,9 @@ export default function AdminEmailSettings() {
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [smtpSaved, setSmtpSaved] = useState(false);
   const [smtpError, setSmtpError] = useState("");
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [smtp, setSmtp] = useState({
     smtp_host: "", smtp_port: "587", smtp_user: "", smtp_password: "",
     smtp_from_name: "", smtp_from_email: "", smtp_encryption: "tls",
@@ -187,6 +190,25 @@ export default function AdminEmailSettings() {
       setSmtpSaved(true); setTimeout(() => setSmtpSaved(false), 3000);
     } catch { setSmtpError("Failed to save. Try again."); }
     finally { setSmtpSaving(false); }
+  };
+
+  const sendTestEmail = async () => {
+    if (!testEmail.trim()) return;
+    setTestSending(true); setTestResult(null);
+    try {
+      const res = await fetch(`${BASE}/api/admin/settings/test-email`, {
+        method: "POST", headers: authHeader(), body: JSON.stringify({ to: testEmail }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setTestResult({ ok: false, message: d.error ?? "Failed to send." });
+      } else {
+        setTestResult({ ok: true, message: `Test email sent to ${testEmail} — check your inbox.` });
+      }
+    } catch {
+      setTestResult({ ok: false, message: "Network error — check your connection." });
+    }
+    finally { setTestSending(false); }
   };
 
   const saveTemplate = async (key: string) => {
@@ -317,6 +339,52 @@ export default function AdminEmailSettings() {
             </div>
 
             <SaveBar saving={smtpSaving} saved={smtpSaved} error={smtpError} onSave={saveSmtp} />
+
+            {/* Test Email */}
+            <div className="pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+              <p className="text-xs font-semibold text-white/50 mb-3">Send a Test Email</p>
+              <div className="flex gap-2 items-start flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="email"
+                    value={testEmail}
+                    onChange={e => { setTestEmail(e.target.value); setTestResult(null); }}
+                    placeholder="recipient@example.com"
+                    className="w-full px-3 py-2.5 rounded-xl text-sm text-white outline-none transition-all"
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      caretColor: "#4a9eff",
+                    }}
+                    onFocus={e => (e.target.style.borderColor = "rgba(74,158,255,0.5)")}
+                    onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                  />
+                </div>
+                <Button
+                  onClick={sendTestEmail}
+                  disabled={testSending || !testEmail.trim()}
+                  size="sm"
+                  className="rounded-xl px-4 text-xs font-semibold gap-1.5 flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg,#16a34a 0%,#15803d 100%)", color: "#fff" }}
+                >
+                  {testSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  {testSending ? "Sending…" : "Send Test"}
+                </Button>
+              </div>
+              <AnimatePresence>
+                {testResult && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className={`mt-2 text-xs flex items-center gap-1.5 ${testResult.ok ? "text-green-400" : "text-red-400"}`}
+                  >
+                    {testResult.ok
+                      ? <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                      : <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />}
+                    {testResult.message}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.div>
         )}
 

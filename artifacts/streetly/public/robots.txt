@@ -1,2 +1,18 @@
 User-agent: *
 Allow: /
+
+# Disallow private/admin areas
+Disallow: /admin
+Disallow: /owner-dashboard
+Disallow: /agent-dashboard
+Disallow: /rider-dashboard
+Disallow: /moderator
+Disallow: /scout-manager
+Disallow: /regional-manager
+Disallow: /auth/
+Disallow: /change-password
+Disallow: /setup-password
+Disallow: /reset-password
+Disallow: /account
+
+Sitemap: https://mystreetly.app/api/sitemap.xml

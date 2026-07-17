@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSearch } from "wouter";
+import { useSeo } from "@/hooks/useSeo";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,12 @@ import { BusinessCard } from "@/components/business/BusinessCard";
 export default function BusinessesPage() {
   const searchStr = useSearch();
   const params = new URLSearchParams(searchStr);
+
+  useSeo({
+    title: "Browse Local Businesses",
+    description: "Search and discover thousands of local businesses on Streetly — from restaurants and shops to services and salons. Filter by category, city, and more.",
+    canonicalPath: "/businesses",
+  });
 
   const [q, setQ] = useState(params.get("q") ?? "");
   const [categoryId, setCategoryId] = useState(params.get("categoryId") ?? "");

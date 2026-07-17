@@ -48,10 +48,10 @@ export default function LoginPage() {
       <div className="min-h-[80vh] flex items-center justify-center bg-muted/20 py-12 px-4">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 text-primary font-bold text-2xl mb-2">
+            <Link href="/" className="flex items-center justify-center gap-2 text-primary font-bold text-2xl mb-2 hover:opacity-80 transition-opacity">
               <MapPin className="h-7 w-7" />
               Streetly
-            </div>
+            </Link>
             <h1 className="text-xl font-bold text-foreground">Welcome back</h1>
             <p className="text-muted-foreground text-sm mt-1">Sign in to your Streetly account</p>
           </div>

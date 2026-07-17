@@ -17,11 +17,11 @@ const authHeader = () => ({
 
 type Section = "agents" | "commissions" | "categories" | "properties";
 
-const NAV: { id: Section; label: string; icon: React.ReactNode }[] = [
-  { id: "agents", label: "Agent Applications", icon: <Users className="h-4 w-4" /> },
-  { id: "commissions", label: "Commissions", icon: <CreditCard className="h-4 w-4" /> },
-  { id: "categories", label: "Categories", icon: <Tag className="h-4 w-4" /> },
-  { id: "properties", label: "Properties", icon: <Building2 className="h-4 w-4" /> },
+const ALL_NAV: { id: Section; label: string; icon: React.ReactNode; featureKey: string }[] = [
+  { id: "agents", label: "Agent Applications", icon: <Users className="h-4 w-4" />, featureKey: "manage_agents" },
+  { id: "commissions", label: "Commissions", icon: <CreditCard className="h-4 w-4" />, featureKey: "manage_commissions" },
+  { id: "categories", label: "Categories", icon: <Tag className="h-4 w-4" />, featureKey: "manage_categories" },
+  { id: "properties", label: "Properties", icon: <Building2 className="h-4 w-4" />, featureKey: "manage_properties" },
 ];
 
 /* ── Data hooks ── */
@@ -357,6 +357,7 @@ export default function ScoutManagerDashboardPage() {
   const [, navigate] = useLocation();
   const [token, setToken] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
+  const [features, setFeatures] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState<Section>("agents");
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -368,6 +369,7 @@ export default function ScoutManagerDashboardPage() {
       .then(data => {
         if (data?.role === "scout_manager") {
           setToken(t);
+          setFeatures(data.features ?? []);
         } else if (data?.role === "admin") {
           navigate("/admin");
         } else if (data?.role === "moderator") {
@@ -427,16 +429,19 @@ export default function ScoutManagerDashboardPage() {
           </button>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {NAV.map(({ id, label, icon }) => {
+          {ALL_NAV.filter(n => features.length === 0 || features.includes(n.featureKey)).map(({ id, label, icon }) => {
             const badge = id === "agents" ? pendingAgentsCount : id === "properties" ? pendingPropertiesCount : 0;
             return (
-              <button key={id} onClick={() => { setActiveSection(id); setMobileOpen(false); }}
+              <button key={id} onClick={() => { setActiveSection(id as Section); setMobileOpen(false); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeSection === id ? "text-white bg-[#4a9eff]/15" : "text-white/50 hover:text-white hover:bg-white/5"}`}>
                 {icon} <span className="flex-1 text-left">{label}</span>
                 <NavBadge count={badge} />
               </button>
             );
           })}
+          {features.length > 0 && ALL_NAV.every(n => !features.includes(n.featureKey)) && (
+            <p className="text-xs text-white/30 px-3 py-2">No sections enabled. Contact your administrator.</p>
+          )}
         </nav>
         <div className="p-3 border-t border-white/8">
           <Button variant="ghost" size="sm" onClick={logout} className="w-full gap-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 justify-start">
@@ -457,7 +462,7 @@ export default function ScoutManagerDashboardPage() {
             )}
           </button>
           <div>
-            <h1 className="font-bold text-white text-sm">{NAV.find(n => n.id === activeSection)?.label}</h1>
+            <h1 className="font-bold text-white text-sm">{ALL_NAV.find(n => n.id === activeSection)?.label}</h1>
             <p className="text-[11px] text-white/30">Scout Operations</p>
           </div>
         </header>

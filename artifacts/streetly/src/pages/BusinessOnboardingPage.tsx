@@ -382,9 +382,20 @@ const DEFAULT_BIZ: BizForm = {
   openingHours: "", latitude: "", longitude: "", photos: [], products: [],
 };
 
+const BIZ_ONBOARD_LOC_KEY = "streetly_loc_biz_onboard";
+
 export default function BusinessOnboardingPage() {
   const [, navigate] = useLocation();
-  const [form, setForm] = useState<BizForm>(DEFAULT_BIZ);
+  const [form, setForm] = useState<BizForm>(() => {
+    try {
+      const saved = sessionStorage.getItem(BIZ_ONBOARD_LOC_KEY);
+      if (saved) {
+        const loc = JSON.parse(saved) as { latitude: string; longitude: string; address: string };
+        return { ...DEFAULT_BIZ, latitude: loc.latitude, longitude: loc.longitude, address: loc.address };
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_BIZ;
+  });
   const [categories, setCategories] = useState<Array<{ id: number; name: string; icon?: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -438,7 +449,11 @@ export default function BusinessOnboardingPage() {
   }, [selectedApiCity?.id]);
 
   const handleGps = (lat: string, lon: string, address: string) => {
-    setForm((p) => ({ ...p, latitude: lat, longitude: lon, address: address || p.address }));
+    setForm((p) => {
+      const newAddress = address || p.address;
+      sessionStorage.setItem(BIZ_ONBOARD_LOC_KEY, JSON.stringify({ latitude: lat, longitude: lon, address: newAddress }));
+      return { ...p, latitude: lat, longitude: lon, address: newAddress };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -459,6 +474,7 @@ export default function BusinessOnboardingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to submit");
+      sessionStorage.removeItem(BIZ_ONBOARD_LOC_KEY);
       setDone(true);
       setForm(DEFAULT_BIZ);
     } catch (err: unknown) {

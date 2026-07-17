@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { supportTicketsTable, supportTicketRepliesTable, usersTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
 import { verifyToken } from "./auth";
-import { sendMail, getAdminNotificationEmail } from "../lib/mailer";
+import { sendMail, buildEmailHtml, getAdminNotificationEmail } from "../lib/mailer";
 import { blockIfMustChangePassword } from "../lib/authHelpers";
 
 const router = Router();
@@ -51,6 +51,20 @@ router.post("/", async (req, res) => {
       to: adminEmail,
       subject: `New Support Ticket: ${subject}`,
       text: `${user?.name ?? "A user"} (${user?.email ?? "unknown"}) opened a new support ticket.\n\nSubject: ${subject}\n\nMessage:\n${message}`,
+      html: buildEmailHtml({
+        title: `New Support Ticket: ${subject}`,
+        preheader: `${user?.name ?? "A user"} opened a new support ticket.`,
+        body: `
+          <p>A new support ticket has been submitted.</p>
+          <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;background:#f8fafc;border-radius:8px;padding:16px 20px;width:100%;">
+            <tr><td style="font-size:13px;color:#475569;padding:5px 0;"><strong>From:</strong>&nbsp;&nbsp;${user?.name ?? "Unknown"} (${user?.email ?? "unknown"})</td></tr>
+            <tr><td style="font-size:13px;color:#475569;padding:5px 0;"><strong>Subject:</strong>&nbsp;&nbsp;${subject}</td></tr>
+          </table>
+          <p style="font-size:14px;color:#334155;white-space:pre-wrap;">${message}</p>
+          <p>— Streetly Support System</p>
+        `,
+        cta: { label: "View in Admin Panel", href: "https://mystreetly.app/admin" },
+      }),
     }).catch(() => {});
   }
 
@@ -125,6 +139,18 @@ router.post("/:id/replies", async (req, res) => {
         to: owner.email,
         subject: `Re: ${ticket.subject}`,
         text: `Our support team replied to your ticket "${ticket.subject}":\n\n${message}`,
+        html: buildEmailHtml({
+          title: `Reply to your support ticket`,
+          preheader: `The Streetly support team replied to your ticket.`,
+          body: `
+            <p>Hi <strong>${owner.name}</strong>,</p>
+            <p>Our support team has replied to your ticket: <strong>${ticket.subject}</strong></p>
+            <div style="margin:20px 0;padding:16px 20px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;font-size:14px;color:#166534;white-space:pre-wrap;">${message}</div>
+            <p style="color:#64748b;font-size:14px;">You can reply directly in the app or open the ticket to continue the conversation.</p>
+            <p>— The Streetly Support Team</p>
+          `,
+          cta: { label: "View My Ticket", href: "https://mystreetly.app" },
+        }),
       }).catch(() => {});
     }
   } else {
@@ -134,6 +160,16 @@ router.post("/:id/replies", async (req, res) => {
         to: adminEmail,
         subject: `New reply on ticket: ${ticket.subject}`,
         text: `${sender?.name ?? "A user"} replied on ticket "${ticket.subject}":\n\n${message}`,
+        html: buildEmailHtml({
+          title: `New reply on support ticket`,
+          preheader: `${sender?.name ?? "A user"} replied on a support ticket.`,
+          body: `
+            <p><strong>${sender?.name ?? "A user"}</strong> replied on ticket: <strong>${ticket.subject}</strong></p>
+            <div style="margin:20px 0;padding:16px 20px;background:#f8fafc;border-left:4px solid #4a9eff;border-radius:6px;font-size:14px;color:#334155;white-space:pre-wrap;">${message}</div>
+            <p>— Streetly Support System</p>
+          `,
+          cta: { label: "View in Admin Panel", href: "https://mystreetly.app/admin" },
+        }),
       }).catch(() => {});
     }
   }

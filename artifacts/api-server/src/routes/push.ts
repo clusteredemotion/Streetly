@@ -110,8 +110,9 @@ router.post(
       res.status(400).json({ error: "title and body are required" });
       return;
     }
-    if (!VAPID_PUBLIC) {
-      res.status(503).json({ error: "Push not configured — set VAPID keys" });
+    const fcmReady = !!process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!VAPID_PUBLIC && !fcmReady) {
+      res.status(503).json({ error: "Push not configured — set VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY or FIREBASE_SERVICE_ACCOUNT" });
       return;
     }
 
@@ -136,27 +137,29 @@ router.post(
       }
     }
 
-    /* ── send web push ── */
+    /* ── send web push (only when VAPID is configured) ── */
     let webSent = 0;
     const deadEndpoints: string[] = [];
 
-    await Promise.all(
-      webSubs.map(async (sub) => {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            payload
-          );
-          webSent++;
-        } catch (err: any) {
-          if (err.statusCode === 404 || err.statusCode === 410) {
-            deadEndpoints.push(sub.endpoint);
-          } else {
-            console.warn("[push] web send error:", err.message);
+    if (VAPID_PUBLIC) {
+      await Promise.all(
+        webSubs.map(async (sub) => {
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              payload
+            );
+            webSent++;
+          } catch (err: any) {
+            if (err.statusCode === 404 || err.statusCode === 410) {
+              deadEndpoints.push(sub.endpoint);
+            } else {
+              console.warn("[push] web send error:", err.message);
+            }
           }
-        }
-      })
-    );
+        })
+      );
+    }
 
     /* prune dead subscriptions */
     if (deadEndpoints.length) {
@@ -244,6 +247,51 @@ router.get("/admin/logs", requireRole("admin"), async (_req, res) => {
     .orderBy(desc(pushNotificationLogsTable.sentAt))
     .limit(50);
   res.json(logs);
+});
+
+/* ─── Admin: list admin users with device token status ─────────── */
+
+router.get("/admin/devices", requireRole("admin"), async (_req, res) => {
+  const admins = await db
+    .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.role, "admin"));
+
+  const adminIds = admins.map((a) => a.id);
+
+  const tokens =
+    adminIds.length > 0
+      ? await db
+          .select({
+            userId: pushTokensTable.userId,
+            platform: pushTokensTable.platform,
+            createdAt: pushTokensTable.createdAt,
+          })
+          .from(pushTokensTable)
+          .where(inArray(pushTokensTable.userId, adminIds))
+          .orderBy(desc(pushTokensTable.createdAt))
+      : [];
+
+  const tokenMap = new Map<number, { platform: string; createdAt: Date }>();
+  for (const t of tokens) {
+    if (t.userId != null && !tokenMap.has(t.userId)) {
+      tokenMap.set(t.userId, { platform: t.platform, createdAt: t.createdAt });
+    }
+  }
+
+  const result = admins.map((a) => {
+    const tok = tokenMap.get(a.id);
+    return {
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      hasToken: !!tok,
+      platform: tok?.platform ?? null,
+      tokenRegisteredAt: tok?.createdAt ?? null,
+    };
+  });
+
+  res.json(result);
 });
 
 /* ─── Admin: subscriber counts ─────────────────────────────────── */

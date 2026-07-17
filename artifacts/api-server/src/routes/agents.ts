@@ -8,6 +8,7 @@ import {
 import { eq, desc, count, and, ilike } from "drizzle-orm";
 import { verifyToken } from "./auth.js";
 import { blockIfMustChangePassword } from "../lib/authHelpers";
+import { notifyAdmins } from "../lib/notifyAdmins.js";
 
 function getUserIdFromReq(req: { headers: { authorization?: string } }): number | null {
   const h = req.headers.authorization;
@@ -82,6 +83,13 @@ router.post("/apply", async (req, res) => {
   }).returning();
 
   const enriched = await enrichAgent(agent);
+
+  notifyAdmins(
+    "New KYC Submission",
+    `Agent application received${fullName ? ` from ${fullName}` : ""} — ID type: ${idType ?? "N/A"}`,
+    { type: "kyc", agentId: String(agent.id) }
+  ).catch(() => {});
+
   return res.status(201).json(enriched);
 });
 
@@ -234,6 +242,12 @@ router.post("/:agentId/businesses", async (req, res) => {
     }
   }
 
+  notifyAdmins(
+    "New Agent Business Submission",
+    `Agent #${agentId} submitted "${name}" for review`,
+    { type: "business", businessId: String(biz.id), agentId: String(agentId) }
+  ).catch(() => {});
+
   return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });
 });
 
@@ -286,6 +300,14 @@ router.post("/:agentId/withdraw", async (req, res) => {
   await db.update(agentsTable)
     .set({ availableBalance: agent.availableBalance - Number(amount) })
     .where(eq(agentsTable.id, agentId));
+
+  import("../lib/notifyAdmins.js").then(({ notifyAdmins }) => {
+    notifyAdmins(
+      "Withdrawal Request",
+      `Agent #${agentId} requested a payout of ${Number(amount).toFixed(2)}`,
+      { type: "withdrawal", agentId: String(agentId) }
+    );
+  }).catch(() => {});
 
   return res.status(201).json(withdrawal);
 });

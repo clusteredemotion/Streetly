@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import { useSeo } from "@/hooks/useSeo";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -177,6 +178,12 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+
+  useSeo({
+    title: "Properties for Rent & Sale",
+    description: "Browse verified property listings on Streetly — houses, apartments, and commercial spaces for rent or sale across Nigeria.",
+    canonicalPath: "/properties",
+  });
   
   // Filters
   const [priceType, setPriceType] = useState<string>("all");

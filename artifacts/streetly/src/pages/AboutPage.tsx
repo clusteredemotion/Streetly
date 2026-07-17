@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
+import { useSeo } from "@/hooks/useSeo";
 import { Badge } from "@/components/ui/badge";
 import { useGetPlatformStats } from "@workspace/api-client-react";
 import {
@@ -8,6 +9,12 @@ import {
 
 export default function AboutPage() {
   const { data: stats } = useGetPlatformStats();
+
+  useSeo({
+    title: "About Streetly",
+    description: "Learn about Streetly — our mission to map every business on every street and empower communities through local discovery and economic visibility.",
+    canonicalPath: "/about",
+  });
 
   const values = [
     {

@@ -11,6 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useNavBadges } from "@/hooks/useNavBadges";
+import { NotificationBell } from "./NotificationBell";
 
 export function Navbar() {
   const [location] = useLocation();
@@ -20,6 +22,7 @@ export function Navbar() {
 
   const token = localStorage.getItem("streetly_token");
   const { data: user } = useGetMe({ query: { enabled: !!token, queryKey: ["getMe", !!token] } });
+  const { messagesBadge, ticketsBadge, totalBadge } = useNavBadges();
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -60,8 +63,8 @@ export function Navbar() {
     ...(!isAgent ? [{ href: "/agents", label: "Become an Agent" }] : []),
     ...(!isRider ? [{ href: "/riders/apply", label: "Become a Rider" }] : []),
     ...(!user ? [{ href: "/auth/register?role=business_owner", label: "List Your Business" }] : []),
-    ...(user ? [{ href: "/messages", label: "Messages" }] : []),
-    ...(user ? [{ href: "/support", label: "Support Tickets" }] : []),
+    ...(user ? [{ href: "/messages", label: "Messages", badge: messagesBadge }] : []),
+    ...(user ? [{ href: "/support", label: "Support Tickets", badge: ticketsBadge }] : []),
   ];
 
   const dashboardHref = (role: string | undefined) =>
@@ -130,7 +133,7 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
-                    "text-sm font-medium px-3.5 py-2 rounded-lg transition-all duration-150 flex items-center gap-1",
+                    "text-sm font-medium px-3.5 py-2 rounded-lg transition-all duration-150 flex items-center gap-1 relative",
                     onMap
                       ? "text-[#0547B6]/75 hover:bg-blue-700/8 hover:text-[#0547B6]"
                       : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -138,14 +141,29 @@ export function Navbar() {
                 >
                   More
                   <ChevronDown className="h-3.5 w-3.5" />
+                  {totalBadge > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-[9px] font-bold leading-none text-white">
+                      {totalBadge > 99 ? "99+" : totalBadge}
+                    </span>
+                  )}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {moreLinks.map((link) => (
-                  <DropdownMenuItem key={link.href} asChild>
-                    <Link href={link.href}>{link.label}</Link>
-                  </DropdownMenuItem>
-                ))}
+                {moreLinks.map((link) => {
+                  const badge = "badge" in link ? (link.badge ?? 0) : 0;
+                  return (
+                    <DropdownMenuItem key={link.href} asChild>
+                      <Link href={link.href} className="flex items-center justify-between gap-4">
+                        {link.label}
+                        {badge > 0 && (
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[9px] font-bold leading-none text-white">
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </nav>
@@ -160,6 +178,7 @@ export function Navbar() {
                 )}>
                   {greeting}, <span className="font-semibold">{firstName}</span> 👋
                 </span>
+                <NotificationBell />
                 <Link href="/account">
                   <Button
                     variant="ghost"
@@ -231,7 +250,7 @@ export function Navbar() {
           {/* Mobile toggle */}
           <button
             className={cn(
-              "md:hidden w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
+              "md:hidden relative w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
               onMap
                 ? "text-[#0547B6] hover:bg-blue-700/8"
                 : "text-white hover:bg-white/10"
@@ -250,6 +269,11 @@ export function Navbar() {
                 {isOpen ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
               </motion.div>
             </AnimatePresence>
+            {!isOpen && totalBadge > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-[3px] rounded-full bg-red-500 text-[9px] font-bold leading-none text-white">
+                {totalBadge > 99 ? "99+" : totalBadge}
+              </span>
+            )}
           </button>
         </div>
 
@@ -264,28 +288,38 @@ export function Navbar() {
               className="md:hidden overflow-hidden glass-nav border-t border-white/10"
             >
               <nav className="container mx-auto px-4 py-3 flex flex-col gap-0.5 safe-bottom">
-                {moreLinks.map((link, i) => (
-                  <motion.div
-                    key={link.href}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                  >
-                    <Link
-                      href={link.href}
-                      onClick={() => setIsOpen(false)}
-                      className={cn(
-                        "flex items-center justify-between text-[13px] font-medium p-2.5 rounded-xl transition-colors",
-                        location === link.href
-                          ? "bg-white/15 text-white"
-                          : "text-white/80 hover:bg-white/10 hover:text-white"
-                      )}
+                {moreLinks.map((link, i) => {
+                  const badge = "badge" in link ? (link.badge ?? 0) : 0;
+                  return (
+                    <motion.div
+                      key={link.href}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
                     >
-                      {link.label}
-                      <ChevronRight className="h-3.5 w-3.5 opacity-40" />
-                    </Link>
-                  </motion.div>
-                ))}
+                      <Link
+                        href={link.href}
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          "flex items-center justify-between text-[13px] font-medium p-2.5 rounded-xl transition-colors",
+                          location === link.href
+                            ? "bg-white/15 text-white"
+                            : "text-white/80 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <span className="flex items-center gap-2">
+                          {link.label}
+                          {badge > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[9px] font-bold leading-none text-white">
+                              {badge > 99 ? "99+" : badge}
+                            </span>
+                          )}
+                        </span>
+                        <ChevronRight className="h-3.5 w-3.5 opacity-40" />
+                      </Link>
+                    </motion.div>
+                  );
+                })}
 
                 <div className="h-px bg-white/10 my-1.5" />
 

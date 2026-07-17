@@ -18,3 +18,4 @@
 - [Streetly db-schema-drift validation silently broken](streetly-schema-drift-validation-silent-fail.md) — the isValidation workflow can fail with "tsx: command not found" if lib/db node_modules is stale; run pnpm install and confirm it actually prints a result before trusting it
 - [Streetly native API base URL](streetly-native-api-base.md) — native app must use an absolute API origin via getApiBase()/setBaseUrl(), not import.meta.env.BASE_URL, once the WebView loads the bundled shell locally instead of remotely
 - [Streetly Gradle release keystore path resolution](streetly-gradle-keystore-path.md) — file() in app/build.gradle resolves relative to app/, not android/ root; use rootProject.file() for CI-decoded keystore paths
+- [Streetly Feature Permissions system](streetly-feature-permissions.md) — per-user feature gating: user_features table, /api/admin/users/:id/features, auth/me returns features[], staff dashboards filter NAV by featureKey

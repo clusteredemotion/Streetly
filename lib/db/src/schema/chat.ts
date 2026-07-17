@@ -10,6 +10,8 @@ export const conversationsTable = pgTable("conversations", {
   riderId: integer("rider_id").references(() => usersTable.id, { onDelete: "cascade" }),
   deliveryId: integer("delivery_id").references(() => deliveryOrdersTable.id, { onDelete: "set null" }),
   subject: text("subject"),
+  status: text("status").notNull().default("connecting"),
+  assignedTo: text("assigned_to").notNull().default("admin"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
 });

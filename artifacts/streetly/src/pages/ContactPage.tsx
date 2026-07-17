@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useSeo } from "@/hooks/useSeo";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function ContactPage() {
   const { toast } = useToast();
+
+  useSeo({
+    title: "Contact Us",
+    description: "Get in touch with the Streetly team. We're here to help with questions about listing your business, partnerships, or anything else.",
+    canonicalPath: "/contact",
+  });
   const submitContact = useSubmitContact();
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
 

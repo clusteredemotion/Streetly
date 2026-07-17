@@ -405,8 +405,19 @@ function ProductsPanel({ products, onChange }: {
   );
 }
 
+const AGENT_DASH_LOC_KEY = "streetly_loc_biz_dash";
+
 function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: () => void }) {
-  const [form, setForm] = useState<BizForm>(DEFAULT_BIZ);
+  const [form, setForm] = useState<BizForm>(() => {
+    try {
+      const saved = sessionStorage.getItem(AGENT_DASH_LOC_KEY);
+      if (saved) {
+        const loc = JSON.parse(saved) as { latitude: string; longitude: string; address: string };
+        return { ...DEFAULT_BIZ, latitude: loc.latitude, longitude: loc.longitude, address: loc.address };
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_BIZ;
+  });
   const [categories, setCategories] = useState<Array<{ id: number; name: string; icon?: string }>>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -442,7 +453,11 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
   }, [selectedApiCity?.id]);
 
   const handleGps = (lat: string, lon: string, address: string) => {
-    setForm((p) => ({ ...p, latitude: lat, longitude: lon, address: address || p.address }));
+    setForm((p) => {
+      const newAddress = address || p.address;
+      sessionStorage.setItem(AGENT_DASH_LOC_KEY, JSON.stringify({ latitude: lat, longitude: lon, address: newAddress }));
+      return { ...p, latitude: lat, longitude: lon, address: newAddress };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -463,6 +478,7 @@ function AddBusinessTab({ agentId, onSuccess }: { agentId: number; onSuccess: ()
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to submit");
+      sessionStorage.removeItem(AGENT_DASH_LOC_KEY);
       setDone(true);
       setForm(DEFAULT_BIZ);
       setTimeout(() => { setDone(false); onSuccess(); }, 2500);
@@ -1351,7 +1367,14 @@ export default function AgentDashboardPage() {
                               </div>
                               <div className="flex-1">
                                 <div className="text-sm font-bold text-white">{fmt(w.amount as number)}</div>
-                                <div className="text-xs text-white/40">{new Date(w.createdAt as string).toLocaleDateString()}</div>
+                                <div className="text-xs text-white/40">
+                                  Requested {new Date(w.createdAt as string).toLocaleDateString()}
+                                </div>
+                                {!!w.resolvedAt && (
+                                  <div className="text-xs text-white/30 mt-0.5">
+                                    Decided {new Date(w.resolvedAt as string).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                  </div>
+                                )}
                               </div>
                               <StatusBadge status={w.status as string} />
                             </div>

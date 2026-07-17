@@ -11,7 +11,6 @@ import { MapPin, User, Building2, MapPin as AgentIcon, Info } from "lucide-react
 import { cn, formatCurrencyWithConversion } from "@/lib/utils";
 import { BUSINESS_REGISTRATION_FEE } from "@/lib/constants";
 import { useVisitorGeo } from "@/hooks/useVisitorGeo";
-import { RecaptchaWidget } from "@/components/auth/RecaptchaWidget";
 
 const ROLES: { value: RegisterInputRole; label: string; desc: string; icon: typeof User }[] = [
   { value: "visitor" as RegisterInputRole, label: "Customer / Visitor", desc: "Discover and contact local businesses", icon: User },
@@ -36,7 +35,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(getInitialRole);
   const [error, setError] = useState("");
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const referralCode = new URLSearchParams(window.location.search).get("ref");
 
@@ -49,10 +47,6 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!recaptchaToken) {
-      setError("Please complete the reCAPTCHA verification.");
-      return;
-    }
     try {
       const result = await registerMutation.mutateAsync({ 
         data: { 
@@ -61,7 +55,6 @@ export default function RegisterPage() {
           password, 
           role,
           referralCode,
-          recaptchaToken,
         } as any 
       });
       localStorage.setItem("streetly_token", result.token);
@@ -77,10 +70,10 @@ export default function RegisterPage() {
       <div className="min-h-[80vh] flex items-center justify-center bg-muted/20 py-12 px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2 text-primary font-bold text-2xl mb-2">
+            <Link href="/" className="flex items-center justify-center gap-2 text-primary font-bold text-2xl mb-2 hover:opacity-80 transition-opacity">
               <MapPin className="h-7 w-7" />
               Streetly
-            </div>
+            </Link>
             <h1 className="text-xl font-bold text-foreground">Create your account</h1>
             <p className="text-muted-foreground text-sm mt-1">Join the world's street-by-street business discovery platform</p>
           </div>
@@ -164,10 +157,6 @@ export default function RegisterPage() {
                   required
                   className="mt-1.5"
                 />
-              </div>
-
-              <div>
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
               </div>
 
               {error && (

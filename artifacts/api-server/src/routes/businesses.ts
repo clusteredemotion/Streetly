@@ -268,6 +268,9 @@ router.post("/self-register", requireAuth, async (req, res) => {
     }
   }
 
+  import("../lib/notifyAdmins.js").then(({ notifyAdmins }) => {
+    notifyAdmins("🏪 New Business", `"${biz.name}" submitted for review in ${city.name}`, { url: "/admin" }).catch(() => {});
+  }).catch(() => {});
   return res.status(201).json({ ...biz, streetName: street.name, areaName: area.name, cityName: city.name });
 });
 

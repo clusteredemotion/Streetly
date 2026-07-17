@@ -34,6 +34,7 @@ export const withdrawalsTable = pgTable("withdrawals", {
   amount: real("amount").notNull(),
   status: withdrawalStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at"),
 });
 
 export const insertAgentSchema = createInsertSchema(agentsTable).omit({ id: true, createdAt: true, totalEarnings: true, availableBalance: true, status: true });

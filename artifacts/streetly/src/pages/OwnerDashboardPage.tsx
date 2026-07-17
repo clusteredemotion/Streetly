@@ -351,6 +351,20 @@ function EditBusinessModal({ biz, onClose, onSaved }: {
   );
 }
 
+interface StoreConversation {
+  id: number;
+  customerId: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  businessId: number | null;
+  businessName: string | null;
+  status: string;
+  assignedTo: string;
+  unreadCount: number;
+  lastMessageAt: string;
+  lastMessage: { body: string; senderRole: string } | null;
+}
+
 export default function OwnerDashboardPage() {
   const [, navigate] = useLocation();
   const { data, isLoading, refetch } = useListMyBusinesses();
@@ -359,6 +373,8 @@ export default function OwnerDashboardPage() {
   const [itemsBiz, setItemsBiz] = useState<any | null>(null);
   const [analyticsBiz, setAnalyticsBiz] = useState<any | null>(null);
   const [msaId, setMsaId] = useState<string | null>(null);
+  const [storeChats, setStoreChats] = useState<StoreConversation[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("streetly_token");
@@ -369,6 +385,20 @@ export default function OwnerDashboardPage() {
       .then(r => r.json())
       .then(d => d.msaId && setMsaId(d.msaId))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("streetly_token");
+    if (!token) { setChatsLoading(false); return; }
+    fetch(`${BASE}/api/conversations`, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then((list: StoreConversation[]) => {
+        setStoreChats(list.filter(c => c.assignedTo === "store"));
+      })
+      .catch(() => {})
+      .finally(() => setChatsLoading(false));
   }, []);
 
   const statusColor = (status: string) => {
@@ -447,6 +477,67 @@ export default function OwnerDashboardPage() {
             Upgrade Now <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Chat Inbox */}
+        {(chatsLoading || storeChats.length > 0) && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                Customer Chats
+                {storeChats.reduce((acc, c) => acc + (c.unreadCount ?? 0), 0) > 0 && (
+                  <span className="text-xs font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+                    {storeChats.reduce((acc, c) => acc + (c.unreadCount ?? 0), 0)} new
+                  </span>
+                )}
+              </h2>
+              <Button size="sm" variant="outline" className="text-xs" onClick={() => navigate("/messages")}>
+                Open full inbox
+              </Button>
+            </div>
+            {chatsLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
+              </div>
+            ) : storeChats.length === 0 ? null : (
+              <div className="space-y-2">
+                {storeChats.slice(0, 4).map(chat => (
+                  <motion.div key={chat.id}
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    onClick={() => navigate("/messages")}
+                    className="flex items-center gap-3 p-4 bg-card border rounded-xl hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-semibold text-foreground truncate">{chat.customerName ?? "Customer"}</span>
+                        {chat.businessName && (
+                          <span className="text-xs text-muted-foreground truncate">re: {chat.businessName}</span>
+                        )}
+                        {chat.unreadCount > 0 && (
+                          <span className="ml-auto flex-shrink-0 text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                            {chat.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {chat.lastMessage?.body ?? "No messages yet"}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                  </motion.div>
+                ))}
+                {storeChats.length > 4 && (
+                  <button onClick={() => navigate("/messages")}
+                    className="w-full py-3 text-sm text-primary hover:underline text-center">
+                    View all {storeChats.length} chats →
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Businesses List */}
         <h2 className="font-bold text-lg text-foreground mb-4">Your Businesses</h2>

@@ -24,9 +24,13 @@ import propertiesRouter from "./properties";
 import regionalManagerRouter from "./regional-manager";
 import publicRouter from "./public";
 import pushRouter from "./push";
+import sitemapRouter from "./sitemap";
+import notificationsRouter from "./notifications";
+import userFeaturesRouter from "./userFeatures";
 
 const router: IRouter = Router();
 
+router.use(sitemapRouter);
 router.use(healthRouter);
 router.use(storageRouter);
 router.use(publicRouter);
@@ -56,5 +60,7 @@ router.use("/conversations", chatRouter);
 router.use("/properties", propertiesRouter);
 router.use("/regional-manager", regionalManagerRouter);
 router.use("/push", pushRouter);
+router.use("/notifications", notificationsRouter);
+router.use("/", userFeaturesRouter);
 
 export default router;

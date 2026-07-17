@@ -44,6 +44,7 @@ import { DeliveryRequestModal } from "@/components/DeliveryRequestModal";
 import MarketplaceSection from "@/components/marketplace/MarketplaceSection";
 import { Truck } from "lucide-react";
 import { getApiBase } from "@/lib/utils";
+import { useSeo } from "@/hooks/useSeo";
 
 const BASE = getApiBase();
 
@@ -255,6 +256,42 @@ export default function BusinessProfilePage() {
       trackEvent("view");
     }
   }, [bizId]);
+
+  useSeo({
+    title: business ? `${business.name} — ${business.categoryName ?? "Business"} in ${business.cityName ?? ""}` : "Business Profile",
+    description: business
+      ? `${business.name} is a ${business.categoryName ?? "business"} located at ${[business.address, business.streetName, business.areaName, business.cityName].filter(Boolean).join(", ")}. ${business.description ?? "Discover, contact, and get directions on Streetly."}`
+      : undefined,
+    canonicalPath: business ? `/${business.slug ?? business.id}` : undefined,
+    ogImage: business?.photos?.[0]?.url,
+    ogType: "business.business",
+    jsonLd: business ? {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: business.name,
+      description: business.description ?? undefined,
+      url: `https://mystreetly.app/${business.slug ?? business.id}`,
+      telephone: business.phone ?? undefined,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: business.address ?? undefined,
+        addressLocality: business.cityName ?? undefined,
+        addressRegion: business.areaName ?? undefined,
+        addressCountry: "NG",
+      },
+      geo: business.latitude && business.longitude ? {
+        "@type": "GeoCoordinates",
+        latitude: business.latitude,
+        longitude: business.longitude,
+      } : undefined,
+      image: business.photos?.[0]?.url ?? undefined,
+      aggregateRating: business.reviewCount > 0 ? {
+        "@type": "AggregateRating",
+        ratingValue: business.rating,
+        reviewCount: business.reviewCount,
+      } : undefined,
+    } : undefined,
+  });
 
   if (isLoading) {
     return (

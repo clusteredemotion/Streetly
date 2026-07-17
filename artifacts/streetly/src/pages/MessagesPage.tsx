@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
@@ -34,11 +35,16 @@ interface Conversation {
 
 export default function MessagesPage() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["nav-conversations-badge"] });
+  }, [queryClient]);
 
   useEffect(() => {
     const token = localStorage.getItem("streetly_token");

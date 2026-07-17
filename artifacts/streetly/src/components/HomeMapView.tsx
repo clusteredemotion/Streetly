@@ -53,6 +53,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 const DEFAULT_COLOR = "#2563eb";
 
 const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; attribution: string }> = {
+  navigation: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    label: "Navigation", emoji: "🧭", attribution: "© Esri, HERE, Garmin, OpenStreetMap contributors",
+  },
   explore: {
     url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
     label: "Explore", emoji: "🗺", attribution: "© OpenStreetMap © CARTO",
@@ -84,10 +88,6 @@ const TILE_STYLES: Record<string, { url: string; label: string; emoji: string; a
   ocean: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
     label: "Ocean", emoji: "🌊", attribution: "© Esri, GEBCO, NOAA, National Geographic",
-  },
-  alidade: {
-    url: "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
-    label: "Alidade Smooth", emoji: "🎨", attribution: "© Stadia Maps © OpenStreetMap",
   },
 };
 
@@ -209,7 +209,7 @@ export function HomeMapView() {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [tileStyle, setTileStyle] = useState("positron");
+  const [tileStyle, setTileStyle] = useState("navigation");
   const defaultStyleApplied = useRef(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);

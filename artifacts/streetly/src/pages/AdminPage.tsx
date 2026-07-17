@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { ALL_FEATURES, FEATURE_GROUPS, ALL_FEATURE_KEYS } from "@/lib/featureRegistry";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
@@ -17,7 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatCurrency, getApiBase } from "@/lib/utils";
 import { AGENT_COMMISSION_PER_LISTING } from "@/lib/constants";
 import {
-  Building2, Users, TrendingUp, AlertCircle, CheckCircle, XCircle,
+  Building2, Users, TrendingUp, AlertCircle, CheckCircle, CheckCircle2, XCircle,
   ShieldCheck, Plus, Edit2, LogIn, CreditCard, X, Save, ChevronDown,
   Loader2, Eye, EyeOff, User, MapPin, Wallet, ExternalLink,
   FileText, ZoomIn, Camera, List, Key, Trash2, Ban, ImageIcon,
@@ -36,6 +37,7 @@ import AdminEmailSettings from "@/components/admin/AdminEmailSettings";
 import AdminMapStylePanel from "@/components/admin/AdminMapStylePanel";
 import AdminLoginGate from "@/components/admin/AdminLoginGate";
 import AdminPushNotifications from "@/components/admin/AdminPushNotifications";
+import AdminChatPanel from "@/components/admin/AdminChatPanel";
 import MarketplaceItemsModal from "@/components/marketplace/MarketplaceItemsModal";
 
 const BASE = getApiBase();
@@ -143,15 +145,16 @@ function useResendSetupLink() {
   });
 }
 
-function usePendingWithdrawals(enabled = true) {
+function useWithdrawals(statusFilter: "pending" | "resolved" = "pending", enabled = true) {
   return useQuery({
     enabled,
-    queryKey: ["admin", "withdrawals", "pending"],
+    queryKey: ["admin", "withdrawals", statusFilter],
     queryFn: async () => {
-      const res = await fetch(`${BASE}/api/admin/withdrawals`, { headers: authHeader() });
+      const res = await fetch(`${BASE}/api/admin/withdrawals?status=${statusFilter}`, { headers: authHeader() });
       if (!res.ok) throw new Error("Failed to load withdrawals");
       return res.json() as Promise<Array<{
         id: number; agentId: number; amount: number; status: string; createdAt: string;
+        resolvedAt: string | null;
         agentFullName: string | null; agentBankName: string | null;
         agentAccountNumber: string | null; agentAccountName: string | null;
         agentAvailableBalance: number | null;
@@ -1815,7 +1818,10 @@ const SECTION_LABELS: Record<string, string> = {
   "all-users": "All Users", "all-agents": "All Agents",
   "staff-accounts": "Staff Accounts",
   "pending-agents": "Pending Agents", kyc: "KYC Documents",
+  "user-profiles": "User Profiles",
   categories: "Categories", commissions: "Commissions",
+  "pending-riders": "Pending Riders", "all-riders": "All Riders", "all-deliveries": "Deliveries",
+  chat: "In-App Chats",
   messages: "Messages", "support-tickets": "Support Tickets",
   "push-notifications": "Push Notifications",
   export: "Export Data", "email-settings": "Email & Account",
@@ -1887,7 +1893,8 @@ export default function AdminPage() {
   const { data: allUsers, refetch: refetchUsers } = useAllUsers(isAdmin);
   const { data: allBusinesses, refetch: refetchAllBusinesses } = useAllBusinesses(isAdmin);
   const { data: featuredOrderData, refetch: refetchFeaturedOrder } = useFeaturedOrder(isAdmin);
-  const { data: withdrawals, refetch: refetchWithdrawals } = usePendingWithdrawals(isAdmin);
+  const [withdrawalTab, setWithdrawalTab] = useState<"pending" | "resolved">("pending");
+  const { data: withdrawals, refetch: refetchWithdrawals } = useWithdrawals(withdrawalTab, isAdmin);
 
   const approveBiz = useApproveBusiness();
   const approveProperty = useApproveProperty();
@@ -1926,6 +1933,39 @@ export default function AdminPage() {
   const [featuredSaved, setFeaturedSaved] = useState(false);
   const saveFeaturedOrder = useSaveFeaturedOrder();
   const [impersonateData, setImpersonateData] = useState<{ name: string; token: string; role: string } | null>(null);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<any | null>(null);
+  const [profileSearch, setProfileSearch] = useState("");
+  const [profileFeatures, setProfileFeatures] = useState<string[]>([]);
+  const [profileFeaturesLoading, setProfileFeaturesLoading] = useState(false);
+  const [profileFeaturesSaving, setProfileFeaturesSaving] = useState(false);
+
+  useEffect(() => {
+    if (!selectedProfileUser) return;
+    if (selectedProfileUser.role === "admin") { setProfileFeatures(ALL_FEATURE_KEYS); return; }
+    setProfileFeaturesLoading(true);
+    fetch(`${BASE}/api/admin/users/${selectedProfileUser.id}/features`, { headers: authHeader() })
+      .then(r => r.ok ? r.json() : { features: [] })
+      .then(d => setProfileFeatures(d.features ?? []))
+      .catch(() => setProfileFeatures([]))
+      .finally(() => setProfileFeaturesLoading(false));
+  }, [selectedProfileUser?.id]);
+
+  const toggleProfileFeature = useCallback(async (key: string) => {
+    const next = profileFeatures.includes(key)
+      ? profileFeatures.filter(k => k !== key)
+      : [...profileFeatures, key];
+    setProfileFeatures(next);
+    setProfileFeaturesSaving(true);
+    try {
+      await fetch(`${BASE}/api/admin/users/${selectedProfileUser.id}/features`, {
+        method: "PUT",
+        headers: authHeader(),
+        body: JSON.stringify({ features: next }),
+      });
+    } finally {
+      setProfileFeaturesSaving(false);
+    }
+  }, [profileFeatures, selectedProfileUser?.id]);
   const [showPassport, setShowPassport] = useState<number | null>(null);
   const [kycImgView, setKycImgView] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ label: string; onConfirm: () => Promise<void> } | null>(null);
@@ -2379,6 +2419,7 @@ export default function AdminPage() {
 
             <NavGroup label="People" />
             <NavItem section="all-users" active={activeSection} label="All Users" icon={<Users className="h-4 w-4" />} onSelect={handleNavSelect} />
+            <NavItem section="user-profiles" active={activeSection} label="User Profiles" icon={<User className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="staff-accounts" active={activeSection} label="Staff Accounts" icon={<ShieldCheck className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="all-agents" active={activeSection} label="All Agents" icon={<User className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="pending-agents" active={activeSection} label="Pending Agents" icon={<AlertCircle className="h-4 w-4" />} badge={stats?.pendingAgents} onSelect={handleNavSelect} />
@@ -2396,6 +2437,7 @@ export default function AdminPage() {
             <NavItem section="commissions" active={activeSection} label="Commissions" icon={<CreditCard className="h-4 w-4" />} badge={withdrawals?.length} onSelect={handleNavSelect} />
 
             <NavGroup label="Communications" />
+            <NavItem section="chat" active={activeSection} label="In-App Chats" icon={<MessageSquare className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="messages" active={activeSection} label="Messages" icon={<MessageSquare className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="support-tickets" active={activeSection} label="Support Tickets" icon={<LifeBuoy className="h-4 w-4" />} onSelect={handleNavSelect} />
             <NavItem section="push-notifications" active={activeSection} label="Push Notifications" icon={<Bell className="h-4 w-4" />} onSelect={handleNavSelect} />
@@ -2452,6 +2494,9 @@ export default function AdminPage() {
               <AdminAnalytics />
             </>
           )}
+
+          {/* ── Chat ── */}
+          {activeSection === "chat" && <AdminChatPanel />}
 
           {/* ── Messages ── */}
           {activeSection === "messages" && <AdminMessages />}
@@ -3092,6 +3137,369 @@ export default function AdminPage() {
             </>
           )}
 
+          {/* ── User Profiles ── */}
+          {activeSection === "user-profiles" && (() => {
+            const allAgentUsers = (allAgents ?? []).map((a: any) => ({
+              id: a.userId, name: a.fullName ?? a.name ?? "(agent)", email: a.email ?? "—",
+              role: "field_agent", status: a.status, createdAt: a.createdAt,
+              _agentId: a.id, _agentRecord: a,
+            }));
+            const allRiderUsers = (allRiders ?? []).map((r: any) => ({
+              id: r.userId, name: r.fullName, email: r.email ?? "—",
+              role: "delivery_rider", status: r.status, createdAt: r.createdAt,
+              _riderId: r.id, _riderRecord: r,
+            }));
+            const agentUserIds = new Set((allAgents ?? []).map((a: any) => a.userId));
+            const riderUserIds = new Set((allRiders ?? []).map((r: any) => r.userId));
+            const allNormalUsers = (allUsers ?? [])
+              .filter((u: any) => !agentUserIds.has(u.id) && !riderUserIds.has(u.id))
+              .map((u: any) => ({
+                id: u.id, name: u.name, email: u.email,
+                role: u.role, status: u.status, createdAt: u.createdAt,
+                msaId: u.msaId, mustChangePassword: u.mustChangePassword,
+              }));
+            const combinedUsers = [...allNormalUsers, ...allAgentUsers, ...allRiderUsers];
+            const filtered = combinedUsers.filter((u) => {
+              if (!profileSearch) return true;
+              const q = profileSearch.toLowerCase();
+              return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q);
+            });
+
+            const roleColor: Record<string, string> = {
+              admin: "text-red-400 bg-red-500/10",
+              moderator: "text-purple-400 bg-purple-500/10",
+              scout_manager: "text-emerald-400 bg-emerald-500/10",
+              regional_manager: "text-orange-400 bg-orange-500/10",
+              business_owner: "text-blue-400 bg-blue-500/10",
+              field_agent: "text-cyan-400 bg-cyan-500/10",
+              delivery_rider: "text-yellow-400 bg-yellow-500/10",
+              visitor: "text-white/40 bg-white/5",
+            };
+
+            const prof = selectedProfileUser;
+
+            return (
+              <>
+                <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+                  <SectionHeader title="User Profiles" sub="View and manage the full profile of any user. Click a user to see their details and toggle their features." />
+                  {prof && (
+                    <button onClick={() => setSelectedProfileUser(null)}
+                      className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
+                      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                      ← Back to list
+                    </button>
+                  )}
+                </div>
+
+                {!prof ? (
+                  <>
+                    <div className="mb-4">
+                      <input
+                        value={profileSearch}
+                        onChange={(e) => setProfileSearch(e.target.value)}
+                        placeholder="Search by name, email or role…"
+                        className="w-full rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none"
+                        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                      />
+                    </div>
+                    <p className="text-xs text-white/30 mb-3">{filtered.length} user{filtered.length !== 1 ? "s" : ""} — click any to view their profile</p>
+                    <div className="space-y-2">
+                      {filtered.map((u: any) => (
+                        <button key={`${u.role}-${u.id}`} onClick={() => setSelectedProfileUser(u)}
+                          className="w-full text-left rounded-2xl p-4 flex items-center gap-4 transition-all hover:scale-[1.005]"
+                          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/5">
+                            <span className="text-sm font-bold text-white/60">{u.name?.charAt(0)?.toUpperCase() ?? "?"}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className="font-semibold text-white text-sm">{u.name}</span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${roleColor[u.role] ?? "text-white/40 bg-white/5"}`}>{u.role}</span>
+                              {u.status && u.status !== "active" && u.status !== "approved" && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400">{u.status}</span>
+                              )}
+                            </div>
+                            <p className="text-xs text-white/40">{u.email}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-white/20 flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  /* ── Profile Detail Panel ── */
+                  <div className="space-y-4">
+                    {/* Header card */}
+                    <div className="rounded-2xl p-5" style={{ background: "rgba(74,158,255,0.06)", border: "1px solid rgba(74,158,255,0.15)" }}>
+                      <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white bg-white/10 flex-shrink-0">
+                          {prof.name?.charAt(0)?.toUpperCase() ?? "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h3 className="text-lg font-bold text-white">{prof.name}</h3>
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${roleColor[prof.role] ?? "text-white/40 bg-white/5"}`}>{prof.role}</span>
+                            {prof.status && (
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${prof.status === "active" || prof.status === "approved" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
+                                {prof.status}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-white/50">{prof.email}</p>
+                          <p className="text-xs text-white/30 mt-1">Joined {new Date(prof.createdAt).toLocaleString("en-NG", { dateStyle: "medium" })}</p>
+                          {prof.msaId && <p className="text-xs font-mono text-[#4a9eff] mt-1">{prof.msaId}</p>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick actions */}
+                    <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">Account Actions</p>
+                      <div className="flex flex-wrap gap-2">
+                        {prof._agentId === undefined && (
+                          <Button size="sm" variant="outline" onClick={() => { const u = (allUsers ?? []).find((u: any) => u.id === prof.id); if (u) setEditUser(u); }}
+                            className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                            <Edit2 className="h-3.5 w-3.5" /> Change Role
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => handleImpersonate(prof.id, prof.name)}
+                          className="gap-1 text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10">
+                          <LogIn className="h-3.5 w-3.5" /> Login As
+                        </Button>
+                        {prof._agentId === undefined && (
+                          <>
+                            <Button size="sm" variant="outline"
+                              onClick={async () => {
+                                await suspendUser.mutateAsync({ id: prof.id, suspend: prof.status !== "suspended" });
+                                setSelectedProfileUser((p: any) => ({ ...p, status: p.status !== "suspended" ? "suspended" : "active" }));
+                                refetchUsers();
+                              }}
+                              className={`gap-1 ${prof.status === "suspended" ? "text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                              <Ban className="h-3.5 w-3.5" /> {prof.status === "suspended" ? "Activate Account" : "Suspend Account"}
+                            </Button>
+                            <Button size="sm" variant="outline"
+                              onClick={() => setConfirmDelete({ label: prof.name, onConfirm: async () => { await deleteUser.mutateAsync(prof.id); setSelectedProfileUser(null); refetchUsers(); } })}
+                              className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                              <Trash2 className="h-3.5 w-3.5" /> Delete User
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Role-specific panel */}
+                    {prof.role === "business_owner" && (
+                      <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div className="px-5 py-3 border-b" style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}>
+                          <p className="text-sm font-semibold text-white">Businesses</p>
+                          <p className="text-xs text-white/30">Approve, suspend, or manage each business owned by this user</p>
+                        </div>
+                        {(allBusinesses ?? []).filter((b: any) => b.ownerId === prof.id).length === 0 ? (
+                          <div className="py-8 text-center text-white/20 text-sm">No businesses registered</div>
+                        ) : (
+                          (allBusinesses ?? []).filter((b: any) => b.ownerId === prof.id).map((biz: any) => (
+                            <div key={biz.id} className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-white text-sm">{biz.name}</p>
+                                <p className="text-xs text-white/40">{biz.category} · {biz.status}</p>
+                              </div>
+                              <div className="flex gap-2 flex-shrink-0">
+                                {biz.status === "pending" && (
+                                  <>
+                                    <Button size="sm" variant="outline" onClick={async () => { await approveBiz.mutateAsync({ id: biz.id, data: { approved: true } }); refetchAllBusinesses(); }}
+                                      className="gap-1 text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10">
+                                      <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={async () => { await approveBiz.mutateAsync({ id: biz.id, data: { approved: false } }); refetchAllBusinesses(); }}
+                                      className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                                      <X className="h-3.5 w-3.5" /> Reject
+                                    </Button>
+                                  </>
+                                )}
+                                {(biz.status === "approved" || biz.status === "suspended") && (
+                                  <Button size="sm" variant="outline" onClick={async () => { await suspendBusiness.mutateAsync({ id: biz.id, suspend: biz.status === "approved" }); refetchAllBusinesses(); }}
+                                    className={`gap-1 ${biz.status === "suspended" ? "text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                                    <Ban className="h-3.5 w-3.5" /> {biz.status === "suspended" ? "Activate" : "Suspend"}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {prof.role === "field_agent" && prof._agentRecord && (
+                      <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
+                        <p className="text-sm font-semibold text-white">Agent Record</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div><span className="text-white/40 text-xs">Status</span><p className="text-white font-medium capitalize">{prof._agentRecord.status}</p></div>
+                          <div><span className="text-white/40 text-xs">Total Earnings</span><p className="text-white font-medium">₦{(prof._agentRecord.totalEarnings ?? 0).toLocaleString()}</p></div>
+                          <div><span className="text-white/40 text-xs">Available Balance</span><p className="text-white font-medium">₦{(prof._agentRecord.availableBalance ?? 0).toLocaleString()}</p></div>
+                          <div><span className="text-white/40 text-xs">MSA Area</span><p className="text-white font-medium">{prof._agentRecord.msaId ?? "—"}</p></div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                          {prof._agentRecord.status === "pending" && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={async () => { await approveAgent.mutateAsync({ id: prof._agentId, data: { approved: true } }); refetchAgents(); setSelectedProfileUser((p: any) => ({ ...p, _agentRecord: { ...p._agentRecord, status: "approved" }, status: "approved" })); }}
+                                className="gap-1 text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Approve Agent
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={async () => { await approveAgent.mutateAsync({ id: prof._agentId, data: { approved: false } }); refetchAgents(); setSelectedProfileUser((p: any) => ({ ...p, _agentRecord: { ...p._agentRecord, status: "rejected" }, status: "rejected" })); }}
+                                className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                                <X className="h-3.5 w-3.5" /> Reject Agent
+                              </Button>
+                            </>
+                          )}
+                          {(prof._agentRecord.status === "approved" || prof._agentRecord.status === "suspended") && (
+                            <Button size="sm" variant="outline" onClick={async () => { const suspend = prof._agentRecord.status === "approved"; await suspendAgent.mutateAsync({ id: prof._agentId, suspend }); refetchAgents(); setSelectedProfileUser((p: any) => ({ ...p, _agentRecord: { ...p._agentRecord, status: suspend ? "suspended" : "approved" }, status: suspend ? "suspended" : "approved" })); }}
+                              className={`gap-1 ${prof._agentRecord.status === "suspended" ? "text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                              <Ban className="h-3.5 w-3.5" /> {prof._agentRecord.status === "suspended" ? "Reactivate Agent" : "Suspend Agent"}
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" onClick={() => setReviewAgent(prof._agentRecord)}
+                            className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                            <FileText className="h-3.5 w-3.5" /> Full KYC Review
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {prof.role === "delivery_rider" && prof._riderRecord && (
+                      <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
+                        <p className="text-sm font-semibold text-white">Rider Record</p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div><span className="text-white/40 text-xs">Status</span><p className="text-white font-medium capitalize">{prof._riderRecord.status}</p></div>
+                          <div><span className="text-white/40 text-xs">Vehicle Type</span><p className="text-white font-medium capitalize">{prof._riderRecord.vehicleType}</p></div>
+                          <div><span className="text-white/40 text-xs">Phone</span><p className="text-white font-medium">{prof._riderRecord.phone}</p></div>
+                          <div><span className="text-white/40 text-xs">Online Now</span><p className="text-white font-medium">{prof._riderRecord.isOnline ? "Yes" : "No"}</p></div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                          {prof._riderRecord.status === "pending" && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={async () => { await approveRider.mutateAsync({ id: prof._riderId, approved: true }); refetchRiders(); setSelectedProfileUser((p: any) => ({ ...p, _riderRecord: { ...p._riderRecord, status: "approved" }, status: "approved" })); }}
+                                className="gap-1 text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Approve Rider
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={async () => { await approveRider.mutateAsync({ id: prof._riderId, approved: false }); refetchRiders(); setSelectedProfileUser((p: any) => ({ ...p, _riderRecord: { ...p._riderRecord, status: "rejected" }, status: "rejected" })); }}
+                                className="gap-1 text-red-400 border-red-400/30 hover:bg-red-400/10">
+                                <X className="h-3.5 w-3.5" /> Reject Rider
+                              </Button>
+                            </>
+                          )}
+                          {(prof._riderRecord.status === "approved" || prof._riderRecord.status === "suspended") && (
+                            <Button size="sm" variant="outline" onClick={async () => { const suspend = prof._riderRecord.status === "approved"; await suspendRider.mutateAsync({ id: prof._riderId, suspend }); refetchRiders(); setSelectedProfileUser((p: any) => ({ ...p, _riderRecord: { ...p._riderRecord, status: suspend ? "suspended" : "approved" }, status: suspend ? "suspended" : "approved" })); }}
+                              className={`gap-1 ${prof._riderRecord.status === "suspended" ? "text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10" : "text-amber-400 border-amber-400/30 hover:bg-amber-400/10"}`}>
+                              <Ban className="h-3.5 w-3.5" /> {prof._riderRecord.status === "suspended" ? "Reactivate Rider" : "Suspend Rider"}
+                            </Button>
+                          )}
+                          {prof._riderRecord.status !== "pending" && (
+                            <Button size="sm" variant="outline" onClick={() => setReviewRider(prof._riderRecord)}
+                              className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                              <FileText className="h-3.5 w-3.5" /> View Application
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Feature Permissions — shown for all staff + admin */}
+                    {["moderator", "scout_manager", "regional_manager", "admin", "visitor", "business_owner", "field_agent", "delivery_rider"].includes(prof.role) && (
+                      <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div className="px-5 py-4 flex items-center justify-between gap-3" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div>
+                            <p className="text-sm font-semibold text-white">Feature Permissions</p>
+                            <p className="text-xs text-white/40">Toggle which site features this user can access</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {profileFeaturesSaving && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30" />}
+                            {prof.role === "admin" && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#4a9eff]/15 text-[#4a9eff]">Full Access</span>
+                            )}
+                            {prof.role !== "admin" && (
+                              <span className="text-[10px] text-white/30">{profileFeatures.length}/{ALL_FEATURE_KEYS.length} enabled</span>
+                            )}
+                            {prof.role !== "admin" && (
+                              <button
+                                onClick={async () => {
+                                  const all = profileFeatures.length < ALL_FEATURE_KEYS.length;
+                                  const next = all ? [...ALL_FEATURE_KEYS] : [];
+                                  setProfileFeatures(next);
+                                  setProfileFeaturesSaving(true);
+                                  try { await fetch(`${BASE}/api/admin/users/${prof.id}/features`, { method: "PUT", headers: authHeader(), body: JSON.stringify({ features: next }) }); }
+                                  finally { setProfileFeaturesSaving(false); }
+                                }}
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors"
+                                style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                                {profileFeatures.length < ALL_FEATURE_KEYS.length ? "Grant All" : "Revoke All"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {profileFeaturesLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-white/30" />
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-white/[0.04]">
+                            {FEATURE_GROUPS.map(group => {
+                              const groupFeatures = ALL_FEATURES.filter(f => f.group === group);
+                              return (
+                                <div key={group} className="px-5 py-3">
+                                  <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-2.5">{group}</p>
+                                  <div className="space-y-2">
+                                    {groupFeatures.map(feat => {
+                                      const enabled = profileFeatures.includes(feat.key);
+                                      const isAdmin = prof.role === "admin";
+                                      return (
+                                        <div key={feat.key} className="flex items-center gap-3">
+                                          <button
+                                            disabled={isAdmin}
+                                            onClick={() => toggleProfileFeature(feat.key)}
+                                            className={`relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ${enabled ? "bg-[#4a9eff]" : "bg-white/10"} ${isAdmin ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                                          >
+                                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${enabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                                          </button>
+                                          <div className="flex-1 min-w-0">
+                                            <p className={`text-xs font-medium ${enabled ? "text-white" : "text-white/40"}`}>{feat.label}</p>
+                                            <p className="text-[10px] text-white/25 truncate">{feat.description}</p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="px-5 py-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+                          <Button size="sm" variant="outline" onClick={() => { const u = (allUsers ?? []).find((u: any) => u.id === prof.id); if (u) setEditUser(u); }}
+                            className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                            <Edit2 className="h-3.5 w-3.5" /> Change Role
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {prof.role === "visitor" && (
+                      <div className="rounded-2xl p-5 space-y-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}>
+                        <p className="text-sm font-semibold text-white">Promote User</p>
+                        <p className="text-xs text-white/40">This user has a standard visitor account. You can upgrade their role to grant platform access.</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          <Button size="sm" variant="outline" onClick={() => { const u = (allUsers ?? []).find((u: any) => u.id === prof.id); if (u) setEditUser(u); }}
+                            className="gap-1 text-[#4a9eff] border-[#4a9eff]/30 hover:bg-[#4a9eff]/10">
+                            <Edit2 className="h-3.5 w-3.5" /> Assign Role
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
           {/* ── Staff Accounts ── */}
           {activeSection === "staff-accounts" && (() => {
             const staffRoles = ["moderator", "scout_manager", "regional_manager"];
@@ -3177,39 +3585,70 @@ export default function AdminPage() {
           {/* ── Commissions ── */}
           {activeSection === "commissions" && (
             <>
-            <SectionHeader title="Commissions" sub="Review and approve pending agent commission payouts." />
+            <SectionHeader title="Commissions" sub="Review and approve agent commission payouts." />
+            <div className="flex gap-2 mb-4">
+              {(["pending", "resolved"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setWithdrawalTab(tab)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    withdrawalTab === tab
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-white/5 text-muted-foreground hover:bg-white/10"
+                  }`}
+                >
+                  {tab === "pending" ? "Pending" : "Resolved"}
+                </button>
+              ))}
+            </div>
             {!withdrawals?.length ? (
               <EmptyState
                 icon={<CreditCard className="h-10 w-10 text-green-500" />}
-                title="No pending commission payouts"
-                sub="All agent commissions have been processed"
+                title={withdrawalTab === "pending" ? "No pending commission payouts" : "No resolved payouts yet"}
+                sub={withdrawalTab === "pending" ? "All agent commissions have been processed" : "Approved and declined requests will appear here"}
               />
             ) : (
               <div className="space-y-3">
-                <div className="text-xs text-white/40 mb-4">
-                  {withdrawals.length} pending payout{withdrawals.length !== 1 ? "s" : ""} — approve to confirm payment to agent's bank account
-                </div>
+                {withdrawalTab === "pending" && (
+                  <div className="text-xs text-white/40 mb-4">
+                    {withdrawals.length} pending payout{withdrawals.length !== 1 ? "s" : ""} — approve to confirm payment to agent's bank account
+                  </div>
+                )}
                 {withdrawals.map((w) => (
                   <AdminCard key={w.id}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-foreground">{w.agentFullName ?? `Agent #${w.agentId}`}</h3>
                         <span className="text-base font-bold text-emerald-400">₦{w.amount.toLocaleString()}</span>
+                        {w.status !== "pending" && (
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            w.status === "completed"
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : "bg-red-500/20 text-red-400"
+                          }`}>
+                            {w.status === "completed" ? "Paid" : "Declined"}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {w.agentBankName} · {w.agentAccountNumber} · {w.agentAccountName}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Available balance: ₦{(w.agentAvailableBalance ?? 0).toLocaleString()} · Requested: {new Date(w.createdAt).toLocaleDateString()}
+                        {w.resolvedAt && (
+                          <> · Decided: {new Date(w.resolvedAt).toLocaleDateString()}</>
+                        )}
                       </p>
                     </div>
-                    <ApproveRejectButtons
-                      onApprove={() => handleWithdrawalApproval(w.id, true)}
-                      onReject={() => handleWithdrawalApproval(w.id, false)}
-                      loading={approveWithdrawal.isPending}
-                      approveLabel="Pay"
-                      rejectLabel="Decline"
-                    />
+                    {withdrawalTab === "pending" && (
+                      <ApproveRejectButtons
+                        onApprove={() => handleWithdrawalApproval(w.id, true)}
+                        onReject={() => handleWithdrawalApproval(w.id, false)}
+                        loading={approveWithdrawal.isPending}
+                        approveLabel="Pay"
+                        rejectLabel="Decline"
+                      />
+                    )}
                   </AdminCard>
                 ))}
               </div>

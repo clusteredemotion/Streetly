@@ -1,0 +1,95 @@
+Streetly Premium Map Style Prompt
+
+Create a premium Apple-inspired navigation map for Streetly that matches the visual quality of Uber, Bolt, Lyft, and Apple Maps.
+
+Use the Mapbox Navigation Day style as the foundation:
+
+mapbox://styles/mapbox/navigation-day-v1
+
+Design Requirements
+
+* Bright, clean, minimalist appearance.
+* Soft off-white land background.
+* Light gray secondary roads.
+* Slightly darker major roads.
+* Green parks and vegetation with subtle saturation.
+* Light blue lakes and rivers.
+* Minimal map labels with modern typography.
+* No excessive road shields or visual clutter.
+* Smooth anti-aliased vector rendering.
+* Rounded road edges.
+* High-resolution vector tiles.
+* Retina/4K optimized.
+* Flat modern design with no harsh colors.
+* Premium navigation appearance similar to Apple Maps.
+
+Route Styling
+
+* Main route: Solid black (#111111).
+* White outer casing (4–6 px).
+* Rounded line caps and joins.
+* Smooth animated drawing when route is calculated.
+* Subtle shadow beneath the route for depth.
+* Animated glow while recalculating.
+
+Pickup Marker
+
+* Black circular pin.
+* White center dot.
+* Soft drop shadow.
+* Smooth drop animation.
+
+Destination Marker
+
+* Purple circular pin.
+* White center.
+* Gentle bounce animation.
+
+User Location
+
+* Bright blue pulsing location dot.
+* Semi-transparent accuracy circle.
+* Direction arrow rotates with heading.
+* Smooth location updates.
+
+Driver Vehicles
+
+* Custom Streetly vehicle icons.
+* Rotate according to travel direction.
+* Smooth interpolation between GPS updates.
+* No snapping or jitter.
+* Soft shadow beneath each vehicle.
+
+Camera
+
+* Smooth zoom transitions.
+* Animated pan.
+* Navigation mode tilts camera to approximately 60°.
+* Auto-rotate in travel direction.
+* Ease-in/ease-out animations.
+
+UI Theme
+
+* Floating glassmorphism controls.
+* Frosted white panels.
+* Rounded corners (20–28 px).
+* Soft shadows.
+* Apple-style typography.
+* Minimalist interface with generous spacing.
+
+Dark Mode
+
+Automatically switch to:
+
+mapbox://styles/mapbox/navigation-night-v1
+
+Maintain the same premium design language with deep charcoal backgrounds, muted roads, and high-contrast route lines.
+
+Performance
+
+* GPU-accelerated vector rendering.
+* 60 FPS animations.
+* Smooth pinch, rotate, tilt, and zoom gestures.
+* Retina-ready on iPhone, Android, tablets, and desktop.
+
+Overall Goal: The map should feel luxurious, modern, uncluttered, and instantly recognizable as a high-end ride-hailing navigation experience comparable to Uber, Bolt, Apple Maps, and Lyft.

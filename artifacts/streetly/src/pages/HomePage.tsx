@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useSeo } from "@/hooks/useSeo";
 import { motion } from "framer-motion";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -162,6 +163,12 @@ export default function HomePage() {
   const { data: categories } = useListCategories();
   const { data: featuredBusinesses } = useGetFeaturedBusinesses();
   const { data: latestProperties } = useLatestProperties();
+
+  useSeo({
+    title: "Streetly — Discover Every Business, Every Street",
+    description: "Find local businesses near you on Streetly — the world's street-by-street business discovery platform. Browse shops, restaurants, services and more.",
+    canonicalPath: "/",
+  });
 
   return (
     <Layout>

@@ -114,6 +114,10 @@ router.post("/", requireAuth, async (req, res) => {
     );
   }
 
+  import("../lib/notifyAdmins.js").then(({ notifyAdmins }) => {
+    notifyAdmins("🏠 New Property", `"${prop.title}" submitted for review`, { url: "/admin" }).catch(() => {});
+  }).catch(() => {});
+
   const enriched = await enrichProperty(prop);
   return res.status(201).json(enriched);
 });

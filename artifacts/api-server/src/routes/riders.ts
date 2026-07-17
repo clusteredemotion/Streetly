@@ -64,6 +64,10 @@ router.post("/apply", async (req, res) => {
 
   await db.update(usersTable).set({ role: "delivery_rider" }).where(eq(usersTable.id, userId));
 
+  import("../lib/notifyAdmins.js").then(({ notifyAdmins }) => {
+    notifyAdmins("🛵 New Rider", `${fullName} applied to be a delivery rider`, { url: "/admin" }).catch(() => {});
+  }).catch(() => {});
+
   const enriched = await enrichRider(rider);
   return res.status(201).json(enriched);
 });

@@ -19,6 +19,14 @@ const MAP_STYLES: Array<{
   previewAccent: string;
 }> = [
   {
+    key: "navigation",
+    label: "Navigation (Default)",
+    emoji: "🧭",
+    description: "Premium Apple Maps-inspired — clean off-white, aqua water, minimal roads",
+    previewColor: "#f2efea",
+    previewAccent: "#b0a898",
+  },
+  {
     key: "explore",
     label: "Voyager",
     emoji: "🗺",
@@ -82,14 +90,6 @@ const MAP_STYLES: Array<{
     previewColor: "#0d2d4a",
     previewAccent: "#1a9ed8",
   },
-  {
-    key: "alidade",
-    label: "Alidade Smooth",
-    emoji: "🎨",
-    description: "Stadia's refined muted style — elegant and minimal",
-    previewColor: "#f0ede8",
-    previewAccent: "#9e8c7a",
-  },
 ];
 
 function useAdminSettings() {
@@ -127,7 +127,7 @@ export default function AdminMapStylePanel() {
   const saveStyle = useSaveMapStyle();
   const [saved, setSaved] = useState<string | null>(null);
 
-  const current = settings?.default_map_style ?? "explore";
+  const current = settings?.default_map_style ?? "navigation";
 
   const handleSelect = async (key: string) => {
     await saveStyle.mutateAsync(key);

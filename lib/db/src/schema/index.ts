@@ -16,3 +16,5 @@ export * from "./referrals";
 export * from "./chat";
 export * from "./properties";
 export * from "./push";
+export * from "./notifications";
+export * from "./userFeatures";
