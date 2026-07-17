@@ -717,25 +717,38 @@ export function HomeMapView() {
     if (!("speechSynthesis" in window)) return;
     const pick = () => {
       const voices = window.speechSynthesis.getVoices();
+      if (!voices.length) return false;
       const female = voices.find(v =>
         /samantha|karen|victoria|fiona|moira|tessa|zira|hazel|susan|helen|female/i.test(v.name) &&
         /en/i.test(v.lang)
       ) ?? voices.find(v => /en/i.test(v.lang)) ?? voices[0] ?? null;
       voiceRef.current = female;
+      return true;
     };
-    pick();
-    window.speechSynthesis.onvoiceschanged = pick;
+    if (!pick()) {
+      // Polling fallback — Android WebView may never fire onvoiceschanged
+      const timer = setInterval(() => { if (pick()) clearInterval(timer); }, 250);
+      const giveUp = setTimeout(() => clearInterval(timer), 8000);
+      window.speechSynthesis.onvoiceschanged = () => { pick(); };
+      return () => { clearInterval(timer); clearTimeout(giveUp); };
+    }
+    window.speechSynthesis.onvoiceschanged = () => pick();
   }, []);
 
   function speak(text: string) {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice  = voiceRef.current;
-    u.rate   = 0.92;
-    u.pitch  = 1.1;
-    u.volume = 1;
-    window.speechSynthesis.speak(u);
+    try {
+      window.speechSynthesis.cancel();
+      // Android WebView quirk: synthesis queue can get stuck in paused state
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang   = "en-US";
+      if (voiceRef.current) u.voice = voiceRef.current;
+      u.rate   = 0.92;
+      u.pitch  = 1.1;
+      u.volume = 1;
+      window.speechSynthesis.speak(u);
+    } catch {}
   }
 
   function buildInstruction(step: any): string {
