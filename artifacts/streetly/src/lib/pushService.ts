@@ -54,7 +54,10 @@ export async function subscribeWebPush(): Promise<void> {
 export async function registerFcmDevice(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
-    await PushNotifications.register();
+    // IMPORTANT: Add ALL listeners BEFORE calling register().
+    // Capacitor fires the `registration` event synchronously on some Android
+    // versions — if the listener isn't attached first the token is lost and
+    // push notifications never reach this device.
     PushNotifications.addListener("registration", async (token) => {
       await fetch(`${BASE}/api/push/device-token`, {
         method: "POST",
@@ -72,6 +75,9 @@ export async function registerFcmDevice(): Promise<void> {
       const url = (action.notification.data as Record<string, unknown>)?.url as string | undefined;
       if (url) window.location.href = url;
     });
+
+    // Register AFTER all listeners are in place
+    await PushNotifications.register();
   } catch (err) {
     console.warn("[push] FCM device register failed:", err);
   }
