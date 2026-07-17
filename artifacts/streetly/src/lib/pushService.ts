@@ -1,8 +1,11 @@
 import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { getApiBase } from "@/lib/utils";
+import { playNotificationSound } from "@/lib/notificationSound";
 
 const BASE = getApiBase();
+
+let _lastFcmToken: string | null = null;
 
 export async function getVapidPublicKey(): Promise<string | null> {
   try {
@@ -40,9 +43,13 @@ export async function subscribeWebPush(): Promise<void> {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       }));
+    const authToken = localStorage.getItem("streetly_token");
     await fetch(`${BASE}/api/push/web-subscribe`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
       body: JSON.stringify(sub.toJSON()),
     });
   } catch (err) {
@@ -50,27 +57,63 @@ export async function subscribeWebPush(): Promise<void> {
   }
 }
 
+/** Send the stored FCM token (again) with the current auth token — call after login. */
+export async function reRegisterFcmToken(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  if (!_lastFcmToken) return;
+  const authToken = localStorage.getItem("streetly_token");
+  if (!authToken) return;
+  try {
+    await fetch(`${BASE}/api/push/device-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ token: _lastFcmToken, platform: "android" }),
+    });
+  } catch {}
+}
+
 /** Register this Android device for FCM push. No-op on web. */
 export async function registerFcmDevice(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
+    // Create the notification channel that notifyUser sends to.
+    // Must be created before any notification arrives so Android can play sound.
+    await PushNotifications.createChannel({
+      id: "agent_alerts",
+      name: "Chat & Alerts",
+      description: "Streetly chat messages and important alerts",
+      sound: "default",
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+    }).catch(() => {});
+
     // IMPORTANT: Add ALL listeners BEFORE calling register().
-    // Capacitor fires the `registration` event synchronously on some Android
-    // versions — if the listener isn't attached first the token is lost and
-    // push notifications never reach this device.
     PushNotifications.addListener("registration", async (token) => {
+      _lastFcmToken = token.value;
+      const authToken = localStorage.getItem("streetly_token");
       await fetch(`${BASE}/api/push/device-token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({ token: token.value, platform: "android" }),
       }).catch(() => {});
     });
+
     PushNotifications.addListener("registrationError", (err) => {
       console.warn("[push] FCM registration error:", err);
     });
-    PushNotifications.addListener("pushNotificationReceived", (n) => {
-      console.log("[push] foreground:", n);
+
+    // Play sound when a push arrives while the app is in the foreground
+    PushNotifications.addListener("pushNotificationReceived", (_n) => {
+      playNotificationSound();
     });
+
     PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const url = (action.notification.data as Record<string, unknown>)?.url as string | undefined;
       if (url) window.location.href = url;
