@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useLogin } from "@workspace/api-client-react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { MapPin } from "lucide-react";
+import { reRegisterFcmToken } from "@/lib/pushService";
 
 function navigateForRole(role: string, navigate: (path: string) => void) {
   if (role === "field_agent") navigate("/agent-dashboard");
@@ -32,6 +33,7 @@ export default function LoginPage() {
       const result = await loginMutation.mutateAsync({ data: { email, password } });
       localStorage.setItem("streetly_token", result.token);
       setAuthTokenGetter(() => localStorage.getItem("streetly_token"));
+      reRegisterFcmToken().catch(() => {});
       if (result.user.mustChangePassword) {
         navigate("/change-password");
         return;
