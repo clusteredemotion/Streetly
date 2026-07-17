@@ -5,8 +5,10 @@ function getCtx(): AudioContext | null {
   const AC = (window as any).AudioContext ?? (window as any).webkitAudioContext;
   if (!AC) return null;
   if (!_ctx) { try { _ctx = new AC(); } catch { return null; } }
-  if (_ctx.state === "suspended") _ctx.resume().catch(() => {});
-  return _ctx;
+  const ctx = _ctx;
+  if (!ctx) return null;
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  return ctx;
 }
 
 export function playNotificationSound(): void {
@@ -44,8 +46,7 @@ export function showBrowserNotification(title: string, body: string): void {
       body,
       icon: "/icons/icon-192x192.png",
       tag: "streetly-chat",
-      renotify: true,
-    });
+    } as NotificationOptions);
     setTimeout(() => n.close(), 6000);
   } catch {}
 }
