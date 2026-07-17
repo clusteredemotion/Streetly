@@ -3,6 +3,7 @@ import { Send, Loader2, User as UserIcon, Building2, ShieldCheck } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, getApiBase } from "@/lib/utils";
+import { playNotificationSound, showBrowserNotification } from "@/lib/notificationSound";
 
 const BASE = getApiBase();
 
@@ -63,10 +64,9 @@ export function GuestChatPanel({ guestToken, guestName, onClose }: GuestChatPane
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [otherTyping, setOtherTyping] = useState<{ isTyping: boolean; label: string | null }>({ isTyping: false, label: null });
-  // Direct ref to scrollable div — scrollIntoView doesn't work inside custom scroll areas
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  // Throttle typing signals: send at most once per 2 s
   const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevMsgIdsRef = useRef<Set<number> | null>(null);
 
   const fetchAll = async () => {
     try {
@@ -76,7 +76,23 @@ export function GuestChatPanel({ guestToken, guestName, onClose }: GuestChatPane
       if (res.ok) {
         const data = await res.json();
         setMeta(data.conversation);
-        setMessages(data.messages ?? []);
+        const msgs: Message[] = data.messages ?? [];
+        setMessages(msgs);
+        if (prevMsgIdsRef.current === null) {
+          prevMsgIdsRef.current = new Set(msgs.map(m => m.id));
+        } else {
+          const newFromOther = msgs.filter(
+            m => !prevMsgIdsRef.current!.has(m.id) && m.senderRole !== "customer"
+          );
+          if (newFromOther.length > 0) {
+            playNotificationSound();
+            showBrowserNotification(
+              "New message from Streetly",
+              newFromOther[newFromOther.length - 1].body
+            );
+          }
+          prevMsgIdsRef.current = new Set(msgs.map(m => m.id));
+        }
         setError(null);
       } else {
         setError("Could not load conversation.");
