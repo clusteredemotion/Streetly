@@ -1,87 +1,75 @@
-import { useState, useEffect, useCallback } from "react";
-import { apiGetNotifLogs, apiRegisterDeviceToken, clearToken, type NotifLog } from "../lib/api";
+import { useState, type ReactElement } from "react";
+import { clearToken } from "../lib/api";
+import FeedSection from "./sections/FeedSection";
+import BusinessesSection from "./sections/BusinessesSection";
+import UsersSection from "./sections/UsersSection";
+import ChatsSection from "./sections/ChatsSection";
+import RidersSection from "./sections/RidersSection";
+
+type Tab = "feed" | "businesses" | "users" | "chats" | "riders";
+
+const TABS: { id: Tab; label: string; icon: (active: boolean) => ReactElement }[] = [
+  {
+    id: "feed",
+    label: "Feed",
+    icon: (active) => (
+      <svg className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-500"}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+      </svg>
+    ),
+  },
+  {
+    id: "businesses",
+    label: "Businesses",
+    icon: (active) => (
+      <svg className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-500"}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.016 3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72" />
+      </svg>
+    ),
+  },
+  {
+    id: "users",
+    label: "Users",
+    icon: (active) => (
+      <svg className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-500"}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+      </svg>
+    ),
+  },
+  {
+    id: "chats",
+    label: "Chats",
+    icon: (active) => (
+      <svg className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-500"}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+      </svg>
+    ),
+  },
+  {
+    id: "riders",
+    label: "Riders",
+    icon: (active) => (
+      <svg className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-500"}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+      </svg>
+    ),
+  },
+];
+
+const SECTION_TITLES: Record<Tab, string> = {
+  feed: "Activity Feed",
+  businesses: "Businesses",
+  users: "Users",
+  chats: "Chats",
+  riders: "Riders",
+};
 
 interface Props {
   onLogout: () => void;
 }
 
-const EVENT_COLORS: Record<string, string> = {
-  "New User": "#22c55e",
-  "New Business": "#3b82f6",
-  "New Rider": "#f59e0b",
-  "New Property": "#8b5cf6",
-  "New Message": "#ec4899",
-  "Withdrawal": "#f97316",
-  "KYC": "#06b6d4",
-};
-
-function dotColor(title: string): string {
-  for (const [key, color] of Object.entries(EVENT_COLORS)) {
-    if (title.includes(key)) return color;
-  }
-  return "#94a3b8";
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
 export default function HomePage({ onLogout }: Props) {
-  const [logs, setLogs] = useState<NotifLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      const data = await apiGetNotifLogs();
-      setLogs(data);
-      setError("");
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 30_000);
-    return () => clearInterval(interval);
-  }, [fetchLogs]);
-
-  useEffect(() => {
-    registerPush();
-  }, []);
-
-  async function registerPush() {
-    try {
-      const { PushNotifications } = await import("@capacitor/push-notifications");
-      const perm = await PushNotifications.requestPermissions();
-      if (perm.receive !== "granted") return;
-      await PushNotifications.register();
-
-      PushNotifications.addListener("registration", async (token) => {
-        await apiRegisterDeviceToken(token.value, "android").catch(() => {});
-      });
-
-      PushNotifications.addListener("registrationError", (err) => {
-        console.warn("[FCM] registration error:", err.error);
-      });
-
-      PushNotifications.addListener("pushNotificationReceived", (_notif) => {
-        fetchLogs();
-      });
-    } catch {
-      // not in a Capacitor context (web preview)
-    }
-  }
+  const [activeTab, setActiveTab] = useState<Tab>("feed");
 
   function handleLogout() {
     clearToken();
@@ -90,7 +78,8 @@ export default function HomePage({ onLogout }: Props) {
 
   return (
     <div className="flex flex-col min-h-dvh bg-[#0a0f1e]">
-      <header className="flex items-center justify-between px-5 pt-safe-top pt-4 pb-4 border-b border-white/5">
+      {/* Header */}
+      <header className="flex items-center justify-between px-5 pt-safe-top pt-4 pb-4 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
             <svg viewBox="0 0 24 24" fill="none" className="w-4.5 h-4.5 text-white" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -100,7 +89,7 @@ export default function HomePage({ onLogout }: Props) {
           </div>
           <div>
             <p className="text-white font-semibold text-sm leading-none">Streetly Admin</p>
-            <p className="text-slate-500 text-[10px] mt-0.5">Activity Feed</p>
+            <p className="text-slate-500 text-[10px] mt-0.5">{SECTION_TITLES[activeTab]}</p>
           </div>
         </div>
         <button
@@ -111,60 +100,46 @@ export default function HomePage({ onLogout }: Props) {
         </button>
       </header>
 
-      <div className="flex items-center justify-between px-5 py-3">
-        <h2 className="text-slate-300 text-sm font-medium">Recent Alerts</h2>
-        <button
-          onClick={fetchLogs}
-          className="text-blue-400 text-xs hover:text-blue-300 transition-colors"
-        >
-          Refresh
-        </button>
+      {/* Main content — one section visible at a time */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full" style={{ display: activeTab === "feed" ? "flex" : "none", flexDirection: "column" }}>
+          <FeedSection onNavigate={(tab) => setActiveTab(tab as Tab)} />
+        </div>
+        <div className="h-full" style={{ display: activeTab === "businesses" ? "flex" : "none", flexDirection: "column" }}>
+          <BusinessesSection />
+        </div>
+        <div className="h-full" style={{ display: activeTab === "users" ? "flex" : "none", flexDirection: "column" }}>
+          <UsersSection />
+        </div>
+        <div className="h-full" style={{ display: activeTab === "chats" ? "flex" : "none", flexDirection: "column" }}>
+          <ChatsSection />
+        </div>
+        <div className="h-full" style={{ display: activeTab === "riders" ? "flex" : "none", flexDirection: "column" }}>
+          <RidersSection />
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-2">
-        {loading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-7 h-7 rounded-full border-[3px] border-blue-500/20 border-t-blue-400 spin-slow" />
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && logs.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-600">
-            <svg className="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-            </svg>
-            <p className="text-sm">No alerts yet</p>
-          </div>
-        )}
-
-        {logs.map((log) => (
-          <div
-            key={log.id}
-            className="flex items-start gap-3 px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.06] transition-colors animate-fade-in"
-          >
-            <span
-              className="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: dotColor(log.title) }}
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium leading-snug truncate">{log.title}</p>
-              <p className="text-slate-400 text-xs mt-0.5 leading-snug line-clamp-2">{log.body}</p>
-              <div className="flex items-center gap-3 mt-1.5">
-                <span className="text-slate-600 text-[10px]">{timeAgo(log.sentAt)}</span>
-                {log.fcmSent > 0 && (
-                  <span className="text-blue-500/60 text-[10px]">📱 {log.fcmSent} device{log.fcmSent !== 1 ? "s" : ""}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Bottom Tab Bar */}
+      <nav className="shrink-0 border-t border-white/5 bg-[#0a0f1e] pb-safe-bottom">
+        <div className="flex">
+          {TABS.map(tab => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-all active:opacity-60 ${active ? "opacity-100" : "opacity-70"}`}
+              >
+                {tab.icon(active)}
+                <span className={`text-[10px] font-medium leading-none ${active ? "text-blue-400" : "text-slate-500"}`}>
+                  {tab.label}
+                </span>
+                {active && <span className="w-1 h-1 rounded-full bg-blue-400" />}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
